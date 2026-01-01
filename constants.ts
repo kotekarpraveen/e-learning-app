@@ -4,7 +4,7 @@ import { Course, User } from './types';
 export const MOCK_USER_STUDENT: User = {
   id: 's1',
   name: 'Alex Johnson',
-  email: 'student@lumina.com',
+  email: 'student@alego.com',
   role: 'student',
   avatar: 'https://picsum.photos/id/64/200/200'
 };
@@ -12,7 +12,7 @@ export const MOCK_USER_STUDENT: User = {
 export const MOCK_USER_ADMIN: User = {
   id: 'a1',
   name: 'Sarah Connor',
-  email: 'admin@lumina.com',
+  email: 'admin@alego.com',
   role: 'admin',
   avatar: 'https://picsum.photos/id/65/200/200'
 };

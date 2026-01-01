@@ -11,8 +11,8 @@ import { CoursePlayer } from './pages/CoursePlayer';
 import { Settings } from './pages/Settings';
 import { Billing } from './pages/Billing';
 import { AdminStudents } from './pages/AdminStudents';
-import { AdminAnalytics } from './pages/AdminAnalytics'; // Added import
-import { LandingPage } from './pages/LandingPage';
+import { AdminAnalytics } from './pages/AdminAnalytics'; 
+import { LandingPage } from './pages/LandingPage'; 
 import { Layout } from './components/Layout';
 import { MOCK_USER_STUDENT, MOCK_USER_ADMIN } from './constants';
 import { User, UserRole } from './types';
@@ -59,7 +59,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // 1. Check if Supabase is actually configured with keys
     if (!isSupabaseConfigured()) {
        // Fallback to local storage mock auth
-       const stored = localStorage.getItem('lumina_user');
+       const stored = localStorage.getItem('alego_user');
        if (stored) setUser(JSON.parse(stored));
        setLoading(false);
        return;
@@ -99,7 +99,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (!isSupabaseConfigured()) {
         const mockUser = role === 'admin' ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
         setUser(mockUser);
-        localStorage.setItem('lumina_user', JSON.stringify(mockUser));
+        localStorage.setItem('alego_user', JSON.stringify(mockUser));
         return;
     }
   };
@@ -108,7 +108,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (isSupabaseConfigured()) {
         await supabase.auth.signOut();
     } else {
-        localStorage.removeItem('lumina_user');
+        localStorage.removeItem('alego_user');
         setUser(null);
     }
   };

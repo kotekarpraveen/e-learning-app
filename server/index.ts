@@ -1,3 +1,4 @@
+
 /**
  * NOTE: This is the Backend logic for the project. 
  * Since this is a browser-based demo, this file is provided as a reference implementation
@@ -90,7 +91,7 @@ app.post('/api/courses', authenticateToken, requireAdmin, (req: Request, res: Re
 // Admin: Upload Content (Stub for S3/Upload)
 app.post('/api/upload', authenticateToken, requireAdmin, (req: Request, res: Response) => {
   // Use multer for file handling here
-  res.json({ url: 'https://cdn.lumina.com/uploads/video1.mp4' });
+  res.json({ url: 'https://cdn.alego.com/uploads/video1.mp4' });
 });
 
 app.listen(PORT, () => {
