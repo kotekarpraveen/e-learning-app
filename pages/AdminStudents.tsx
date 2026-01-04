@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Filter, MoreVertical, Download, Mail, 
-  UserX, CheckCircle, Clock, Shield, Users, UserCheck
+  UserX, CheckCircle, Clock, Shield, Users, UserCheck, X, Check, AlertCircle
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { api } from '../lib/api';
 
 // --- Mock Data ---
 const STUDENT_STATS = [
@@ -15,7 +17,7 @@ const STUDENT_STATS = [
   { label: 'Suspended', value: '12', change: '-1%', icon: <UserX className="text-red-600" size={24} />, bg: 'bg-red-50' },
 ];
 
-const STUDENTS_DATA = [
+const INITIAL_STUDENTS_DATA = [
   { id: '1', name: 'Alex Johnson', email: 'alex.j@example.com', enrolled: 3, progress: 75, status: 'Active', joined: 'Oct 24, 2023', avatar: 'https://i.pravatar.cc/150?u=1' },
   { id: '2', name: 'Sarah Connor', email: 'sarah.c@example.com', enrolled: 5, progress: 92, status: 'Active', joined: 'Sep 12, 2023', avatar: 'https://i.pravatar.cc/150?u=2' },
   { id: '3', name: 'Michael Chen', email: 'm.chen@example.com', enrolled: 2, progress: 30, status: 'Inactive', joined: 'Nov 05, 2023', avatar: 'https://i.pravatar.cc/150?u=3' },
@@ -25,19 +27,154 @@ const STUDENTS_DATA = [
   { id: '7', name: 'James Wilson', email: 'j.wilson@example.com', enrolled: 2, progress: 45, status: 'Inactive', joined: 'Oct 30, 2023', avatar: 'https://i.pravatar.cc/150?u=7' },
 ];
 
+// --- Toast Component ---
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: 20, scale: 0.9 }}
+    className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3 border ${
+        type === 'success' ? 'bg-white border-green-100' : 'bg-white border-red-100'
+    }`}
+  >
+    <div className={`p-2 rounded-full ${type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+      {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+    </div>
+    <div>
+        <h4 className="font-bold text-sm text-gray-900">{type === 'success' ? 'Success' : 'Error'}</h4>
+        <p className="text-gray-500 text-xs">{message}</p>
+    </div>
+    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-2">
+      <X size={16} />
+    </button>
+  </motion.div>
+);
+
+// --- Invite Modal Component ---
+const InviteStudentModal = ({ isOpen, onClose, onInvite }: { isOpen: boolean; onClose: () => void; onInvite: (name: string, email: string) => void }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        await onInvite(name, email);
+        setIsLoading(false);
+        setName('');
+        setEmail('');
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+            >
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 className="font-bold text-gray-900 text-lg">Invite New Student</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                    <p className="text-sm text-gray-500 mb-2">
+                        Enter the details below to send an invitation email. The student will be prompted to set a password upon joining.
+                    </p>
+                    <Input 
+                        label="Full Name" 
+                        placeholder="e.g. John Doe" 
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                    />
+                    <Input 
+                        label="Email Address" 
+                        type="email" 
+                        placeholder="john@example.com" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                    <div className="pt-4 flex justify-end gap-3">
+                        <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+                        <Button type="submit" isLoading={isLoading}>Send Invitation</Button>
+                    </div>
+                </form>
+            </motion.div>
+        </div>
+    );
+};
+
 export const AdminStudents: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [students, setStudents] = useState(INITIAL_STUDENTS_DATA);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
-  const filteredStudents = STUDENTS_DATA.filter(student => {
+  const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           student.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || student.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
+  const handleInvite = async (name: string, email: string) => {
+      const result = await api.createStudent({ name, email });
+      
+      if (result.success) {
+          // Add temporary mock entry
+          const newStudent = {
+              id: `temp_${Date.now()}`,
+              name: name,
+              email: email,
+              enrolled: 0,
+              progress: 0,
+              status: 'Active', // or 'Invited'
+              joined: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
+          };
+          setStudents([newStudent, ...students]);
+          setToast({ message: `Invitation sent to ${email}`, type: 'success' });
+          setIsInviteModalOpen(false);
+      } else {
+          setToast({ message: result.message, type: 'error' });
+      }
+      
+      setTimeout(() => setToast(null), 3000);
+  };
+
   return (
     <div className="space-y-8 pb-12">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
+      {/* Invite Modal */}
+      <AnimatePresence>
+        {isInviteModalOpen && (
+            <InviteStudentModal 
+                isOpen={isInviteModalOpen} 
+                onClose={() => setIsInviteModalOpen(false)} 
+                onInvite={handleInvite} 
+            />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
          <div>
@@ -48,7 +185,7 @@ export const AdminStudents: React.FC = () => {
              <Button variant="secondary" icon={<Download size={18} />}>
                 Export CSV
              </Button>
-             <Button variant="primary" icon={<Mail size={18} />}>
+             <Button variant="primary" icon={<Mail size={18} />} onClick={() => setIsInviteModalOpen(true)}>
                 Invite Student
              </Button>
          </div>

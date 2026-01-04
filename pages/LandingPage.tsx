@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   PlayCircle, Terminal, Mic, CheckCircle, ArrowRight, 
-  BookOpen, Code, Award, TrendingUp, Star, Users, Menu, X, Globe
+  BookOpen, Code, Award, TrendingUp, Star, Users, Menu, X, Globe,
+  Linkedin, Twitter
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -39,19 +40,19 @@ export const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white font-sans text-gray-900">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       
       {/* Navigation */}
-      <nav className="fixed w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
+      <nav className="fixed w-full bg-gray-50/80 backdrop-blur-md z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
             <div className="flex items-center cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg mr-3">
+              <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg mr-3">
                  <Globe className="text-white" size={24} />
               </div>
               <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 tracking-tight">
-                Alego World
+                Aelgo World
               </span>
             </div>
 
@@ -60,6 +61,7 @@ export const LandingPage: React.FC = () => {
               <button onClick={() => scrollToSection('features')} className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors">Features</button>
               <button onClick={() => scrollToSection('how-it-works')} className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors">How it Works</button>
               <button onClick={() => scrollToSection('courses')} className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors">Courses</button>
+              <button onClick={() => scrollToSection('team')} className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors">Team</button>
               <button onClick={() => scrollToSection('testimonials')} className="text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors">Stories</button>
             </div>
 
@@ -100,6 +102,7 @@ export const LandingPage: React.FC = () => {
             <button onClick={() => scrollToSection('features')} className="block w-full text-left py-2 font-medium text-gray-600">Features</button>
             <button onClick={() => scrollToSection('how-it-works')} className="block w-full text-left py-2 font-medium text-gray-600">How it Works</button>
             <button onClick={() => scrollToSection('courses')} className="block w-full text-left py-2 font-medium text-gray-600">Courses</button>
+            <button onClick={() => scrollToSection('team')} className="block w-full text-left py-2 font-medium text-gray-600">Team</button>
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
                <Button variant="secondary" onClick={() => navigate('/login')} className="w-full justify-center">Log In</Button>
                <Button onClick={() => navigate('/login')} className="w-full justify-center">Get Started</Button>
@@ -109,9 +112,9 @@ export const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary-100 rounded-full blur-3xl opacity-30 mix-blend-multiply animate-blob"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[500px] h-[500px] bg-purple-100 rounded-full blur-3xl opacity-30 mix-blend-multiply animate-blob animation-delay-2000"></div>
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-gray-50">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-secondary-300 rounded-full blur-3xl opacity-20 mix-blend-multiply animate-blob"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[500px] h-[500px] bg-primary-200 rounded-full blur-3xl opacity-30 mix-blend-multiply animate-blob animation-delay-2000"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto mb-12">
@@ -120,11 +123,11 @@ export const LandingPage: React.FC = () => {
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.6 }}
             >
-               <span className="inline-block py-1 px-3 rounded-full bg-primary-50 text-primary-700 text-sm font-bold tracking-wide mb-6 border border-primary-100">
+               <span className="inline-block py-1 px-3 rounded-full bg-secondary-100 text-secondary-800 text-sm font-bold tracking-wide mb-6 border border-secondary-200">
                  🚀 Launch your tech career today
                </span>
                <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight leading-tight mb-6">
-                 Learn. Build. Grow with <span className="text-primary-600">Alego World</span>
+                 Learn. Build. Grow with <span className="text-primary-500">Aelgo World</span>
                </h1>
                <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
                  Master the skills of tomorrow through interactive lessons, hands-on coding environments, and expert-led mentorship. Your journey to mastery starts here.
@@ -170,10 +173,10 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 bg-gray-50">
+      <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-base font-bold text-primary-600 tracking-wide uppercase">Why Choose Alego World</h2>
+            <h2 className="text-base font-bold text-primary-600 tracking-wide uppercase">Why Choose Aelgo World</h2>
             <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
               A Complete Learning Ecosystem
             </p>
@@ -193,9 +196,9 @@ export const LandingPage: React.FC = () => {
                 key={idx}
                 {...fadeInUp}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
+                className="bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
               >
-                <div className="w-14 h-14 bg-primary-50 rounded-xl flex items-center justify-center text-primary-600 mb-6">
+                <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center text-primary-600 mb-6">
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
@@ -207,7 +210,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-24 bg-white overflow-hidden">
+      <section id="how-it-works" className="py-24 bg-gray-50 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Your Path to Mastery</h2>
@@ -216,7 +219,7 @@ export const LandingPage: React.FC = () => {
 
           <div className="relative">
             {/* Connecting Line (Desktop) */}
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -translate-y-1/2 z-0"></div>
+            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2 z-0"></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
                {[
@@ -231,9 +234,9 @@ export const LandingPage: React.FC = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.2 }}
-                    className="bg-white p-6 text-center relative"
+                    className="bg-gray-50 p-6 text-center relative"
                  >
-                    <div className="w-20 h-20 mx-auto bg-white border-4 border-primary-50 rounded-full flex items-center justify-center text-primary-600 mb-6 relative shadow-sm z-10">
+                    <div className="w-20 h-20 mx-auto bg-white border-4 border-primary-100 rounded-full flex items-center justify-center text-primary-600 mb-6 relative shadow-sm z-10">
                        {item.icon}
                        <span className="absolute -top-2 -right-2 w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white">
                          {item.step}
@@ -249,7 +252,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Popular Courses */}
-      <section id="courses" className="py-24 bg-gray-50">
+      <section id="courses" className="py-24 bg-white">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-end mb-12">
                <div>
@@ -311,6 +314,84 @@ export const LandingPage: React.FC = () => {
          </div>
       </section>
 
+      {/* NEW: Team Section */}
+      <section id="team" className="py-24 bg-gray-50 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+           <div className="absolute top-20 -left-20 w-72 h-72 bg-secondary-200 rounded-full blur-3xl opacity-20"></div>
+           <div className="absolute bottom-20 -right-20 w-80 h-80 bg-primary-200 rounded-full blur-3xl opacity-20"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+           <div className="text-center mb-16">
+              <h2 className="text-base font-bold text-primary-600 tracking-wide uppercase">Our Experts</h2>
+              <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Meet the Minds Behind the Curriculum
+              </p>
+              <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Our content is crafted by industry veterans and academic leaders to ensure you get the best learning experience.
+              </p>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {/* Profile 1: Head of Content */}
+              <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true }}
+                 transition={{ delay: 0.1 }}
+                 className="flex flex-col md:flex-row items-center md:items-start gap-8 p-8 rounded-3xl bg-white border border-gray-100 shadow-xl shadow-gray-200/40 relative group hover:border-primary-200 transition-colors"
+              >
+                  <div className="w-32 h-32 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm relative group-hover:scale-105 transition-transform duration-500">
+                     <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Dr. Sarah Mitchell" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="text-center md:text-left flex-1">
+                     <div className="mb-2">
+                        <h3 className="text-xl font-bold text-gray-900">Dr. Sarah Mitchell</h3>
+                        <p className="text-primary-600 font-bold text-sm tracking-wide uppercase flex items-center justify-center md:justify-start gap-2">
+                          <Award size={16} /> Head of Content
+                        </p>
+                     </div>
+                     <p className="text-gray-500 leading-relaxed text-sm mb-4">
+                        Former CS Professor with 15 years of experience in EdTech. Sarah ensures every course meets rigorous academic standards while remaining practical for industry needs.
+                     </p>
+                     <div className="flex gap-3 justify-center md:justify-start">
+                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">Ph.D. Computer Science</span>
+                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">Ex-Google</span>
+                     </div>
+                  </div>
+              </motion.div>
+
+              {/* Profile 2: Lead Content Developer */}
+              <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true }}
+                 transition={{ delay: 0.2 }}
+                 className="flex flex-col md:flex-row items-center md:items-start gap-8 p-8 rounded-3xl bg-white border border-gray-100 shadow-xl shadow-gray-200/40 relative group hover:border-primary-200 transition-colors"
+              >
+                  <div className="w-32 h-32 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm relative group-hover:scale-105 transition-transform duration-500">
+                     <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="James Anderson" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="text-center md:text-left flex-1">
+                     <div className="mb-2">
+                        <h3 className="text-xl font-bold text-gray-900">James Anderson</h3>
+                        <p className="text-blue-600 font-bold text-sm tracking-wide uppercase flex items-center justify-center md:justify-start gap-2">
+                          <Code size={16} /> Lead Content Developer
+                        </p>
+                     </div>
+                     <p className="text-gray-500 leading-relaxed text-sm mb-4">
+                        Senior Full Stack Engineer turned educator. James builds the interactive coding environments and hands-on projects that bridge the gap between theory and real-world application.
+                     </p>
+                     <div className="flex gap-3 justify-center md:justify-start">
+                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">Full Stack Expert</span>
+                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">Open Source Contributor</span>
+                     </div>
+                  </div>
+              </motion.div>
+           </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
       <section id="testimonials" className="py-24 bg-white">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -318,7 +399,7 @@ export const LandingPage: React.FC = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                {[
-                 { name: "Sarah J.", role: "Frontend Developer", text: "Alego World changed my career trajectory. The interactive coding environments made learning React so much easier than watching static videos." },
+                 { name: "Sarah J.", role: "Frontend Developer", text: "Aelgo World changed my career trajectory. The interactive coding environments made learning React so much easier than watching static videos." },
                  { name: "Mark T.", role: "Data Analyst", text: "The Jupyter integration is a game changer. Being able to run Python code right in the lesson helped me grasp data science concepts faster." },
                  { name: "Elena R.", role: "UX Designer", text: "I love the community aspect. The quizzes and peer discussions helped me validate my learning and gain confidence." },
                ].map((t, i) => (
@@ -352,10 +433,10 @@ export const LandingPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                <div className="col-span-1 md:col-span-1">
                   <div className="flex items-center mb-6">
-                     <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-2">
+                     <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center mr-2">
                         <Globe className="text-white" size={18} />
                      </div>
-                     <span className="text-xl font-bold">Alego World</span>
+                     <span className="text-xl font-bold">Aelgo World</span>
                   </div>
                   <p className="text-gray-400 text-sm leading-relaxed">
                      Empowering the next generation of builders, creators, and innovators through world-class interactive education.
@@ -393,7 +474,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-               <p>&copy; 2025 Alego World Inc. All rights reserved.</p>
+               <p>&copy; 2025 Aelgo World Inc. All rights reserved.</p>
                <div className="flex space-x-6 mt-4 md:mt-0">
                   <a href="#" className="hover:text-white transition-colors">Twitter</a>
                   <a href="#" className="hover:text-white transition-colors">LinkedIn</a>

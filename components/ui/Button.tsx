@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { motion, HTMLMotionProps } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   icon?: React.ReactNode;
@@ -28,8 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variants = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-md hover:shadow-lg",
-    secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-500 shadow-sm",
+    primary: "bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-md hover:shadow-lg border border-transparent",
+    secondary: "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:ring-gray-300 shadow-sm",
+    accent: "bg-secondary-400 text-white hover:bg-secondary-500 focus:ring-secondary-300 shadow-md",
     ghost: "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900",
     danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-md",
   };

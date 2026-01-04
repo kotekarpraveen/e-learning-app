@@ -10,7 +10,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export const Login: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('student@alego.com');
+  const [email, setEmail] = useState('student@aelgo.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
   const [isAdminSetupError, setIsAdminSetupError] = useState(false);
@@ -213,7 +213,7 @@ export const Login: React.FC = () => {
                  placeholder="name@company.com"
                />
                {!isSupabaseConfigured() && !isSignUp && (
-                   <p className="text-xs text-gray-500 mt-2">Try: <b>student@alego.com</b> or <b>admin@alego.com</b></p>
+                   <p className="text-xs text-gray-500 mt-2">Try: <b>student@aelgo.com</b> or <b>admin@aelgo.com</b></p>
                )}
             </div>
 

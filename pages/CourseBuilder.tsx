@@ -7,7 +7,7 @@ import {
   Video, FileText, Mic, Terminal, ClipboardList, Trash2, 
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
-  Link2, Info, Code, CheckCircle, AlertCircle
+  Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -22,12 +22,14 @@ interface ModuleState {
   description: string;
   isExpanded: boolean;
   lessons: LessonState[];
+  isPodcast?: boolean; // New flag to distinguish podcast modules
 }
 
 interface LessonState {
   id: string;
   title: string;
   type: 'video' | 'reading' | 'quiz' | 'jupyter' | 'podcast';
+  contentId?: string; // Link to a ContentItem ID
 }
 
 interface ContentItem {
@@ -38,6 +40,12 @@ interface ContentItem {
   size: string;
   date: string;
   status: 'ready' | 'processing';
+  metadata?: {
+    url?: string;
+    description?: string;
+    starterCode?: string;
+    solutionCode?: string;
+  };
 }
 
 // --- Helper Components ---
@@ -116,7 +124,12 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                       fileName: 'Interactive Exercise',
                       size: 'Code',
                       date: new Date().toISOString().split('T')[0],
-                      status: 'ready'
+                      status: 'ready',
+                      metadata: {
+                          description: codeExercise.description,
+                          starterCode: codeExercise.starterCode,
+                          solutionCode: codeExercise.solutionCode
+                      }
                   });
               }, 800);
           }, 1000);
@@ -136,7 +149,10 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                    fileName: url,
                    size: 'Link',
                    date: new Date().toISOString().split('T')[0],
-                   status: 'ready'
+                   status: 'ready',
+                   metadata: {
+                       url: url
+                   }
                 });
             }, 800);
         }, 1000);
@@ -344,7 +360,14 @@ const InfoTab: React.FC<{ courseInfo: any, setCourseInfo: any }> = ({ courseInfo
                 <option value="Design">Design</option>
                 <option value="Business">Business</option>
                 <option value="Data Science">Data Science</option>
+                <option value="Audio Series">Audio Series (General Podcast)</option>
               </select>
+              {courseInfo.category === 'Audio Series' && (
+                  <div className="bg-purple-50 text-purple-700 p-3 rounded-lg text-sm flex items-start mt-2 border border-purple-100">
+                      <Headphones size={16} className="mt-0.5 mr-2 flex-shrink-0" />
+                      <p>Courses in this category will appear in the "Audio Series" widget on the Student Dashboard for all students.</p>
+                  </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty Level *</label>
@@ -399,176 +422,419 @@ const InfoTab: React.FC<{ courseInfo: any, setCourseInfo: any }> = ({ courseInfo
     </div>
 );
 
-const StructureTab: React.FC<{ modules: ModuleState[], setModules: any, addModule: any, deleteModule: any, toggleModule: any, addLesson: any }> = ({ 
-    modules, setModules, addModule, deleteModule, toggleModule, addLesson 
-}) => (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <div className="flex items-center space-x-2 mb-1">
-             <LayoutIcon className="text-primary-600" size={24} />
-             <h2 className="text-2xl font-bold text-gray-900">Course Structure</h2>
-          </div>
-          <p className="text-gray-500">Organize your course into modules and lessons.</p>
-        </div>
-        <Button onClick={addModule} icon={<Plus size={16} />}>Add Module</Button>
-      </div>
+const StructureTab: React.FC<{ 
+    modules: ModuleState[], 
+    setModules: any, 
+    addModule: any, 
+    deleteModule: any, 
+    toggleModule: any, 
+    addLesson: any,
+    contentLibrary: ContentItem[],
+    onOpenUpload: (type: any, lessonId: string, moduleId: string) => void,
+    isAudioSeries: boolean
+}> = ({ 
+    modules, setModules, addModule, deleteModule, toggleModule, addLesson, contentLibrary, onOpenUpload, isAudioSeries 
+}) => {
+    
+    // Filter out podcast module for main list, handle podcast separate
+    const standardModules = modules.filter(m => m.id !== 'podcast-module');
+    const podcastModule = modules.find(m => m.id === 'podcast-module');
 
-      <div className="space-y-4">
-        {modules.map((module, idx) => (
-          <motion.div 
-            key={module.id} 
-            layout 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="p-4 bg-gray-50 flex items-center gap-4 border-b border-gray-100">
-              <div className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-400 cursor-move hover:text-gray-600">
-                <GripVertical size={20} />
-              </div>
-              
-              <div className="flex-1">
-                 <div className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">
-                   Module {idx + 1}
-                 </div>
-                 <input 
-                   value={module.title}
-                   onChange={(e) => {
-                     const newModules = modules.map((m, i) => 
-                        i === idx ? { ...m, title: e.target.value } : m
-                     );
-                     setModules(newModules);
-                   }}
-                   className="font-semibold text-gray-900 bg-transparent border-none focus:ring-0 p-0 w-full text-lg placeholder-gray-400"
-                   placeholder="Module Title"
-                 />
-              </div>
+    const handleAddPodcastEpisode = () => {
+        if (!podcastModule) {
+            // Create Podcast Module if doesn't exist
+            setModules([...modules, {
+                id: 'podcast-module',
+                title: 'Audio Companion & Podcast',
+                description: 'Audio-only content for screen-off learning',
+                isExpanded: true,
+                isPodcast: true,
+                lessons: [{ id: `l${Date.now()}`, title: 'New Episode', type: 'podcast' }]
+            }]);
+        } else {
+            // Append to existing
+            setModules(modules.map(m => {
+                if (m.id === 'podcast-module') {
+                    return {
+                        ...m,
+                        lessons: [...m.lessons, { id: `l${Date.now()}`, title: 'New Episode', type: 'podcast' }]
+                    };
+                }
+                return m;
+            }));
+        }
+    };
 
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded border border-gray-200 mr-2">
-                   {module.lessons.length} Lessons
-                </span>
-                <button onClick={() => deleteModule(module.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
-                  <Trash2 size={18} />
-                </button>
-                <button onClick={() => toggleModule(module.id)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                  {module.isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-              </div>
+    const updatePodcastLesson = (lessonId: string, title: string) => {
+        setModules(modules.map(m => {
+            if (m.id === 'podcast-module') {
+                return {
+                    ...m,
+                    lessons: m.lessons.map(l => l.id === lessonId ? { ...l, title } : l)
+                };
+            }
+            return m;
+        }));
+    };
+
+    const deletePodcastLesson = (lessonId: string) => {
+        setModules(modules.map(m => {
+            if (m.id === 'podcast-module') {
+                return {
+                    ...m,
+                    lessons: m.lessons.filter(l => l.id !== lessonId)
+                };
+            }
+            return m;
+        }));
+    };
+
+    const getAvailableContent = (lessonType: string) => {
+        switch(lessonType) {
+            case 'video': return contentLibrary.filter(c => c.type === 'Video Content');
+            case 'reading': return contentLibrary.filter(c => c.type === 'Reading Material');
+            case 'podcast': return contentLibrary.filter(c => c.type === 'Podcast/Audio');
+            case 'jupyter': return contentLibrary.filter(c => c.type === 'Code Practice');
+            case 'quiz': return contentLibrary.filter(c => c.type === 'Quiz/Assessment');
+            default: return [];
+        }
+    };
+
+    return (
+    <div className="max-w-4xl mx-auto space-y-10">
+      
+      {/* SECTION 1: Standard Modules (Hidden if strictly audio series, or styled differently) */}
+      {!isAudioSeries && (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                <div className="flex items-center space-x-2 mb-1">
+                    <LayoutIcon className="text-primary-600" size={24} />
+                    <h2 className="text-2xl font-bold text-gray-900">Course Curriculum</h2>
+                </div>
+                <p className="text-gray-500">Organize your main video and reading content.</p>
+                </div>
+                <Button onClick={addModule} icon={<Plus size={16} />}>Add Module</Button>
             </div>
 
-            <AnimatePresence>
-              {module.isExpanded && (
+            <div className="space-y-4">
+                {standardModules.map((module, idx) => (
                 <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="p-6 space-y-4"
+                    key={module.id} 
+                    layout 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                 >
-                   <div>
-                     <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Description</label>
-                     <textarea 
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[60px] text-sm resize-none"
-                        placeholder="Brief overview of what this module covers..."
-                        value={module.description}
+                    <div className="p-4 bg-gray-50 flex items-center gap-4 border-b border-gray-100">
+                    <div className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-400 cursor-move hover:text-gray-600">
+                        <GripVertical size={20} />
+                    </div>
+                    
+                    <div className="flex-1">
+                        <div className="text-xs text-primary-600 font-bold uppercase tracking-wider mb-1">
+                        Module {idx + 1}
+                        </div>
+                        <input 
+                        value={module.title}
                         onChange={(e) => {
-                          const newModules = modules.map((m, i) => 
-                            i === idx ? { ...m, description: e.target.value } : m
-                          );
-                          setModules(newModules);
+                            const newModules = modules.map((m) => 
+                                m.id === module.id ? { ...m, title: e.target.value } : m
+                            );
+                            setModules(newModules);
                         }}
-                     />
-                   </div>
+                        className="font-semibold text-gray-900 bg-transparent border-none focus:ring-0 p-0 w-full text-lg placeholder-gray-400"
+                        placeholder="Module Title"
+                        />
+                    </div>
 
-                   <div className="mt-6 pt-4 border-t border-gray-100">
-                     <div className="flex justify-between items-center mb-4">
-                       <h4 className="font-bold text-gray-700 text-sm flex items-center"><BookOpen size={16} className="mr-2" /> Lessons</h4>
-                       <Button size="sm" variant="secondary" onClick={() => addLesson(module.id)} icon={<Plus size={14} />} className="text-xs h-8">
-                         Add Lesson
-                       </Button>
-                     </div>
-                     <div className="space-y-2">
-                       {module.lessons.map((lesson, lIdx) => (
-                         <div key={lesson.id} className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200 group hover:border-primary-200 transition-colors">
-                           <GripVertical className="text-gray-300 mr-3 cursor-move" size={16} />
-                           <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center mr-3 text-primary-600 shadow-sm">
-                             {lesson.type === 'video' && <Video size={16} />}
-                             {lesson.type === 'reading' && <FileText size={16} />}
-                             {lesson.type === 'quiz' && <HelpCircle size={16} />}
-                             {lesson.type === 'jupyter' && <Terminal size={16} />}
-                             {lesson.type === 'podcast' && <Mic size={16} />}
-                           </div>
-                           <input 
-                              value={lesson.title}
-                              onChange={(e) => {
-                                const newModules = modules.map(m => {
-                                    if(m.id === module.id) {
-                                        const newLessons = [...m.lessons];
-                                        newLessons[lIdx] = { ...newLessons[lIdx], title: e.target.value };
-                                        return { ...m, lessons: newLessons };
-                                    }
-                                    return m;
-                                });
-                                setModules(newModules);
-                              }}
-                              className="bg-transparent border-none focus:ring-0 text-sm font-medium text-gray-700 w-full placeholder-gray-400"
-                              placeholder="Lesson Title"
-                           />
-                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                              <select 
-                                className="text-xs border-none bg-transparent text-gray-500 focus:ring-0 mr-2 cursor-pointer hover:text-gray-900"
-                                value={lesson.type}
+                    <div className="flex items-center space-x-2">
+                        <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded border border-gray-200 mr-2">
+                        {module.lessons.length} Lessons
+                        </span>
+                        <button onClick={() => deleteModule(module.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                        <Trash2 size={18} />
+                        </button>
+                        <button onClick={() => toggleModule(module.id)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                        {module.isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
+                    </div>
+                    </div>
+
+                    <AnimatePresence>
+                    {module.isExpanded && (
+                        <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="p-6 space-y-4"
+                        >
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Description</label>
+                            <textarea 
+                                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[60px] text-sm resize-none"
+                                placeholder="Brief overview of what this module covers..."
+                                value={module.description}
                                 onChange={(e) => {
-                                    const newModules = modules.map(m => {
-                                        if(m.id === module.id) {
-                                            const newLessons = [...m.lessons];
-                                            newLessons[lIdx] = { ...newLessons[lIdx], type: e.target.value as any };
-                                            return { ...m, lessons: newLessons };
-                                        }
-                                        return m;
-                                    });
+                                    const newModules = modules.map((m) => 
+                                    m.id === module.id ? { ...m, description: e.target.value } : m
+                                    );
                                     setModules(newModules);
                                 }}
-                              >
-                                <option value="video">Video</option>
-                                <option value="reading">Reading</option>
-                                <option value="quiz">Quiz</option>
-                                <option value="jupyter">Code</option>
-                                <option value="podcast">Audio</option>
-                              </select>
-                              <button 
-                                onClick={() => {
-                                    const newModules = modules.map(m => {
-                                        if(m.id === module.id) {
-                                            return { ...m, lessons: m.lessons.filter(l => l.id !== lesson.id) };
-                                        }
-                                        return m;
-                                    });
-                                    setModules(newModules);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                           </div>
-                         </div>
-                       ))}
-                       {module.lessons.length === 0 && (
-                         <div className="text-sm text-gray-400 italic text-center py-6 border-2 border-dashed border-gray-100 rounded-lg bg-gray-50/50">
-                           No lessons yet. Click "Add Lesson" to start.
-                         </div>
-                       )}
-                     </div>
-                   </div>
+                            />
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-gray-100">
+                            <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-bold text-gray-700 text-sm flex items-center"><BookOpen size={16} className="mr-2" /> Lessons</h4>
+                            <Button size="sm" variant="secondary" onClick={() => addLesson(module.id)} icon={<Plus size={14} />} className="text-xs h-8">
+                                Add Lesson
+                            </Button>
+                            </div>
+                            <div className="space-y-3">
+                            {module.lessons.map((lesson, lIdx) => {
+                                const availableContent = getAvailableContent(lesson.type);
+                                
+                                return (
+                                <div key={lesson.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 group hover:border-primary-200 transition-colors shadow-sm">
+                                    <div className="flex items-center mb-3">
+                                        <GripVertical className="text-gray-300 mr-3 cursor-move" size={16} />
+                                        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center mr-3 shadow-sm flex-shrink-0 ${
+                                            lesson.type === 'podcast' 
+                                                ? 'bg-purple-100 text-purple-600 border-purple-200' 
+                                                : 'bg-white border-gray-200 text-primary-600'
+                                        }`}>
+                                            {lesson.type === 'video' && <Video size={16} />}
+                                            {lesson.type === 'reading' && <FileText size={16} />}
+                                            {lesson.type === 'quiz' && <HelpCircle size={16} />}
+                                            {lesson.type === 'jupyter' && <Terminal size={16} />}
+                                            {lesson.type === 'podcast' && <Mic size={16} />}
+                                        </div>
+                                        <input 
+                                            value={lesson.title}
+                                            onChange={(e) => {
+                                                const newModules = modules.map(m => {
+                                                    if(m.id === module.id) {
+                                                        const newLessons = [...m.lessons];
+                                                        newLessons[lIdx] = { ...newLessons[lIdx], title: e.target.value };
+                                                        return { ...m, lessons: newLessons };
+                                                    }
+                                                    return m;
+                                                });
+                                                setModules(newModules);
+                                            }}
+                                            className="bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-800 w-full placeholder-gray-400"
+                                            placeholder="Lesson Title"
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                const newModules = modules.map(m => {
+                                                    if(m.id === module.id) {
+                                                        return { ...m, lessons: m.lessons.filter(l => l.id !== lesson.id) };
+                                                    }
+                                                    return m;
+                                                });
+                                                setModules(newModules);
+                                            }}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-11">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Lesson Type</label>
+                                            <select 
+                                                className="w-full text-xs px-2 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 focus:ring-primary-500 focus:border-primary-500"
+                                                value={lesson.type}
+                                                onChange={(e) => {
+                                                    const newModules = modules.map(m => {
+                                                        if(m.id === module.id) {
+                                                            const newLessons = [...m.lessons];
+                                                            newLessons[lIdx] = { ...newLessons[lIdx], type: e.target.value as any, contentId: undefined };
+                                                            return { ...m, lessons: newLessons };
+                                                        }
+                                                        return m;
+                                                    });
+                                                    setModules(newModules);
+                                                }}
+                                            >
+                                                <option value="video">Video Lesson</option>
+                                                <option value="reading">Reading Material</option>
+                                                <option value="quiz">Quiz / Assessment</option>
+                                                <option value="jupyter">Code Practice</option>
+                                                <option value="podcast">Podcast / Audio</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center">
+                                                <LinkIcon size={12} className="mr-1" /> Linked Content
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    className={`w-full text-xs px-2 py-2 border rounded-lg bg-white focus:ring-primary-500 focus:border-primary-500 ${!lesson.contentId ? 'border-orange-300 text-orange-600' : 'border-gray-200 text-gray-600'}`}
+                                                    value={lesson.contentId || ""}
+                                                    onChange={(e) => {
+                                                        const newModules = modules.map(m => {
+                                                            if(m.id === module.id) {
+                                                                const newLessons = [...m.lessons];
+                                                                newLessons[lIdx] = { ...newLessons[lIdx], contentId: e.target.value };
+                                                                return { ...m, lessons: newLessons };
+                                                            }
+                                                            return m;
+                                                        });
+                                                        setModules(newModules);
+                                                    }}
+                                                >
+                                                    <option value="">-- Select {lesson.type} content --</option>
+                                                    {availableContent.map(content => (
+                                                        <option key={content.id} value={content.id}>
+                                                            {content.title}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {!lesson.contentId && availableContent.length === 0 && (
+                                                    <div className="text-[10px] text-orange-500 mt-1">
+                                                        No {lesson.type} uploaded yet. Go to 'Content' tab.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )})}
+                            {module.lessons.length === 0 && (
+                                <div className="text-sm text-gray-400 italic text-center py-6 border-2 border-dashed border-gray-100 rounded-lg bg-gray-50/50">
+                                No lessons yet. Click "Add Lesson" to start.
+                                </div>
+                            )}
+                            </div>
+                        </div>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
+                ))}
+            </div>
+        </div>
+      )}
+
+      {/* SECTION 2: Podcast & Audio Series */}
+      <div className={`space-y-6 ${!isAudioSeries ? 'pt-10 border-t border-gray-200' : ''}`}>
+        <div className="flex justify-between items-center mb-6">
+            <div>
+                <div className="flex items-center space-x-2 mb-1">
+                    <Headphones className="text-purple-600" size={24} />
+                    <h2 className="text-2xl font-bold text-gray-900">{isAudioSeries ? 'Audio Episodes' : 'Audio Companion Module'}</h2>
+                </div>
+                <p className="text-gray-500">
+                    {isAudioSeries 
+                        ? 'Manage your podcast episodes and audio content.' 
+                        : 'Create a specific audio-only module for this course (or for General Podcast series).'
+                    }
+                </p>
+            </div>
+            <Button 
+                onClick={handleAddPodcastEpisode} 
+                className="bg-purple-600 hover:bg-purple-700 text-white border-none" 
+                icon={<Mic size={16} />}
+            >
+                Add Episode
+            </Button>
+        </div>
+        
+        <div className="bg-purple-50 rounded-xl border border-purple-100 p-6">
+            {podcastModule && podcastModule.lessons.length > 0 ? (
+                <div className="space-y-3">
+                    {podcastModule.lessons.map((lesson) => (
+                        <motion.div 
+                            layout
+                            key={lesson.id} 
+                            className="bg-white rounded-lg p-4 flex items-center shadow-sm border border-purple-100 hover:border-purple-300 transition-colors"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mr-4 flex-shrink-0">
+                                <Play size={18} fill="currentColor" />
+                            </div>
+                            
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-purple-600 uppercase tracking-wide block mb-1">Episode Title</label>
+                                <input 
+                                    className="w-full font-medium text-gray-900 border-none bg-transparent p-0 focus:ring-0 placeholder-gray-400"
+                                    value={lesson.title}
+                                    placeholder="Enter episode title..."
+                                    onChange={(e) => updatePodcastLesson(lesson.id, e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-4 px-4 border-l border-gray-100 ml-4 w-1/3">
+                                <div className="text-right w-full">
+                                    <div className="text-xs text-gray-400 font-medium mb-1">Linked Audio File</div>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            className="text-sm font-semibold text-gray-700 border-none bg-gray-50 rounded-lg focus:ring-0 cursor-pointer w-full py-1"
+                                            value={lesson.contentId || ""}
+                                            onChange={(e) => {
+                                                const newModules = modules.map(m => {
+                                                    if (m.id === 'podcast-module') {
+                                                        return {
+                                                            ...m,
+                                                            lessons: m.lessons.map(l => l.id === lesson.id ? { ...l, contentId: e.target.value } : l)
+                                                        };
+                                                    }
+                                                    return m;
+                                                });
+                                                setModules(newModules);
+                                            }}
+                                        >
+                                            <option value="">Select File...</option>
+                                            {contentLibrary.filter(c => c.type === 'Podcast/Audio').map(c => (
+                                                <option key={c.id} value={c.id}>{c.title}</option>
+                                            ))}
+                                        </select>
+                                        <button 
+                                            onClick={() => onOpenUpload({ title: 'Podcast/Audio', icon: <Mic size={28} /> }, lesson.id, 'podcast-module')}
+                                            className="p-1.5 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                                            title="Upload Audio"
+                                        >
+                                            <Upload size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 pl-4">
+                                <button 
+                                    onClick={() => deletePodcastLesson(lesson.id)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-100 text-purple-300">
+                        <Music size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-purple-900 mb-2">No Audio Content Yet</h3>
+                    <p className="text-purple-700/70 max-w-sm mx-auto mb-6">Start building your audio series. Students love listening while commuting or exercising.</p>
+                    <Button 
+                        onClick={handleAddPodcastEpisode} 
+                        className="bg-white text-purple-700 border border-purple-200 hover:bg-purple-100"
+                    >
+                        Create First Episode
+                    </Button>
+                </div>
+            )}
+        </div>
       </div>
     </div>
-);
+    );
+};
 
 const ContentTab: React.FC<{ contentLibrary: ContentItem[], setActiveUploadType: any, handleDeleteContent: any }> = ({ 
     contentLibrary, setActiveUploadType, handleDeleteContent 
@@ -637,7 +903,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentItem[], setActiveUploadType:
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-4 font-medium text-gray-900 flex items-center max-w-sm">
                       <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mr-4 text-gray-500 flex-shrink-0 border border-gray-200 group-hover:bg-white group-hover:shadow-sm transition-all">
-                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' ? <Code size={18} /> : <File size={18} />}
+                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' ? <Code size={18} /> : item.type === 'Podcast/Audio' ? <Mic size={18} /> : <File size={18} />}
                       </div>
                       <div className="flex flex-col truncate">
                         <span className="truncate font-semibold text-gray-800" title={item.fileName || item.title}>
@@ -693,7 +959,8 @@ const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, 
          </div>
          <p className="text-gray-500">Fine-tune how your course behaves and who can access it.</p>
        </div>
-
+        
+        {/* Same Settings as before... */}
        {/* Visibility & Access */}
        <div className="space-y-6">
          <h3 className="font-bold text-gray-900 pb-2 flex items-center"><Eye size={18} className="mr-2 text-gray-400" /> Visibility & Access</h3>
@@ -771,46 +1038,6 @@ const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, 
              </div>
           </div>
        </div>
-
-       {/* Assessments */}
-       <div className="space-y-6 pt-6 border-t border-gray-100">
-         <h3 className="font-bold text-gray-900 pb-2 flex items-center"><ClipboardList size={18} className="mr-2 text-gray-400" /> Assessments & Certification</h3>
-         
-         <div>
-           <label className="block text-sm font-medium text-gray-700 mb-1">Certificate Type</label>
-           <select 
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
-              value={settings.certificateType}
-              onChange={e => setSettings({...settings, certificateType: e.target.value})}
-           >
-             <option value="Completion">Certificate of Completion</option>
-             <option value="Graded">Graded Certificate</option>
-             <option value="None">No Certificate</option>
-           </select>
-           <p className="text-xs text-gray-500 mt-1">Award certificates to successful students</p>
-         </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Passing Score (%)</label>
-              <Input 
-                 type="number"
-                 value={settings.passingScore}
-                 onChange={e => setSettings({...settings, passingScore: parseInt(e.target.value)})}
-              />
-              <p className="text-xs text-gray-500 mt-1">Minimum score to pass</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Quiz Attempts</label>
-              <Input 
-                 type="number"
-                 value={settings.quizAttempts}
-                 onChange={e => setSettings({...settings, quizAttempts: parseInt(e.target.value)})}
-              />
-              <p className="text-xs text-gray-500 mt-1">Maximum quiz retries</p>
-            </div>
-         </div>
-       </div>
     </div>
 );
 
@@ -821,6 +1048,9 @@ export const CourseBuilder: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  
+  // New state to track which lesson initiated the upload
+  const [activeLessonUpload, setActiveLessonUpload] = useState<{moduleId: string, lessonId: string} | null>(null);
   
   // --- Form State ---
   const [courseInfo, setCourseInfo] = useState({
@@ -890,12 +1120,31 @@ export const CourseBuilder: React.FC = () => {
         modules: modules.map(m => ({
             id: m.id,
             title: m.title,
-            lessons: m.lessons.map(l => ({
-                id: l.id,
-                title: l.title,
-                type: l.type,
-                completed: false
-            }))
+            lessons: m.lessons.map(l => {
+                // Resolve Content URL from Linked Library Item
+                let resolvedContentUrl = undefined;
+                if (l.contentId) {
+                    const contentItem = contentLibrary.find(c => c.id === l.contentId);
+                    if (contentItem) {
+                        if (contentItem.type === 'Video Content') {
+                            resolvedContentUrl = contentItem.metadata?.url || contentItem.fileName;
+                        } else if (contentItem.type === 'Code Practice') {
+                             // Store exercise data as JSON string for persistence
+                            resolvedContentUrl = JSON.stringify(contentItem.metadata);
+                        } else {
+                            resolvedContentUrl = contentItem.fileName;
+                        }
+                    }
+                }
+
+                return {
+                    id: l.id,
+                    title: l.title,
+                    type: l.type,
+                    completed: false,
+                    contentUrl: resolvedContentUrl
+                };
+            })
         }))
     };
 
@@ -910,7 +1159,6 @@ export const CourseBuilder: React.FC = () => {
   };
 
   const handlePublish = async () => {
-    // Re-use save logic for now, but in a real app this might flip a "published" boolean
     await handleSave();
     setTimeout(() => {
         setToast({ message: 'Course published to catalog!', type: 'success' });
@@ -953,14 +1201,50 @@ export const CourseBuilder: React.FC = () => {
 
   const handleUploadComplete = (newItem: ContentItem) => {
     setContentLibrary([newItem, ...contentLibrary]);
+    
+    // Auto-link to lesson if initiated from Structure tab
+    if (activeLessonUpload) {
+        setModules(prevModules => prevModules.map(m => {
+            if (m.id === activeLessonUpload.moduleId) {
+                return {
+                    ...m,
+                    lessons: m.lessons.map(l => 
+                        l.id === activeLessonUpload.lessonId 
+                            ? { ...l, contentId: newItem.id, title: l.title === 'New Episode' ? newItem.title : l.title } 
+                            : l
+                    )
+                };
+            }
+            return m;
+        }));
+        setToast({ message: `Uploaded & linked to lesson.`, type: 'success' });
+        setActiveLessonUpload(null);
+    } else {
+        setToast({ message: `${newItem.title} added to library.`, type: 'success' });
+    }
+    
     setActiveUploadType(null);
-    setToast({ message: `${newItem.title} added to library.`, type: 'success' });
   };
 
   const handleDeleteContent = (id: string) => {
     setContentLibrary(contentLibrary.filter(c => c.id !== id));
     setToast({ message: 'Item removed from library.', type: 'success' });
   };
+
+  const openUploadForLesson = (type: any, lessonId: string, moduleId: string) => {
+      setActiveLessonUpload({ lessonId, moduleId });
+      setActiveUploadType(type);
+  };
+
+  // Determine if audio series mode
+  const isAudioSeries = courseInfo.category === 'Audio Series';
+
+  // Automatically switch to Structure tab if audio series is selected and user clicks "Next" or similar workflow
+  useEffect(() => {
+     if(isAudioSeries && activeTab === 'info') {
+         // Could auto-switch or just highlight. For now, we update the UI inside StructureTab.
+     }
+  }, [isAudioSeries]);
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -1049,6 +1333,9 @@ export const CourseBuilder: React.FC = () => {
                     deleteModule={deleteModule} 
                     toggleModule={toggleModule} 
                     addLesson={addLesson} 
+                    contentLibrary={contentLibrary}
+                    onOpenUpload={openUploadForLesson}
+                    isAudioSeries={isAudioSeries}
                 />
             )}
             
@@ -1081,7 +1368,7 @@ export const CourseBuilder: React.FC = () => {
             {activeUploadType && (
                 <UploadModal 
                   type={activeUploadType} 
-                  onClose={() => setActiveUploadType(null)} 
+                  onClose={() => { setActiveUploadType(null); setActiveLessonUpload(null); }} 
                   onComplete={handleUploadComplete}
                 />
             )}

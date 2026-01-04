@@ -122,7 +122,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3 shadow-sm">
              <BookOpen className="text-white" size={18} />
           </div>
-          <span className="text-xl font-bold text-gray-800 tracking-tight">Alego World</span>
+          <span className="text-xl font-bold text-gray-800 tracking-tight">Aelgo World</span>
         </div>
 
         {/* Navigation Items */}
@@ -198,7 +198,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <Menu size={24} />
           </button>
-          <span className="ml-4 font-bold text-gray-900">Alego World</span>
+          <span className="ml-4 font-bold text-gray-900">Aelgo World</span>
         </div>
 
         {/* Scrollable Page Content */}

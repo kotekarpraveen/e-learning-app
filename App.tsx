@@ -59,7 +59,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // 1. Check if Supabase is actually configured with keys
     if (!isSupabaseConfigured()) {
        // Fallback to local storage mock auth
-       const stored = localStorage.getItem('alego_user');
+       const stored = localStorage.getItem('aelgo_user');
        if (stored) setUser(JSON.parse(stored));
        setLoading(false);
        return;
@@ -99,7 +99,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (!isSupabaseConfigured()) {
         const mockUser = role === 'admin' ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
         setUser(mockUser);
-        localStorage.setItem('alego_user', JSON.stringify(mockUser));
+        localStorage.setItem('aelgo_user', JSON.stringify(mockUser));
         return;
     }
   };
@@ -108,7 +108,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (isSupabaseConfigured()) {
         await supabase.auth.signOut();
     } else {
-        localStorage.removeItem('alego_user');
+        localStorage.removeItem('aelgo_user');
         setUser(null);
     }
   };

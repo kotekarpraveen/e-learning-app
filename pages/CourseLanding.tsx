@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   Clock, BarChart, BookOpen, CheckCircle, 
   PlayCircle, Lock, ChevronDown, ChevronUp, Award,
-  Users, Loader2, AlertTriangle
+  Users, Loader2, AlertTriangle, Mic, FileText, Terminal, HelpCircle, Headphones
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { Course } from '../types';
@@ -65,6 +65,17 @@ export const CourseLanding: React.FC = () => {
     setIsEnrolling(false);
   };
 
+  const getLessonIcon = (type: string) => {
+    switch (type) {
+        case 'video': return <PlayCircle size={16} className="mr-3 text-gray-400" />;
+        case 'podcast': return <Mic size={16} className="mr-3 text-purple-500" />;
+        case 'reading': return <FileText size={16} className="mr-3 text-blue-400" />;
+        case 'quiz': return <HelpCircle size={16} className="mr-3 text-orange-400" />;
+        case 'jupyter': return <Terminal size={16} className="mr-3 text-gray-700" />;
+        default: return <PlayCircle size={16} className="mr-3 text-gray-400" />;
+    }
+  };
+
   if (isLoading) {
       return (
           <div className="min-h-[60vh] flex items-center justify-center">
@@ -83,6 +94,9 @@ export const CourseLanding: React.FC = () => {
         </div>
       );
   }
+
+  // Check for podcast content to display badge/icon
+  const hasPodcasts = course.modules.some(m => m.isPodcast || m.lessons.some(l => l.type === 'podcast'));
 
   return (
     <div className="-m-4 lg:-m-8">
@@ -165,16 +179,22 @@ export const CourseLanding: React.FC = () => {
                              course.modules.map((module) => (
                                 <div key={module.id} className="group">
                                     <button 
-                                        className="w-full px-6 py-4 flex items-center justify-between bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                                        className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
+                                            module.isPodcast || module.id === 'podcast-module' ? 'bg-purple-50/50 hover:bg-purple-50' : 'bg-gray-50/50 hover:bg-gray-50'
+                                        }`}
                                         onClick={() => setActiveModule(activeModule === module.id ? null : module.id)}
                                     >
                                         <div className="flex items-center gap-3">
                                             <span className={`transition-transform duration-200 ${activeModule === module.id ? 'rotate-180' : ''}`}>
-                                                <ChevronDown size={20} className="text-gray-500" />
+                                                <ChevronDown size={20} className={module.isPodcast ? "text-purple-500" : "text-gray-500"} />
                                             </span>
-                                            <span className="font-semibold text-gray-800">{module.title}</span>
+                                            <span className={`font-semibold ${module.isPodcast || module.id === 'podcast-module' ? 'text-purple-900' : 'text-gray-800'}`}>
+                                                {(module.isPodcast || module.id === 'podcast-module') ? '🎙️ ' : ''}{module.title}
+                                            </span>
                                         </div>
-                                        <span className="text-sm text-gray-500">{module.lessons.length} lessons</span>
+                                        <span className={`text-sm ${module.isPodcast ? 'text-purple-600' : 'text-gray-500'}`}>
+                                            {module.lessons.length} lessons
+                                        </span>
                                     </button>
                                     
                                     {activeModule === module.id && (
@@ -182,7 +202,7 @@ export const CourseLanding: React.FC = () => {
                                             {module.lessons.map((lesson) => (
                                                 <div key={lesson.id} className="flex items-center justify-between py-2 text-sm pl-9">
                                                     <div className="flex items-center text-gray-600">
-                                                        <PlayCircle size={16} className="mr-3 text-gray-400" />
+                                                        {getLessonIcon(lesson.type)}
                                                         {lesson.title}
                                                     </div>
                                                     <div className="flex items-center text-gray-400">
@@ -218,6 +238,9 @@ export const CourseLanding: React.FC = () => {
                     <ul className="space-y-4 text-sm text-gray-600">
                         <li className="flex items-center"><PlayCircle size={20} className="mr-3 text-primary-600" /> {course.totalModules * 5} hours on-demand video</li>
                         <li className="flex items-center"><BookOpen size={20} className="mr-3 text-primary-600" /> Downloadable resources</li>
+                        {hasPodcasts && (
+                             <li className="flex items-center"><Headphones size={20} className="mr-3 text-purple-600" /> Audio Series & Podcasts</li>
+                        )}
                         <li className="flex items-center"><BarChart size={20} className="mr-3 text-primary-600" /> Full lifetime access</li>
                         <li className="flex items-center"><CheckCircle size={20} className="mr-3 text-primary-600" /> Assignments</li>
                         <li className="flex items-center"><Award size={20} className="mr-3 text-primary-600" /> Certificate of completion</li>

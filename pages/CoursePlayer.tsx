@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
 import { Lesson, Course } from '../types';
 import { 
-  Play, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
-  ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle 
+  Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
+  ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
+  BookOpen, Headphones
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -66,6 +67,15 @@ export const CoursePlayer: React.FC = () => {
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   
+  // Audio Player State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // New State for Sidebar Tabs (Curriculum vs Audio)
+  const [sidebarTab, setSidebarTab] = useState<'curriculum' | 'audio'>('curriculum');
+  
   useEffect(() => {
     const fetchCourseAndProgress = async () => {
         if (!courseId) return;
@@ -89,6 +99,71 @@ export const CoursePlayer: React.FC = () => {
     };
     fetchCourseAndProgress();
   }, [courseId, user]);
+
+  // Audio Playback Effect: MediaSession & Source management
+  useEffect(() => {
+    if (currentLesson?.type === 'podcast' && currentLesson.contentUrl && audioRef.current) {
+        // Only update source if different to prevent reload on re-render
+        // Note: We use a key on the audio element to force re-mount if lesson changes, 
+        // but dealing with ref source is cleaner for SPA
+    }
+    
+    // Reset player state when lesson changes
+    if (currentLesson?.id) {
+        setIsPlaying(false);
+        setCurrentTime(0);
+    }
+  }, [currentLesson]);
+
+  // Handle Media Session API for background play
+  useEffect(() => {
+    if (currentLesson?.type === 'podcast' && 'mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentLesson.title,
+            artist: course?.instructor || 'Aelgo Learning',
+            album: course?.title || 'Audio Series',
+            artwork: [
+                { src: course?.thumbnail || '', sizes: '512x512', type: 'image/jpeg' }
+            ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+            audioRef.current?.play();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+            audioRef.current?.pause();
+        });
+        navigator.mediaSession.setActionHandler('seekbackward', () => {
+            if(audioRef.current) audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 10, 0);
+        });
+        navigator.mediaSession.setActionHandler('seekforward', () => {
+            if(audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 10, audioRef.current.duration);
+        });
+    }
+  }, [currentLesson, course]);
+
+  const toggleAudio = () => {
+      if (!audioRef.current) return;
+      if (isPlaying) {
+          audioRef.current.pause();
+      } else {
+          audioRef.current.play();
+      }
+  };
+
+  const handleTimeUpdate = () => {
+      if (audioRef.current) {
+          setCurrentTime(audioRef.current.currentTime);
+          setDuration(audioRef.current.duration);
+      }
+  };
+
+  const formatTime = (seconds: number) => {
+      if (!seconds) return "00:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   const toggleComplete = async (lessonId: string) => {
       if (!user) return;
@@ -138,11 +213,136 @@ export const CoursePlayer: React.FC = () => {
              ></iframe>
           </div>
         );
+      case 'podcast':
+        return (
+          <div className="max-w-3xl mx-auto space-y-8">
+             {/* Actual Hidden Audio Element for Background Play */}
+             <audio 
+                ref={audioRef}
+                src={currentLesson.contentUrl}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={() => {
+                    setIsPlaying(false);
+                    toggleComplete(currentLesson.id);
+                }}
+             />
+
+             {/* Podcast Player UI */}
+             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative">
+                {/* Header / Visualization */}
+                <div className="bg-gray-900 h-64 relative flex items-center justify-center overflow-hidden">
+                   {/* Abstract Background */}
+                   <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-gray-900 opacity-90"></div>
+                   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                   
+                   {/* Animated Waveform (Fake Visuals) */}
+                   <div className="absolute inset-x-0 bottom-0 h-32 flex items-end justify-center gap-1 opacity-20 pointer-events-none">
+                      {[...Array(30)].map((_, i) => (
+                          <motion.div 
+                             key={i}
+                             animate={isPlaying ? { height: [20, Math.random() * 100 + 20, 20] } : { height: 20 }}
+                             transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.05 }}
+                             className="w-2 bg-primary-400 rounded-t-full"
+                          />
+                      ))}
+                   </div>
+                   
+                   <div className="relative z-10 text-center px-6 flex flex-col items-center">
+                      <motion.div 
+                        animate={isPlaying ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-4 border border-white/20 shadow-lg"
+                      >
+                          <Mic className="text-white" size={32} />
+                      </motion.div>
+                      <h2 className="text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
+                      <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {formatTime(duration)}</p>
+                   </div>
+                </div>
+
+                {/* Player Controls */}
+                <div className="p-8">
+                   <div className="space-y-6">
+                      {/* Progress Bar */}
+                      <div 
+                        className="w-full bg-gray-100 rounded-full h-1.5 cursor-pointer group relative"
+                        onClick={(e) => {
+                            if (!audioRef.current) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const percentage = x / rect.width;
+                            audioRef.current.currentTime = percentage * audioRef.current.duration;
+                        }}
+                      >
+                         <div 
+                            className="bg-primary-500 h-full rounded-full relative group-hover:bg-primary-600 transition-colors"
+                            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                         >
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-primary-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                         </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-xs text-gray-500 font-mono font-medium">
+                         <span>{formatTime(currentTime)}</span>
+                         <span>{formatTime(duration)}</span>
+                      </div>
+
+                      {/* Main Buttons */}
+                      <div className="flex justify-center items-center gap-8">
+                         <button 
+                            className="text-gray-400 hover:text-primary-600 transition-colors" 
+                            title="Rewind 10s"
+                            onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 10; }}
+                         >
+                             <RefreshCw size={24} className="transform -scale-x-100" />
+                         </button>
+                         <button 
+                            onClick={toggleAudio}
+                            className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-500/40 hover:scale-105 hover:bg-primary-600 transition-all"
+                         >
+                            {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} className="ml-1" fill="currentColor" />}
+                         </button>
+                         <button 
+                            className="text-gray-400 hover:text-primary-600 transition-colors" 
+                            title="Forward 10s"
+                            onClick={() => { if(audioRef.current) audioRef.current.currentTime += 10; }}
+                         >
+                             <RefreshCw size={24} />
+                         </button>
+                      </div>
+                      
+                      <div className="flex justify-center">
+                          <button className="flex items-center text-xs font-bold text-gray-400 hover:text-primary-600 uppercase tracking-wide px-3 py-1 rounded-full border border-gray-100 hover:border-primary-100 transition-colors">
+                              <Volume2 size={14} className="mr-1.5" /> 1x Speed
+                          </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             {/* Show Notes */}
+             <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center">
+                   <FileText size={18} className="mr-2 text-primary-500" /> 
+                   Episode Notes
+                </h3>
+                <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
+                   <p className="mb-4">In this episode, we dive deep into the core concepts discussed in Module {course?.modules.findIndex(m => m.lessons.includes(currentLesson!))! + 1}. Listen to this while commuting or taking a break from the screen to reinforce your learning.</p>
+                   <p className="text-xs text-gray-400 italic">Source: {currentLesson.contentUrl ? 'External Audio File' : 'Local Mock'}</p>
+                </div>
+             </div>
+          </div>
+        );
       case 'jupyter':
         return (
           <div className="space-y-6 max-w-4xl mx-auto">
              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 className="text-xl font-bold mb-4">Code Practice: {currentLesson.title}</h2>
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                    <Terminal className="mr-2 text-blue-500" />
+                    Code Practice: {currentLesson.title}
+                </h2>
                 <p className="text-gray-600 mb-6">Use this Jupyter Notebook environment to practice your code. Execute the blocks to verify your solutions.</p>
                 <JupyterCell />
                 <JupyterCell />
@@ -151,12 +351,22 @@ export const CoursePlayer: React.FC = () => {
         );
       case 'quiz':
          return (
-           <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md">
-             <h2 className="text-2xl font-bold mb-6">Knowledge Check</h2>
-             <div className="space-y-4">
-               <div className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 cursor-pointer transition-colors">
-                 <div className="font-medium mb-2">What is the primary purpose of React?</div>
-                 <div className="text-sm text-gray-500">Select one answer</div>
+           <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
+             <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Knowledge Check</h2>
+                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">3 Questions</span>
+             </div>
+             <div className="space-y-6">
+               <div className="space-y-3">
+                   <p className="font-medium text-gray-800 text-lg">1. What is the primary purpose of React?</p>
+                   <div className="space-y-2">
+                       {['To manage databases', 'To build user interfaces', 'To handle server requests'].map((opt, i) => (
+                           <div key={i} className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 cursor-pointer transition-colors flex items-center">
+                               <div className="w-5 h-5 rounded-full border border-gray-300 mr-3"></div>
+                               <span className="text-gray-600">{opt}</span>
+                           </div>
+                       ))}
+                   </div>
                </div>
                <Button className="w-full mt-4" onClick={() => toggleComplete(currentLesson.id)}>Submit Answer & Complete</Button>
              </div>
@@ -164,10 +374,15 @@ export const CoursePlayer: React.FC = () => {
          );
       default:
         return (
-          <div className="prose max-w-none bg-white p-8 rounded-xl shadow-sm">
+          <div className="prose max-w-none bg-white p-8 rounded-xl shadow-sm border border-gray-200">
             <h1>{currentLesson.title}</h1>
+            <p className="lead">Read through the material below to prepare for the next quiz.</p>
+            <hr className="my-6 border-gray-100"/>
             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
             <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 my-4 text-blue-800 text-sm">
+                <strong>Note:</strong> Make sure to download the attached PDF resources for a cheat sheet on this topic.
+            </div>
           </div>
         );
     }
@@ -192,6 +407,14 @@ export const CoursePlayer: React.FC = () => {
   }
 
   const progress = Math.round((completedLessonIds.size / allLessons.length) * 100) || 0;
+  
+  // Filter modules based on active tab
+  const displayedModules = sidebarTab === 'audio' 
+    ? course.modules.filter(m => m.isPodcast || m.lessons.some(l => l.type === 'podcast'))
+    : course.modules;
+
+  // Check if course has podcasts to show the tab at all
+  const hasPodcasts = course.modules.some(m => m.isPodcast || m.lessons.some(l => l.type === 'podcast'));
 
   return (
     <div className="flex h-[calc(100vh-6rem)] -m-4 lg:-m-8">
@@ -199,56 +422,104 @@ export const CoursePlayer: React.FC = () => {
       <motion.div 
         initial={false}
         animate={{ width: sidebarExpanded ? 320 : 0, opacity: sidebarExpanded ? 1 : 0 }}
-        className="bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 relative"
+        className="bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 relative flex flex-col"
       >
-        <div className="h-full overflow-y-auto w-80">
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <h2 className="font-bold text-gray-800">{course.title}</h2>
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
-               <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="h-full flex flex-col w-80">
+          <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="font-bold text-gray-900 leading-tight mb-3">{course.title}</h2>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+               <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-gray-500 mt-1">{progress}% Complete</p>
+            <p className="text-xs text-gray-500 mt-2 font-medium">{progress}% Complete</p>
           </div>
           
-          <div className="p-2">
-            {course.modules.map((module, mIdx) => (
-              <div key={module.id} className="mb-4">
-                <div className="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Module {mIdx + 1}: {module.title}
-                </div>
-                <div className="space-y-1">
-                  {module.lessons.map((lesson) => {
-                    const isActive = currentLesson && lesson.id === currentLesson.id;
-                    const isCompleted = completedLessonIds.has(lesson.id);
-                    
-                    return (
-                      <button
-                        key={lesson.id}
-                        onClick={() => setCurrentLesson(lesson)}
-                        className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors text-left ${
-                          isActive 
-                            ? 'bg-primary-50 text-primary-700' 
-                            : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className={`mr-3 ${isCompleted ? 'text-green-500' : 'text-gray-400'}`}>
-                          {isCompleted ? <CheckCircle size={16} /> : getIcon(lesson.type)}
-                        </span>
-                        <span className="truncate flex-1">{lesson.title}</span>
-                        <span className="text-xs text-gray-400 ml-2">{lesson.duration}</span>
-                      </button>
-                    )
-                  })}
-                </div>
+          {/* Sidebar Tabs */}
+          {hasPodcasts && (
+              <div className="flex border-b border-gray-200">
+                <button 
+                    onClick={() => setSidebarTab('curriculum')}
+                    className={`flex-1 py-3 text-sm font-medium text-center transition-colors ${
+                        sidebarTab === 'curriculum' 
+                        ? 'text-primary-600 border-b-2 border-primary-600 bg-white' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                    <BookOpen size={14} className="inline mr-1.5 mb-0.5" />
+                    Curriculum
+                </button>
+                <button 
+                    onClick={() => setSidebarTab('audio')}
+                    className={`flex-1 py-3 text-sm font-medium text-center transition-colors ${
+                        sidebarTab === 'audio' 
+                        ? 'text-purple-600 border-b-2 border-purple-600 bg-white' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                    <Headphones size={14} className="inline mr-1.5 mb-0.5" />
+                    Audio Series
+                </button>
               </div>
-            ))}
+          )}
+          
+          <div className="p-3 space-y-1 overflow-y-auto custom-scrollbar flex-1">
+            {displayedModules.length > 0 ? (
+                displayedModules.map((module, mIdx) => (
+                <div key={module.id} className="mb-4">
+                    <div className={`px-3 py-2 text-xs font-bold uppercase tracking-wider mb-1 ${module.id === 'podcast-module' || module.isPodcast ? 'text-purple-600' : 'text-gray-400'}`}>
+                    {module.id === 'podcast-module' || module.isPodcast ? '🎙️ Audio Series' : `Module ${mIdx + 1}: ${module.title}`}
+                    </div>
+                    <div className="space-y-1">
+                    {module.lessons
+                        // If in audio mode, only show podcasts. If curriculum, show all (or filter out podcasts if you want separation).
+                        // For now, Audio Tab = Only Podcasts. Curriculum = Everything.
+                        .filter(l => sidebarTab === 'audio' ? l.type === 'podcast' : true)
+                        .map((lesson) => {
+                            const isActive = currentLesson && lesson.id === currentLesson.id;
+                            const isCompleted = completedLessonIds.has(lesson.id);
+                            
+                            return (
+                            <button
+                                key={lesson.id}
+                                onClick={() => {
+                                    setCurrentLesson(lesson);
+                                    // Stop audio if switching away from podcast
+                                    if (lesson.type !== 'podcast') {
+                                        setIsPlaying(false);
+                                        if(audioRef.current) audioRef.current.pause();
+                                    }
+                                }}
+                                className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-all text-left group ${
+                                isActive 
+                                    ? 'bg-primary-50 text-primary-900 font-medium shadow-sm ring-1 ring-primary-100' 
+                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                            >
+                                <span className={`mr-3 ${
+                                    isCompleted ? 'text-green-500' : 
+                                    isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+                                }`}>
+                                {isCompleted ? <CheckCircle size={16} /> : getIcon(lesson.type)}
+                                </span>
+                                <span className="truncate flex-1">{lesson.title}</span>
+                                <span className="text-xs text-gray-400 ml-2">{lesson.duration}</span>
+                            </button>
+                            )
+                        })}
+                    </div>
+                </div>
+                ))
+            ) : (
+                <div className="p-6 text-center text-gray-400 text-sm">
+                    {sidebarTab === 'audio' ? 'No audio content in this course.' : 'No lessons found.'}
+                </div>
+            )}
           </div>
         </div>
       </motion.div>
 
       {/* Main Player Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-gray-100">
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+      <div className="flex-1 flex flex-col min-w-0 bg-gray-50/50">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
            <div className="max-w-5xl mx-auto">
              <div className="flex items-center justify-between mb-6">
                <Button variant="secondary" size="sm" onClick={() => navigate('/dashboard')}>
@@ -261,7 +532,7 @@ export const CoursePlayer: React.FC = () => {
              
              <motion.div
                key={currentLesson?.id || 'loading'}
-               initial={{ opacity: 0, x: 20 }}
+               initial={{ opacity: 0, x: 10 }}
                animate={{ opacity: 1, x: 0 }}
                transition={{ duration: 0.3 }}
              >
@@ -271,7 +542,7 @@ export const CoursePlayer: React.FC = () => {
         </div>
         
         {/* Player Footer */}
-        <div className="h-16 bg-white border-t border-gray-200 px-8 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="h-16 bg-white border-t border-gray-200 px-8 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
             <div className="flex items-center gap-4">
                  <Button 
                     variant="ghost" 

@@ -24,6 +24,7 @@ export interface Module {
   id: string;
   title: string;
   lessons: Lesson[];
+  isPodcast?: boolean;
 }
 
 export interface Course {

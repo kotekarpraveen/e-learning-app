@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
-import { Course } from '../types';
+import { Course, Lesson } from '../types';
 import { 
   PlayCircle, Clock, Award, Flame, TrendingUp, 
-  Target, BookOpen, Calendar, ArrowRight, Loader2
+  Target, BookOpen, Calendar, ArrowRight, Loader2,
+  Headphones, Play
 } from 'lucide-react';
 import { useAuth } from '../App';
 
@@ -34,6 +35,7 @@ export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [generalAudioCourse, setGeneralAudioCourse] = useState<Course | null>(null);
   const [stats, setStats] = useState(INITIAL_STATS);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -43,13 +45,19 @@ export const StudentDashboard: React.FC = () => {
         setIsLoading(true);
         
         // Parallel Fetch
-        const [enrolledCourses, userStats] = await Promise.all([
+        const [enrolledCourses, allCourses, userStats] = await Promise.all([
             api.getEnrolledCourses(user.id),
+            api.getCourses(),
             api.getStudentStats(user.id)
         ]);
 
         setCourses(enrolledCourses);
         setStats(userStats);
+
+        // Find a General Audio Series course for the dashboard widget
+        const audioSeries = allCourses.find(c => c.category === 'Audio Series');
+        setGeneralAudioCourse(audioSeries || null);
+
         setIsLoading(false);
     };
     fetchData();
@@ -57,6 +65,11 @@ export const StudentDashboard: React.FC = () => {
 
   // Get the most active course (first one)
   const activeCourse = courses.length > 0 ? courses[0] : null;
+
+  // Flatten lessons from the general audio course for display
+  const generalAudioEpisodes: Lesson[] = generalAudioCourse 
+    ? generalAudioCourse.modules.flatMap(m => m.lessons).slice(0, 3) 
+    : [];
 
   if (isLoading) {
       return (
@@ -209,20 +222,52 @@ export const StudentDashboard: React.FC = () => {
                   <div className="text-2xl font-bold text-gray-900">{stats.certificates}</div>
                   <div className="text-xs text-gray-500">Certificates</div>
                </div>
-               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center mb-2">
-                     <BookOpen size={18} />
-                  </div>
-                  <div className="text-2xl font-bold text-gray-900">{stats.coursesCompleted}</div>
-                  <div className="text-xs text-gray-500">Completed</div>
+            </div>
+            
+            {/* Audio Series Widget (General Podcasts) */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+               <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-900 flex items-center">
+                     <Headphones size={18} className="mr-2 text-purple-600" />
+                     {generalAudioCourse ? generalAudioCourse.title : 'Audio Series'}
+                  </h3>
+                  <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-full">New</span>
                </div>
-               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center mb-2">
-                     <TrendingUp size={18} />
+               
+               {generalAudioCourse && generalAudioEpisodes.length > 0 ? (
+                 <div className="space-y-4">
+                    {generalAudioEpisodes.map((episode, idx) => (
+                        <div 
+                            key={episode.id}
+                            onClick={() => navigate(`/course/${generalAudioCourse.id}`)}
+                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-transparent hover:border-gray-100"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 text-purple-600 group-hover:scale-110 transition-transform">
+                                <Play size={16} fill="currentColor" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-800 text-sm truncate">{episode.title}</h4>
+                                <p className="text-xs text-gray-500 truncate">Ep. {idx + 1}</p>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">{episode.duration || '10:00'}</span>
+                        </div>
+                    ))}
+                    
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 mt-2"
+                        onClick={() => navigate(`/course/${generalAudioCourse.id}`)}
+                    >
+                        View All Episodes
+                    </Button>
+                 </div>
+               ) : (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                      <Headphones className="mx-auto mb-2 opacity-20" size={32} />
+                      <p>No audio series available right now.</p>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">Top 5%</div>
-                  <div className="text-xs text-gray-500">Class Rank</div>
-               </div>
+               )}
             </div>
 
             {/* Weekly Activity Chart */}
