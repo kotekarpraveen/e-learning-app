@@ -1,7 +1,6 @@
-
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
-import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest } from '../types';
+import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset } from '../types';
 
 // Mock Data for Students
 let MOCK_STUDENTS: Student[] = [
@@ -20,6 +19,10 @@ let MOCK_TRANSACTIONS: Transaction[] = [
 
 let MOCK_PAYMENT_REQUESTS: PaymentRequest[] = [
     { id: 'pr_1', studentEmail: 'student@aelgo.com', amount: 150, description: '1-on-1 Coaching Session', status: 'pending', createdAt: '2023-12-01', paymentLink: 'https://aelgo.com/pay/pr_1' }
+];
+
+let MOCK_ASSETS: ContentAsset[] = [
+    { id: 'c1', title: 'Intro Slide Deck', type: 'Reading Material', fileName: 'intro_slides.pdf', fileSize: '2.4 MB', date: '2023-10-15', status: 'ready' }
 ];
 
 export const api = {
@@ -309,6 +312,149 @@ export const api = {
               .eq('user_id', userId)
               .eq('lesson_id', lessonId);
           return !error;
+      }
+  },
+
+  // --- CONTENT ASSET MANAGEMENT (REAL UPLOADS) ---
+
+  /**
+   * Fetch Content Library
+   */
+  getContentLibrary: async (): Promise<ContentAsset[]> => {
+      if (!isSupabaseConfigured()) {
+          return new Promise(resolve => setTimeout(() => resolve([...MOCK_ASSETS]), 500));
+      }
+
+      try {
+          const { data, error } = await supabase
+              .from('content_assets')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          return data.map((d: any) => ({
+              id: d.id,
+              title: d.title,
+              type: d.type,
+              fileName: d.file_name,
+              fileUrl: d.file_url,
+              fileSize: d.file_size,
+              date: new Date(d.created_at).toISOString().split('T')[0],
+              status: 'ready',
+              metadata: d.metadata
+          }));
+      } catch (err) {
+          console.error("Fetch Library Error", err);
+          return [];
+      }
+  },
+
+  /**
+   * Upload File to 'course-content' Bucket
+   */
+  uploadFileToStorage: async (file: File): Promise<{ url: string, path: string } | null> => {
+      if (!isSupabaseConfigured()) return { url: 'https://fake-url.com/file.pdf', path: 'fake/path' };
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+          .from('course-content')
+          .upload(filePath, file);
+
+      if (error) {
+          console.error("Storage upload failed", error);
+          throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+          .from('course-content')
+          .getPublicUrl(filePath);
+
+      return { url: publicUrl, path: filePath };
+  },
+
+  /**
+   * Create Content Asset DB Record
+   */
+  createContentAsset: async (asset: { 
+      title: string, 
+      type: string, 
+      fileName: string, 
+      fileUrl?: string, 
+      fileSize: string,
+      metadata?: any 
+  }): Promise<ContentAsset | null> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!isSupabaseConfigured()) {
+          const newAsset: ContentAsset = {
+              id: `c_${Date.now()}`,
+              ...asset,
+              date: new Date().toISOString().split('T')[0],
+              status: 'ready'
+          };
+          MOCK_ASSETS.unshift(newAsset);
+          return newAsset;
+      }
+
+      try {
+          const { data, error } = await supabase.from('content_assets').insert({
+              title: asset.title,
+              type: asset.type,
+              file_name: asset.fileName,
+              file_url: asset.fileUrl,
+              file_size: asset.fileSize,
+              metadata: asset.metadata,
+              created_by: user?.id
+          }).select().single();
+
+          if (error) throw error;
+
+          return {
+              id: data.id,
+              title: data.title,
+              type: data.type,
+              fileName: data.file_name,
+              fileUrl: data.file_url,
+              fileSize: data.file_size,
+              date: new Date(data.created_at).toISOString().split('T')[0],
+              status: 'ready',
+              metadata: data.metadata
+          };
+      } catch (err) {
+          console.error("Create Asset Error", err);
+          return null;
+      }
+  },
+
+  /**
+   * Delete Content Asset
+   */
+  deleteContentAsset: async (id: string, fileUrl?: string): Promise<boolean> => {
+      if (!isSupabaseConfigured()) {
+          MOCK_ASSETS = MOCK_ASSETS.filter(a => a.id !== id);
+          return true;
+      }
+
+      try {
+          // 1. Delete from DB
+          const { error } = await supabase.from('content_assets').delete().eq('id', id);
+          if (error) throw error;
+
+          // 2. If it has a file URL in storage, attempt delete (Optional, but good hygiene)
+          if (fileUrl && fileUrl.includes('course-content')) {
+              const path = fileUrl.split('course-content/').pop();
+              if (path) {
+                  await supabase.storage.from('course-content').remove([path]);
+              }
+          }
+          return true;
+      } catch (e) {
+          console.error("Delete asset error", e);
+          return false;
       }
   },
 

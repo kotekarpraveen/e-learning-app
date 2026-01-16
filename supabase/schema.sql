@@ -163,8 +163,13 @@ create table public.content_assets (
 );
 
 -- ==============================================================================
--- 3. RLS POLICIES
+-- 3. STORAGE & RLS POLICIES
 -- ==============================================================================
+
+-- Create the bucket if it doesn't exist (safe insert)
+insert into storage.buckets (id, name, public) 
+values ('course-content', 'course-content', true) 
+on conflict (id) do nothing;
 
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
@@ -230,17 +235,19 @@ create policy "Admins and Instructors can manage assets" on public.content_asset
 );
 
 -- STORAGE POLICIES
--- Note: Wraps in check to ensure extension exists
 do $$
 begin
   if exists (select 1 from pg_tables where schemaname = 'storage' and tablename = 'objects') then
       create policy "Admins can upload course content" on storage.objects for insert to authenticated with check (
+        bucket_id = 'course-content' and
         exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
       );
       create policy "Admins can update course content" on storage.objects for update to authenticated using (
+        bucket_id = 'course-content' and
         exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
       );
       create policy "Admins can delete course content" on storage.objects for delete to authenticated using (
+        bucket_id = 'course-content' and
         exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
       );
       create policy "Public Access" on storage.objects for select using ( bucket_id = 'course-content' ); 

@@ -109,6 +109,24 @@ export interface AuthState {
   token: string | null;
 }
 
+// --- Content Assets ---
+export interface ContentAsset {
+  id: string;
+  title: string;
+  type: string; // 'Video Content' | 'Reading Material' | 'Code Practice' | ...
+  fileName?: string;
+  fileUrl?: string;
+  fileSize?: string;
+  date?: string;
+  status?: 'ready' | 'processing';
+  metadata?: {
+    url?: string;
+    description?: string;
+    starterCode?: string;
+    solutionCode?: string;
+  };
+}
+
 // --- Payment Types ---
 
 export interface Transaction {
