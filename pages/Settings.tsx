@@ -247,7 +247,7 @@ export const Settings: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('full_name, email, bio')
+                .select('full_name, email, bio, preferences')
                 .eq('id', user.id)
                 .single();
                 
@@ -258,13 +258,20 @@ export const Settings: React.FC = () => {
                     email: data.email || prev.email,
                     bio: data.bio || ''
                 }));
+
+                // Load preferences if available
+                if (data.preferences && data.preferences.theme) {
+                    const remoteTheme = { ...DEFAULT_THEME, ...data.preferences.theme };
+                    setThemeData(remoteTheme);
+                    applyTheme(remoteTheme);
+                }
             }
         } catch (e) {
             console.warn("Could not fetch profile", e);
         }
     };
     
-    // Load current theme from storage
+    // Load current theme from storage first (instant load), then DB will override if needed
     const currentTheme = loadTheme();
     setThemeData(currentTheme);
 
@@ -307,31 +314,37 @@ export const Settings: React.FC = () => {
   const handleSave = async () => {
     setIsLoading(true);
     
-    // Theme Saving logic is immediate via applyTheme, but we simulate a "Save" action
-    if (activeTab === 'appearance') {
-        applyTheme(themeData);
-    }
-    
-    if (activeTab === 'profile' && isSupabaseConfigured() && user) {
-        const updates: any = {
-            id: user.id,
-            full_name: formData.name,
-            updated_at: new Date(),
-        };
-        if (formData.bio) updates.bio = formData.bio;
-        const { error } = await supabase.from('profiles').upsert(updates);
-        if (error) {
-            alert("Error: " + error.message);
-            setIsLoading(false);
-            return;
+    try {
+        if (activeTab === 'appearance') {
+            applyTheme(themeData);
+            // Sync to Supabase
+            if (isSupabaseConfigured() && user) {
+                await supabase.from('profiles').update({
+                    preferences: { theme: themeData }
+                }).eq('id', user.id);
+            }
         }
-    } else {
-        await new Promise(r => setTimeout(r, 800));
+        
+        if (activeTab === 'profile' && isSupabaseConfigured() && user) {
+            const updates: any = {
+                id: user.id,
+                full_name: formData.name,
+                updated_at: new Date(),
+            };
+            if (formData.bio) updates.bio = formData.bio;
+            const { error } = await supabase.from('profiles').upsert(updates);
+            if (error) throw error;
+        } else {
+            await new Promise(r => setTimeout(r, 800));
+        }
+        
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+        alert("Error saving settings: " + err.message);
+    } finally {
+        setIsLoading(false);
     }
-    
-    setIsLoading(false);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleResetTheme = () => {

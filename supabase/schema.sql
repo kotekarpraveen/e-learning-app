@@ -1,33 +1,66 @@
 
+-- ==============================================================================
+-- 1. CLEANUP: Drop all existing tables and functions to ensure a fresh start
+-- ==============================================================================
+
+-- Drop tables with CASCADE to remove dependent views, constraints, and policies
+drop table if exists public.content_assets cascade;
+drop table if exists public.payment_requests cascade;
+drop table if exists public.transactions cascade;
+drop table if exists public.user_progress cascade;
+drop table if exists public.enrollments cascade;
+drop table if exists public.lessons cascade;
+drop table if exists public.modules cascade;
+drop table if exists public.courses cascade;
+drop table if exists public.categories cascade;
+drop table if exists public.profiles cascade;
+
+-- Drop custom functions
+drop function if exists increment_xp cascade;
+drop function if exists handle_new_user cascade;
+
+-- Clean up storage policies (We cannot drop storage.objects, only policies on it)
+do $$
+begin
+  if exists (select 1 from pg_tables where schemaname = 'storage' and tablename = 'objects') then
+    drop policy if exists "Admins can upload course content" on storage.objects;
+    drop policy if exists "Admins can update course content" on storage.objects;
+    drop policy if exists "Admins can delete course content" on storage.objects;
+    drop policy if exists "Public Access" on storage.objects;
+  end if;
+end $$;
+
+-- ==============================================================================
+-- 2. SCHEMA CREATION
+-- ==============================================================================
+
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- 1. PROFILES (Extends Supabase Auth)
+-- 1. PROFILES
 create table public.profiles (
   id uuid references auth.users not null primary key,
   email text,
   full_name text,
-  role text default 'student', -- student, admin, instructor, etc.
+  role text default 'student', -- Using TEXT to prevent ENUM conflicts
   avatar text,
   bio text,
   xp integer default 0,
   streak integer default 0,
   total_hours numeric default 0,
-  
-  -- New fields for Role Management & Instructors
-  status text default 'Active', -- Active, Inactive, Suspended
+  status text default 'Active',
   last_active timestamp with time zone,
-  permissions text[], -- Array of permission codes for admins
-  expertise text[], -- Array of skills for instructors
-  job_title text, -- e.g. "Senior Developer"
-  
+  permissions text[],
+  expertise text[],
+  job_title text,
+  preferences jsonb default '{}'::jsonb, -- Stores theme, notifications settings, etc.
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
 
 -- 2. CATEGORIES
 create table public.categories (
-  id text primary key, -- Changed to text to allow slugs like 'cat_1'
+  id text primary key,
   name text not null,
   slug text not null unique,
   description text,
@@ -37,14 +70,14 @@ create table public.categories (
 
 -- 3. COURSES
 create table public.courses (
-  id text primary key, -- Using text ID to allow slugs or custom IDs like 'c1'
+  id text primary key,
   title text not null,
   description text,
   thumbnail text,
-  instructor text, -- Storing name for display simplicity, could be FK
-  instructor_id uuid references public.profiles(id), -- Optional FK for strict linking
+  instructor text,
+  instructor_id uuid references public.profiles(id),
   price numeric default 0,
-  level text, -- Beginner, Intermediate, Advanced
+  level text,
   category text,
   enrolled_students integer default 0,
   published boolean default false,
@@ -55,7 +88,7 @@ create table public.courses (
 
 -- 4. MODULES
 create table public.modules (
-  id text primary key, -- Changed to text for flexibility
+  id text primary key,
   course_id text references public.courses(id) on delete cascade,
   title text not null,
   description text,
@@ -66,11 +99,11 @@ create table public.modules (
 
 -- 5. LESSONS
 create table public.lessons (
-  id text primary key, -- Changed to text for flexibility
+  id text primary key,
   module_id text references public.modules(id) on delete cascade,
   title text not null,
   type text not null, -- video, reading, quiz, podcast, jupyter
-  content_url text, -- URL or content reference
+  content_url text,
   duration text,
   "order" integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now())
@@ -98,9 +131,9 @@ create table public.transactions (
   user_id uuid references public.profiles(id),
   course_id text references public.courses(id),
   amount numeric not null,
-  status text not null, -- succeeded, pending_approval, failed
-  method text, -- Credit Card, Bank Transfer
-  type text, -- online, offline
+  status text not null,
+  method text,
+  type text,
   reference_id text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -111,25 +144,28 @@ create table public.payment_requests (
   student_email text not null,
   amount numeric not null,
   description text,
-  status text default 'pending', -- pending, paid
+  status text default 'pending',
   payment_link text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- 10. CONTENT ASSETS (New: For Course Builder Library)
+-- 10. CONTENT ASSETS
 create table public.content_assets (
   id uuid default uuid_generate_v4() primary key,
   title text not null,
-  type text not null, -- Video Content, Reading Material, etc.
+  type text not null,
   file_name text,
-  file_url text, -- S3 URL or YouTube link
+  file_url text,
   file_size text,
-  metadata jsonb, -- Stores extra info like code snippets, duration, etc.
+  metadata jsonb,
   created_by uuid references public.profiles(id),
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS POLICIES
+-- ==============================================================================
+-- 3. RLS POLICIES
+-- ==============================================================================
+
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
 alter table public.courses enable row level security;
@@ -141,29 +177,44 @@ alter table public.transactions enable row level security;
 alter table public.payment_requests enable row level security;
 alter table public.content_assets enable row level security;
 
--- Public Access Policies
+-- CATEGORIES
 create policy "Public categories are viewable by everyone" on public.categories for select using (true);
-create policy "Public courses are viewable by everyone" on public.courses for select using (true);
-create policy "Public modules are viewable by everyone" on public.modules for select using (true);
-create policy "Public lessons are viewable by everyone" on public.lessons for select using (true);
 
--- Profile Policies
+-- COURSES
+create policy "Public courses are viewable by everyone" on public.courses for select using (true);
+create policy "Admins can manage courses" on public.courses for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+);
+
+-- MODULES
+create policy "Public modules are viewable by everyone" on public.modules for select using (true);
+create policy "Admins can manage modules" on public.modules for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+);
+
+-- LESSONS
+create policy "Public lessons are viewable by everyone" on public.lessons for select using (true);
+create policy "Admins can manage lessons" on public.lessons for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+);
+
+-- PROFILES
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
 create policy "Admins can view all profiles" on public.profiles for select using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
 );
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
 
--- Enrollment Policies
+-- ENROLLMENTS
 create policy "Users can view own enrollments" on public.enrollments for select using (auth.uid() = user_id);
 create policy "Users can enroll themselves" on public.enrollments for insert with check (auth.uid() = user_id);
 
--- Progress Policies
+-- PROGRESS
 create policy "Users can view own progress" on public.user_progress for select using (auth.uid() = user_id);
 create policy "Users can update own progress" on public.user_progress for insert with check (auth.uid() = user_id);
 create policy "Users can delete own progress" on public.user_progress for delete using (auth.uid() = user_id);
 
--- Transaction Policies
+-- TRANSACTIONS
 create policy "Users can view own transactions" on public.transactions for select using (auth.uid() = user_id);
 create policy "Admins can view all transactions" on public.transactions for select using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
@@ -173,18 +224,35 @@ create policy "Admins can update transactions" on public.transactions for update
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
 
--- Content Asset Policies
-create policy "Admins and Instructors can view assets" on public.content_assets for select using (
-  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
-);
-create policy "Admins and Instructors can insert assets" on public.content_assets for insert with check (
-  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
-);
-create policy "Admins and Instructors can delete assets" on public.content_assets for delete using (
+-- CONTENT ASSETS
+create policy "Admins and Instructors can manage assets" on public.content_assets for all using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
 );
 
--- RPC Function for XP
+-- STORAGE POLICIES
+-- Note: Wraps in check to ensure extension exists
+do $$
+begin
+  if exists (select 1 from pg_tables where schemaname = 'storage' and tablename = 'objects') then
+      create policy "Admins can upload course content" on storage.objects for insert to authenticated with check (
+        exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+      );
+      create policy "Admins can update course content" on storage.objects for update to authenticated using (
+        exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+      );
+      create policy "Admins can delete course content" on storage.objects for delete to authenticated using (
+        exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin', 'instructor'))
+      );
+      create policy "Public Access" on storage.objects for select using ( bucket_id = 'course-content' ); 
+  end if;
+exception when others then
+  raise notice 'Storage policies skipped (Extension missing or permission denied)';
+end $$;
+
+-- ==============================================================================
+-- 4. FUNCTIONS & TRIGGERS
+-- ==============================================================================
+
 create or replace function increment_xp(x integer, user_row_id uuid)
 returns void as $$
 begin
@@ -193,3 +261,28 @@ begin
   where id = user_row_id;
 end;
 $$ language plpgsql;
+
+-- Trigger to handle new user creation from Supabase Auth
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, full_name, role, avatar, created_at, updated_at)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    coalesce(new.raw_user_meta_data->>'role', 'student'),
+    new.raw_user_meta_data->>'avatar_url', -- Note: 'avatar' is column, 'avatar_url' is in metadata
+    now(),
+    now()
+  )
+  on conflict (id) do nothing; -- Handle potential conflicts if seeded manually
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Safely recreate the trigger
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
