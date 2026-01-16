@@ -20,7 +20,7 @@ import { Layout } from './components/Layout';
 import { MOCK_USER_STUDENT, MOCK_USER_ADMIN } from './constants';
 import { User, UserRole } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { loadTheme } from './lib/theme';
+import { loadTheme, applyTheme } from './lib/theme';
 
 // --- Auth Context ---
 interface AuthContextType {
@@ -63,6 +63,18 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     };
   };
 
+  // Helper to sync theme from DB
+  const syncUserTheme = async (userId: string) => {
+      try {
+          const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
+          if (data?.preferences?.theme) {
+              applyTheme(data.preferences.theme);
+          }
+      } catch (e) {
+          console.error("Failed to sync theme", e);
+      }
+  };
+
   useEffect(() => {
     // Initialize Theme
     loadTheme();
@@ -80,6 +92,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(mapSupabaseUser(session.user));
+          syncUserTheme(session.user.id);
         }
       } catch (error) {
         console.error("Auth check failed", error);
@@ -93,6 +106,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
           setUser(mapSupabaseUser(session.user));
+          syncUserTheme(session.user.id);
       } else {
         setUser(null);
       }
