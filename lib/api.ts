@@ -312,66 +312,196 @@ export const api = {
       }
   },
 
-  // --- Payment & Transaction API (Mock) ---
+  // --- Payment & Transaction API ---
 
   /**
    * Create a transaction record and potentially enroll user
    */
   processPayment: async (details: { userId: string, userName: string, courseId: string, courseTitle: string, amount: number, method: string, type: 'online' | 'offline', referenceId?: string }) => {
-      const transaction: Transaction = {
-          id: `tx_${Date.now()}`,
-          ...details,
-          date: new Date().toISOString().split('T')[0],
-          status: details.type === 'online' ? 'succeeded' : 'pending_approval'
-      };
-
-      MOCK_TRANSACTIONS.unshift(transaction);
-
-      // If online, auto enroll
-      if (details.type === 'online') {
-          await api.enrollUser(details.courseId, details.userId);
-          return { success: true, status: 'active' };
+      if (!isSupabaseConfigured()) {
+          const transaction: Transaction = {
+              id: `tx_${Date.now()}`,
+              ...details,
+              date: new Date().toISOString().split('T')[0],
+              status: details.type === 'online' ? 'succeeded' : 'pending_approval'
+          };
+          MOCK_TRANSACTIONS.unshift(transaction);
+          if (details.type === 'online') {
+              await api.enrollUser(details.courseId, details.userId);
+              return { success: true, status: 'active' };
+          }
+          return { success: true, status: 'pending' };
       }
 
-      return { success: true, status: 'pending' };
+      // Real Supabase Implementation
+      try {
+          const { error } = await supabase.from('transactions').insert({
+              user_id: details.userId,
+              course_id: details.courseId,
+              amount: details.amount,
+              status: details.type === 'online' ? 'succeeded' : 'pending_approval',
+              method: details.method,
+              type: details.type,
+              reference_id: details.referenceId
+          });
+
+          if (error) throw error;
+
+          if (details.type === 'online') {
+              await api.enrollUser(details.courseId, details.userId);
+              return { success: true, status: 'active' };
+          }
+
+          return { success: true, status: 'pending' };
+      } catch (e) {
+          console.error("Payment Process Error", e);
+          return { success: false, status: 'failed' };
+      }
   },
 
   checkPendingTransaction: async (courseId: string, userId: string) => {
-      const pending = MOCK_TRANSACTIONS.find(t => t.courseId === courseId && t.userId === userId && t.status === 'pending_approval');
-      return !!pending;
+      if (!isSupabaseConfigured()) {
+          const pending = MOCK_TRANSACTIONS.find(t => t.courseId === courseId && t.userId === userId && t.status === 'pending_approval');
+          return !!pending;
+      }
+
+      const { data } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('course_id', courseId)
+          .eq('user_id', userId)
+          .eq('status', 'pending_approval')
+          .single();
+      
+      return !!data;
   },
 
   getTransactions: async (): Promise<Transaction[]> => {
-      return new Promise(resolve => setTimeout(() => resolve([...MOCK_TRANSACTIONS]), 500));
+      if (!isSupabaseConfigured()) {
+          return new Promise(resolve => setTimeout(() => resolve([...MOCK_TRANSACTIONS]), 500));
+      }
+
+      try {
+          const { data, error } = await supabase
+              .from('transactions')
+              .select(`
+                  *,
+                  profiles(full_name),
+                  courses(title)
+              `)
+              .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          return data.map((t: any) => ({
+              id: t.id,
+              userId: t.user_id,
+              userName: t.profiles?.full_name || 'Unknown User',
+              courseId: t.course_id,
+              courseTitle: t.courses?.title || 'Unknown Course',
+              amount: t.amount,
+              date: new Date(t.created_at).toLocaleDateString(),
+              status: t.status,
+              method: t.method,
+              type: t.type,
+              referenceId: t.reference_id
+          }));
+      } catch (e) {
+          console.error("Fetch Transactions Error", e);
+          return [];
+      }
   },
 
   approveTransaction: async (txId: string): Promise<boolean> => {
-      const tx = MOCK_TRANSACTIONS.find(t => t.id === txId);
-      if (tx) {
-          tx.status = 'succeeded';
-          // Enroll user
-          await api.enrollUser(tx.courseId, tx.userId);
-          return true;
+      if (!isSupabaseConfigured()) {
+          const tx = MOCK_TRANSACTIONS.find(t => t.id === txId);
+          if (tx) {
+              tx.status = 'succeeded';
+              await api.enrollUser(tx.courseId, tx.userId);
+              return true;
+          }
+          return false;
       }
-      return false;
+
+      try {
+          // 1. Update Transaction
+          const { data: tx, error } = await supabase
+              .from('transactions')
+              .update({ status: 'succeeded' })
+              .eq('id', txId)
+              .select()
+              .single();
+
+          if (error) throw error;
+
+          // 2. Enroll User
+          if (tx) {
+              await api.enrollUser(tx.course_id, tx.user_id);
+          }
+          return true;
+      } catch (e) {
+          console.error("Approve Transaction Error", e);
+          return false;
+      }
   },
 
   createPaymentRequest: async (studentEmail: string, amount: number, description: string) => {
-      const req: PaymentRequest = {
-          id: `pr_${Date.now()}`,
-          studentEmail,
-          amount,
-          description,
-          status: 'pending',
-          createdAt: new Date().toISOString().split('T')[0],
-          paymentLink: `https://aelgo.com/pay/pr_${Date.now()}`
-      };
-      MOCK_PAYMENT_REQUESTS.unshift(req);
-      return true;
+      if (!isSupabaseConfigured()) {
+          const req: PaymentRequest = {
+              id: `pr_${Date.now()}`,
+              studentEmail,
+              amount,
+              description,
+              status: 'pending',
+              createdAt: new Date().toISOString().split('T')[0],
+              paymentLink: `https://aelgo.com/pay/pr_${Date.now()}`
+          };
+          MOCK_PAYMENT_REQUESTS.unshift(req);
+          return true;
+      }
+
+      try {
+          const { error } = await supabase.from('payment_requests').insert({
+              student_email: studentEmail,
+              amount,
+              description,
+              status: 'pending',
+              payment_link: `https://aelgo.com/pay/req_${Math.random().toString(36).substring(7)}` // Mock link generation
+          });
+          if (error) throw error;
+          return true;
+      } catch (e) {
+          console.error("Create Payment Request Error", e);
+          return false;
+      }
   },
 
   getPaymentRequests: async (): Promise<PaymentRequest[]> => {
-      return new Promise(resolve => setTimeout(() => resolve([...MOCK_PAYMENT_REQUESTS]), 500));
+      if (!isSupabaseConfigured()) {
+          return new Promise(resolve => setTimeout(() => resolve([...MOCK_PAYMENT_REQUESTS]), 500));
+      }
+
+      try {
+          const { data, error } = await supabase
+              .from('payment_requests')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          return data.map((r: any) => ({
+              id: r.id,
+              studentEmail: r.student_email,
+              amount: r.amount,
+              description: r.description,
+              status: r.status,
+              createdAt: new Date(r.created_at).toLocaleDateString(),
+              paymentLink: r.payment_link
+          }));
+      } catch (e) {
+          console.error("Fetch Payment Requests Error", e);
+          return [];
+      }
   },
 
   // --- Admin Management (Previous methods preserved) ---
