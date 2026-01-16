@@ -7,21 +7,28 @@ export interface CustomFont {
 }
 
 export interface ThemeConfig {
+  version?: number; // Added for cache busting
   primaryColor: string;
   secondaryColor: string;
   backgroundColor: string;
   cardBackgroundColor: string;
+  sidebarBackgroundColor: string; // New: Sidebar specific color
   fontFamily: string;
   scale: number; // Percentage (e.g. 100 for 100%)
   customFonts: CustomFont[];
 }
 
-// Palette 895 defaults
+// User Requested Palette Defaults
+// Primary: #88d8b0 (Mint/Seafoam)
+// Secondary: #ff6f69 (Coral)
+// Background: #ece9df (Beige)
 export const DEFAULT_THEME: ThemeConfig = {
-  primaryColor: '#d1a845',
-  secondaryColor: '#8A9E74', // Sage Green
-  backgroundColor: '#fbf8eb', // Cream
+  version: 3, // Incremented to force update from previous Gold/Cream theme
+  primaryColor: '#88d8b0',  
+  secondaryColor: '#ff6f69', 
+  backgroundColor: '#ece9df', 
   cardBackgroundColor: '#ffffff',
+  sidebarBackgroundColor: '#ffffff', // Default sidebar is white for this theme
   fontFamily: 'Inter',
   scale: 100,
   customFonts: []
@@ -106,37 +113,41 @@ export const applyTheme = (theme: ThemeConfig) => {
   loadStandardGoogleFont(theme.fontFamily);
 
   // 3. Set Font Family Variable
-  // If it's a custom font, use its name. If standard, use it directly.
   root.style.setProperty('--font-primary', `'${theme.fontFamily}', sans-serif`);
   root.style.fontSize = `${theme.scale}%`;
 
-  // 4. Card Background
+  // 4. Card & Sidebar Background
   root.style.setProperty('--color-card-bg', theme.cardBackgroundColor);
+  root.style.setProperty('--color-sidebar-bg', theme.sidebarBackgroundColor);
 
-  // 5. Background Scale
-  root.style.setProperty('--color-gray-50', theme.backgroundColor);
+  // 5. Background Scale 
+  root.style.setProperty('--color-gray-50', theme.backgroundColor); 
   root.style.setProperty('--color-gray-100', adjustBrightness(theme.backgroundColor, -10)); 
-  root.style.setProperty('--color-gray-200', adjustBrightness(theme.backgroundColor, -35));
+  root.style.setProperty('--color-gray-200', adjustBrightness(theme.backgroundColor, -30));
+  root.style.setProperty('--color-gray-300', adjustBrightness(theme.backgroundColor, -50));
+  
+  // Note: For text colors (400-900), we typically rely on index.html defaults or rigorous calculation.
+  // For the beige theme, we want brownish/dark grey text, which is handled in index.html :root.
 
-  // 6. Primary Scale
-  root.style.setProperty('--color-primary-500', theme.primaryColor);
-  root.style.setProperty('--color-primary-50', adjustBrightness(theme.primaryColor, 150));
-  root.style.setProperty('--color-primary-100', adjustBrightness(theme.primaryColor, 120));
-  root.style.setProperty('--color-primary-200', adjustBrightness(theme.primaryColor, 90));
-  root.style.setProperty('--color-primary-300', adjustBrightness(theme.primaryColor, 60));
-  root.style.setProperty('--color-primary-400', adjustBrightness(theme.primaryColor, 30));
+  // 6. Primary Scale (Base #88d8b0)
+  root.style.setProperty('--color-primary-500', theme.primaryColor); // Used for buttons often
+  root.style.setProperty('--color-primary-400', theme.primaryColor); // Base
+  root.style.setProperty('--color-primary-50', adjustBrightness(theme.primaryColor, 120));
+  root.style.setProperty('--color-primary-100', adjustBrightness(theme.primaryColor, 90));
+  root.style.setProperty('--color-primary-200', adjustBrightness(theme.primaryColor, 60));
+  root.style.setProperty('--color-primary-300', adjustBrightness(theme.primaryColor, 30));
   root.style.setProperty('--color-primary-600', adjustBrightness(theme.primaryColor, -20));
   root.style.setProperty('--color-primary-700', adjustBrightness(theme.primaryColor, -40));
   root.style.setProperty('--color-primary-800', adjustBrightness(theme.primaryColor, -60));
   root.style.setProperty('--color-primary-900', adjustBrightness(theme.primaryColor, -80));
 
-  // 7. Secondary Scale
+  // 7. Secondary Scale (Base #ff6f69)
   root.style.setProperty('--color-secondary-500', theme.secondaryColor);
+  root.style.setProperty('--color-secondary-400', theme.secondaryColor);
   root.style.setProperty('--color-secondary-50', adjustBrightness(theme.secondaryColor, 150));
   root.style.setProperty('--color-secondary-100', adjustBrightness(theme.secondaryColor, 120));
   root.style.setProperty('--color-secondary-200', adjustBrightness(theme.secondaryColor, 90));
   root.style.setProperty('--color-secondary-300', adjustBrightness(theme.secondaryColor, 60));
-  root.style.setProperty('--color-secondary-400', adjustBrightness(theme.secondaryColor, 30));
   root.style.setProperty('--color-secondary-600', adjustBrightness(theme.secondaryColor, -20));
   root.style.setProperty('--color-secondary-700', adjustBrightness(theme.secondaryColor, -40));
   root.style.setProperty('--color-secondary-800', adjustBrightness(theme.secondaryColor, -60));
@@ -151,7 +162,15 @@ export const loadTheme = () => {
   if (stored) {
     try {
       const theme = JSON.parse(stored);
-      // Merge with default to handle new fields if missing
+      
+      // CRITICAL: Check version. If stored version < default version, force reset.
+      // This solves the issue where the old "Gold" or "Blue" theme persists for the user.
+      if (!theme.version || theme.version < (DEFAULT_THEME.version || 0)) {
+          console.log("Old theme version detected. Upgrading to Default (Mint/Coral).");
+          applyTheme(DEFAULT_THEME);
+          return DEFAULT_THEME;
+      }
+
       const merged = { ...DEFAULT_THEME, ...theme };
       applyTheme(merged);
       return merged;
@@ -159,7 +178,7 @@ export const loadTheme = () => {
       console.error("Failed to load theme", e);
     }
   }
-  // Default is applied
+  // No theme found, apply default
   applyTheme(DEFAULT_THEME);
   return DEFAULT_THEME;
 };

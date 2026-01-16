@@ -133,9 +133,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         )}
       </AnimatePresence>
 
-      {/* Sidebar - Using bg-gray-100 (Beige) to distinguish from Main Content */}
+      {/* Sidebar - Uses dynamic bg-sidebar instead of fixed gray-100 */}
       <motion.aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-100 border-r border-gray-200 transform lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-gray-200 transform lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -185,7 +185,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-4 border-t border-gray-200/50 bg-gray-100">
+        <div className="p-4 border-t border-gray-200/50 bg-sidebar">
            <div className="flex items-center mb-4 px-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
               <img
                 className="h-9 w-9 rounded-full ring-2 ring-gray-100"
@@ -210,8 +210,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Main Content - Using bg-gray-50 (Cream) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50">
-        {/* Mobile Header */}
-        <div className="lg:hidden bg-gray-100 border-b border-gray-200 h-16 flex items-center px-4">
+        {/* Mobile Header - Uses dynamic sidebar background for consistency */}
+        <div className="lg:hidden bg-sidebar border-b border-gray-200 h-16 flex items-center px-4">
            <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200"

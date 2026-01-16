@@ -523,6 +523,12 @@ export const Settings: React.FC = () => {
                              desc="Main background color for the application."
                           />
                           <ColorPicker 
+                             label="Sidebar Background" 
+                             value={themeData.sidebarBackgroundColor} 
+                             onChange={(v) => handleThemeChange('sidebarBackgroundColor', v)}
+                             desc="Background color for the navigation sidebar."
+                          />
+                          <ColorPicker 
                              label="Card Background" 
                              value={themeData.cardBackgroundColor} 
                              onChange={(v) => handleThemeChange('cardBackgroundColor', v)}

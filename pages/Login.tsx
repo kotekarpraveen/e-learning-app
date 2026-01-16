@@ -30,7 +30,7 @@ export const Login: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
           <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-          <div className="absolute top-0 -right-40 w-96 h-96 rounded-full bg-purple-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-0 -right-40 w-96 h-96 rounded-full bg-secondary-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 w-full">
@@ -60,7 +60,7 @@ export const Login: React.FC = () => {
                 <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${portal.color} group-hover:scale-110 transition-transform duration-300`}>
                   {portal.icon}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{portal.title} Portal</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{portal.title}</h3>
                 <p className="text-sm text-gray-500 mb-6">{portal.desc}</p>
                 <span className="mt-auto inline-flex items-center text-primary-600 font-semibold group-hover:gap-2 transition-all">
                   Login <ArrowRight size={16} className="ml-1" />
@@ -209,7 +209,7 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
       {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-40 w-96 h-96 rounded-full bg-purple-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-0 -right-40 w-96 h-96 rounded-full bg-secondary-200/50 mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
       </div>
 
       <div className="absolute top-6 left-6 z-20">
