@@ -7,17 +7,16 @@ import {
   BarChart2,
   PenTool,
   Library,
-  Image,
   Users,
   UserCheck,
   Shield,
-  Settings, 
-  Puzzle,
   CreditCard,
   LogOut, 
   Menu, 
   BookOpen,
-  User as UserIcon
+  User as UserIcon,
+  Tag,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../App';
 
@@ -47,7 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-  // Admin Sidebar Structure matching the screenshot
+  // Admin Sidebar Structure
   const adminSections: NavSection[] = [
     {
       title: 'Overview',
@@ -57,27 +56,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       ]
     },
     {
-      title: 'Content Management',
+      title: 'Content',
       items: [
         { label: 'Course Builder', path: '/admin/course-builder', icon: <PenTool size={20} /> },
         { label: 'Course Library', path: '/admin/courses', icon: <Library size={20} /> },
-        // { label: 'Media Assets', path: '/admin/media', icon: <Image size={20} /> },
+        { label: 'Categories', path: '/admin/categories', icon: <Tag size={20} /> },
       ]
     },
     {
-      title: 'User Management',
+      title: 'Users',
       items: [
         { label: 'Students', path: '/admin/students', icon: <Users size={20} /> },
-        // { label: 'Instructors', path: '/admin/instructors', icon: <UserCheck size={20} /> },
-        // { label: 'Permissions', path: '/admin/permissions', icon: <Shield size={20} /> },
+        { label: 'Instructors', path: '/admin/instructors', icon: <UserCheck size={20} /> },
+        { label: 'Team', path: '/admin/team', icon: <Shield size={20} /> }, 
       ]
     },
     {
       title: 'Settings',
       items: [
-        // { label: 'General', path: '/admin/settings', icon: <Settings size={20} /> },
-        // { label: 'Integrations', path: '/admin/integrations', icon: <Puzzle size={20} /> },
         { label: 'Billing', path: '/admin/billing', icon: <CreditCard size={20} /> },
+        { label: 'Platform Settings', path: '/admin/settings', icon: <Settings size={20} /> },
       ]
     }
   ];
@@ -94,7 +92,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   ];
 
-  const sections = user?.role === 'admin' ? adminSections : studentSections;
+  const isAdmin = user?.role !== 'student';
+  const sections = isAdmin ? adminSections : studentSections;
 
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
@@ -111,33 +110,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar - Using bg-gray-100 (Beige) to distinguish from Main Content */}
       <motion.aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-100 border-r border-gray-200 transform lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-50">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3 shadow-sm">
+        <div className="h-16 flex items-center px-6 border-b border-gray-200/50">
+          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center mr-3 shadow-md">
              <BookOpen className="text-white" size={18} />
           </div>
-          <span className="text-xl font-bold text-gray-800 tracking-tight">Aelgo World</span>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">Aelgo World</span>
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto custom-scrollbar">
           {sections.map((section, idx) => (
             <div key={idx}>
               {section.title && (
-                <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                <h3 className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                   {section.title}
                 </h3>
               )}
               <div className="space-y-1">
                 {section.items.map((item) => {
-                  // Check if active: exact match or starts with path (for nested routes like /admin/courses/edit)
-                  // Special handling for root dashboard paths to avoid partial matching everything
                   const isActive = location.pathname === item.path || 
                                   (item.path !== '/admin' && item.path !== '/dashboard' && location.pathname.startsWith(item.path));
 
@@ -146,13 +143,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       key={item.path}
                       to={item.path}
                       onClick={() => setIsSidebarOpen(false)}
-                      className={`flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                      className={`flex items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group ${
                         isActive
-                          ? 'bg-primary-600 text-white shadow-md'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20'
+                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm'
                       }`}
                     >
-                      <span className={`mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}>
+                      <span className={`mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-primary-600'}`}>
                         {item.icon}
                       </span>
                       {item.label}
@@ -165,16 +162,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-4 border-t border-gray-100">
-           <div className="flex items-center mb-4 px-2">
+        <div className="p-4 border-t border-gray-200/50 bg-gray-100">
+           <div className="flex items-center mb-4 px-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
               <img
-                className="h-8 w-8 rounded-full ring-2 ring-gray-100"
+                className="h-9 w-9 rounded-full ring-2 ring-gray-100"
                 src={user?.avatar}
                 alt="User avatar"
               />
               <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-gray-700 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{user?.role}</p>
+                <p className="text-sm font-bold text-gray-800 truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 truncate capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>
            </div>
            
@@ -188,13 +185,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </motion.aside>
 
-      {/* Main Content */}
+      {/* Main Content - Using bg-gray-50 (Cream) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50">
         {/* Mobile Header */}
-        <div className="lg:hidden bg-white border-b border-gray-200 h-16 flex items-center px-4">
+        <div className="lg:hidden bg-gray-100 border-b border-gray-200 h-16 flex items-center px-4">
            <button
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200"
           >
             <Menu size={24} />
           </button>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, BarChart, BookOpen, CheckCircle, 
   PlayCircle, Lock, ChevronDown, ChevronUp, Award,
@@ -11,6 +11,7 @@ import { api } from '../lib/api';
 import { Course } from '../types';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
+import { PaymentModal } from '../components/PaymentModal';
 
 export const CourseLanding: React.FC = () => {
   const { courseId } = useParams();
@@ -22,6 +23,8 @@ export const CourseLanding: React.FC = () => {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [activeModule, setActiveModule] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [enrollmentStatus, setEnrollmentStatus] = useState<'none' | 'pending' | 'active'>('none');
 
   useEffect(() => {
       const loadCourse = async () => {
@@ -32,7 +35,14 @@ export const CourseLanding: React.FC = () => {
           
           if (user) {
               const enrolled = await api.checkEnrollment(courseId, user.id);
-              setIsEnrolled(enrolled);
+              if (enrolled) {
+                  setIsEnrolled(true);
+                  setEnrollmentStatus('active');
+              } else {
+                  // Check for pending transactions
+                  const pending = await api.checkPendingTransaction(courseId, user.id);
+                  if (pending) setEnrollmentStatus('pending');
+              }
           }
           
           setIsLoading(false);
@@ -40,7 +50,7 @@ export const CourseLanding: React.FC = () => {
       loadCourse();
   }, [courseId, user]);
 
-  const handleEnroll = async () => {
+  const handleEnrollClick = () => {
     if (!user) {
         navigate('/login');
         return;
@@ -51,18 +61,60 @@ export const CourseLanding: React.FC = () => {
         return;
     }
 
-    if (!course) return;
-
-    setIsEnrolling(true);
-    const success = await api.enrollUser(course.id, user.id);
-    
-    if (success) {
-        setIsEnrolled(true);
-        navigate(`/course/${course.id}`);
-    } else {
-        alert("Enrollment failed. Please try again.");
+    if (enrollmentStatus === 'pending') {
+        return; // Already pending
     }
-    setIsEnrolling(false);
+
+    if (course && course.price > 0) {
+        setShowPaymentModal(true);
+    } else {
+        processFreeEnrollment();
+    }
+  };
+
+  const processFreeEnrollment = async () => {
+      if (!course || !user) return;
+      setIsEnrolling(true);
+      const success = await api.enrollUser(course.id, user.id);
+      if (success) {
+          setIsEnrolled(true);
+          setEnrollmentStatus('active');
+          navigate(`/course/${course.id}`);
+      } else {
+          alert("Enrollment failed.");
+      }
+      setIsEnrolling(false);
+  };
+
+  const handlePaymentSuccess = async (method: 'online' | 'offline', reference?: string) => {
+      setShowPaymentModal(false);
+      setIsEnrolling(true);
+      
+      if (!course || !user) return;
+
+      const result = await api.processPayment({
+          userId: user.id,
+          userName: user.name,
+          courseId: course.id,
+          courseTitle: course.title,
+          amount: course.price,
+          method: method === 'online' ? 'Credit Card' : 'Bank Transfer',
+          type: method,
+          referenceId: reference
+      });
+
+      if (result.success) {
+          if (result.status === 'active') {
+              setIsEnrolled(true);
+              setEnrollmentStatus('active');
+              navigate(`/course/${course.id}`);
+          } else {
+              setEnrollmentStatus('pending');
+          }
+      } else {
+          alert("Payment processing failed. Please try again.");
+      }
+      setIsEnrolling(false);
   };
 
   const getLessonIcon = (type: string) => {
@@ -95,11 +147,22 @@ export const CourseLanding: React.FC = () => {
       );
   }
 
-  // Check for podcast content to display badge/icon
   const hasPodcasts = course.modules.some(m => m.isPodcast || m.lessons.some(l => l.type === 'podcast'));
 
   return (
-    <div className="-m-4 lg:-m-8">
+    <div className="-m-4 lg:-m-8 relative">
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {showPaymentModal && (
+            <PaymentModal 
+                amount={course.price}
+                courseTitle={course.title}
+                onClose={() => setShowPaymentModal(false)}
+                onSuccess={handlePaymentSuccess}
+            />
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
       <div className="bg-gray-900 text-white relative overflow-hidden">
          <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-transparent z-10" />
@@ -126,19 +189,30 @@ export const CourseLanding: React.FC = () => {
                 </div>
 
                 <div className="pt-6">
-                    <Button 
-                        size="lg" 
-                        className="px-8 py-4 text-lg font-semibold min-w-[200px]"
-                        isLoading={isEnrolling}
-                        onClick={handleEnroll}
-                    >
-                        {isEnrolled ? 'Go to Course' : `Enroll Now - $${course.price}`}
-                    </Button>
-                    {!isEnrolled && <p className="text-xs text-gray-500 mt-2 pl-2">30-day money-back guarantee</p>}
+                    {enrollmentStatus === 'pending' ? (
+                        <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-4 inline-flex items-center text-yellow-200">
+                            <Clock size={20} className="mr-3" />
+                            <div>
+                                <p className="font-bold text-sm">Enrollment Pending Approval</p>
+                                <p className="text-xs opacity-80">We are verifying your offline payment.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <Button 
+                            size="lg" 
+                            className="px-8 py-4 text-lg font-semibold min-w-[200px]"
+                            isLoading={isEnrolling}
+                            onClick={handleEnrollClick}
+                        >
+                            {isEnrolled ? 'Go to Course' : `Enroll Now - $${course.price}`}
+                        </Button>
+                    )}
+                    
+                    {!isEnrolled && enrollmentStatus !== 'pending' && <p className="text-xs text-gray-500 mt-2 pl-2">30-day money-back guarantee</p>}
                 </div>
             </div>
             
-            {/* Instructor Card (Desktop) */}
+            {/* Instructor Card */}
             <div className="hidden md:block w-80 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                 <div className="flex items-center space-x-4 mb-4">
                     <img src={`https://ui-avatars.com/api/?name=${course.instructor}&background=random`} alt="" className="w-12 h-12 rounded-full border-2 border-white" />
@@ -155,7 +229,6 @@ export const CourseLanding: React.FC = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-12 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-12">
                 {/* Learning Outcomes */}
@@ -247,7 +320,6 @@ export const CourseLanding: React.FC = () => {
                     </ul>
                 </div>
             </div>
-
         </div>
       </div>
     </div>

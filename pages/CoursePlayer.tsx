@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
@@ -66,12 +66,7 @@ export const CoursePlayer: React.FC = () => {
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  
-  // Audio Player State
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // New State for Sidebar Tabs (Curriculum vs Audio)
   const [sidebarTab, setSidebarTab] = useState<'curriculum' | 'audio'>('curriculum');
@@ -99,71 +94,6 @@ export const CoursePlayer: React.FC = () => {
     };
     fetchCourseAndProgress();
   }, [courseId, user]);
-
-  // Audio Playback Effect: MediaSession & Source management
-  useEffect(() => {
-    if (currentLesson?.type === 'podcast' && currentLesson.contentUrl && audioRef.current) {
-        // Only update source if different to prevent reload on re-render
-        // Note: We use a key on the audio element to force re-mount if lesson changes, 
-        // but dealing with ref source is cleaner for SPA
-    }
-    
-    // Reset player state when lesson changes
-    if (currentLesson?.id) {
-        setIsPlaying(false);
-        setCurrentTime(0);
-    }
-  }, [currentLesson]);
-
-  // Handle Media Session API for background play
-  useEffect(() => {
-    if (currentLesson?.type === 'podcast' && 'mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: currentLesson.title,
-            artist: course?.instructor || 'Aelgo Learning',
-            album: course?.title || 'Audio Series',
-            artwork: [
-                { src: course?.thumbnail || '', sizes: '512x512', type: 'image/jpeg' }
-            ]
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => {
-            audioRef.current?.play();
-        });
-        navigator.mediaSession.setActionHandler('pause', () => {
-            audioRef.current?.pause();
-        });
-        navigator.mediaSession.setActionHandler('seekbackward', () => {
-            if(audioRef.current) audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 10, 0);
-        });
-        navigator.mediaSession.setActionHandler('seekforward', () => {
-            if(audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 10, audioRef.current.duration);
-        });
-    }
-  }, [currentLesson, course]);
-
-  const toggleAudio = () => {
-      if (!audioRef.current) return;
-      if (isPlaying) {
-          audioRef.current.pause();
-      } else {
-          audioRef.current.play();
-      }
-  };
-
-  const handleTimeUpdate = () => {
-      if (audioRef.current) {
-          setCurrentTime(audioRef.current.currentTime);
-          setDuration(audioRef.current.duration);
-      }
-  };
-
-  const formatTime = (seconds: number) => {
-      if (!seconds) return "00:00";
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
 
   const toggleComplete = async (lessonId: string) => {
       if (!user) return;
@@ -216,19 +146,6 @@ export const CoursePlayer: React.FC = () => {
       case 'podcast':
         return (
           <div className="max-w-3xl mx-auto space-y-8">
-             {/* Actual Hidden Audio Element for Background Play */}
-             <audio 
-                ref={audioRef}
-                src={currentLesson.contentUrl}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onTimeUpdate={handleTimeUpdate}
-                onEnded={() => {
-                    setIsPlaying(false);
-                    toggleComplete(currentLesson.id);
-                }}
-             />
-
              {/* Podcast Player UI */}
              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative">
                 {/* Header / Visualization */}
@@ -237,7 +154,7 @@ export const CoursePlayer: React.FC = () => {
                    <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-gray-900 opacity-90"></div>
                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                    
-                   {/* Animated Waveform (Fake Visuals) */}
+                   {/* Animated Waveform (Fake) */}
                    <div className="absolute inset-x-0 bottom-0 h-32 flex items-end justify-center gap-1 opacity-20 pointer-events-none">
                       {[...Array(30)].map((_, i) => (
                           <motion.div 
@@ -258,7 +175,7 @@ export const CoursePlayer: React.FC = () => {
                           <Mic className="text-white" size={32} />
                       </motion.div>
                       <h2 className="text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
-                      <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {formatTime(duration)}</p>
+                      <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {currentLesson.duration || '15:00'}</p>
                    </div>
                 </div>
 
@@ -266,49 +183,29 @@ export const CoursePlayer: React.FC = () => {
                 <div className="p-8">
                    <div className="space-y-6">
                       {/* Progress Bar */}
-                      <div 
-                        className="w-full bg-gray-100 rounded-full h-1.5 cursor-pointer group relative"
-                        onClick={(e) => {
-                            if (!audioRef.current) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const x = e.clientX - rect.left;
-                            const percentage = x / rect.width;
-                            audioRef.current.currentTime = percentage * audioRef.current.duration;
-                        }}
-                      >
-                         <div 
-                            className="bg-primary-500 h-full rounded-full relative group-hover:bg-primary-600 transition-colors"
-                            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                         >
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 cursor-pointer group relative">
+                         <div className="bg-primary-500 h-full w-1/3 rounded-full relative group-hover:bg-primary-600 transition-colors">
                             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-primary-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
                          </div>
                       </div>
                       
                       <div className="flex justify-between items-center text-xs text-gray-500 font-mono font-medium">
-                         <span>{formatTime(currentTime)}</span>
-                         <span>{formatTime(duration)}</span>
+                         <span>05:12</span>
+                         <span>{currentLesson.duration || '15:00'}</span>
                       </div>
 
                       {/* Main Buttons */}
                       <div className="flex justify-center items-center gap-8">
-                         <button 
-                            className="text-gray-400 hover:text-primary-600 transition-colors" 
-                            title="Rewind 10s"
-                            onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 10; }}
-                         >
+                         <button className="text-gray-400 hover:text-primary-600 transition-colors" title="Rewind 10s">
                              <RefreshCw size={24} className="transform -scale-x-100" />
                          </button>
                          <button 
-                            onClick={toggleAudio}
+                            onClick={() => setIsPlaying(!isPlaying)}
                             className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-500/40 hover:scale-105 hover:bg-primary-600 transition-all"
                          >
                             {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} className="ml-1" fill="currentColor" />}
                          </button>
-                         <button 
-                            className="text-gray-400 hover:text-primary-600 transition-colors" 
-                            title="Forward 10s"
-                            onClick={() => { if(audioRef.current) audioRef.current.currentTime += 10; }}
-                         >
+                         <button className="text-gray-400 hover:text-primary-600 transition-colors" title="Forward 10s">
                              <RefreshCw size={24} />
                          </button>
                       </div>
@@ -330,7 +227,12 @@ export const CoursePlayer: React.FC = () => {
                 </h3>
                 <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
                    <p className="mb-4">In this episode, we dive deep into the core concepts discussed in Module {course?.modules.findIndex(m => m.lessons.includes(currentLesson!))! + 1}. Listen to this while commuting or taking a break from the screen to reinforce your learning.</p>
-                   <p className="text-xs text-gray-400 italic">Source: {currentLesson.contentUrl ? 'External Audio File' : 'Local Mock'}</p>
+                   <ul className="list-disc pl-5 space-y-2 mb-4">
+                      <li>Understanding the theoretical underpinnings</li>
+                      <li>Real-world usage examples</li>
+                      <li>Interview questions related to this topic</li>
+                   </ul>
+                   <p className="text-xs text-gray-400 italic">Audio source: {currentLesson.contentUrl || 'Hosted internally'}</p>
                 </div>
              </div>
           </div>
@@ -483,10 +385,7 @@ export const CoursePlayer: React.FC = () => {
                                 onClick={() => {
                                     setCurrentLesson(lesson);
                                     // Stop audio if switching away from podcast
-                                    if (lesson.type !== 'podcast') {
-                                        setIsPlaying(false);
-                                        if(audioRef.current) audioRef.current.pause();
-                                    }
+                                    if (lesson.type !== 'podcast') setIsPlaying(false);
                                 }}
                                 className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-all text-left group ${
                                 isActive 

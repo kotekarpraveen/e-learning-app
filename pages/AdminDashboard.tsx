@@ -19,36 +19,36 @@ const STATS = [
     value: '24', 
     change: '+12%', 
     trend: 'up', 
-    icon: <BookOpen className="text-blue-600" size={24} />, 
-    bg: 'bg-blue-50',
-    color: 'text-blue-600' 
+    icon: <BookOpen className="text-primary-600" size={24} />, 
+    bg: 'bg-primary-50',
+    color: 'text-primary-600' 
   },
   { 
     label: 'Active Students', 
     value: '1,847', 
     change: '+23%', 
     trend: 'up', 
-    icon: <Users className="text-emerald-600" size={24} />, 
-    bg: 'bg-emerald-50',
-    color: 'text-emerald-600'
+    icon: <Users className="text-gray-700" size={24} />, 
+    bg: 'bg-gray-100',
+    color: 'text-gray-700'
   },
   { 
     label: 'Completion Rate', 
     value: '78%', 
     change: '+5%', 
     trend: 'up', 
-    icon: <TrendingUp className="text-orange-600" size={24} />, 
-    bg: 'bg-orange-50',
-    color: 'text-orange-600'
+    icon: <TrendingUp className="text-primary-500" size={24} />, 
+    bg: 'bg-primary-50',
+    color: 'text-primary-500'
   },
   { 
     label: 'Avg. Engagement', 
     value: '4.2h', 
     change: '-3%', 
     trend: 'down', 
-    icon: <Clock className="text-rose-600" size={24} />, 
-    bg: 'bg-rose-50',
-    color: 'text-rose-600'
+    icon: <Clock className="text-gray-600" size={24} />, 
+    bg: 'bg-gray-100',
+    color: 'text-gray-600'
   }
 ];
 
@@ -56,7 +56,7 @@ const RECENT_ACTIVITY = [
   { user: 'Sarah Johnson', action: 'enrolled in "Introduction to React Development"', time: '5 min ago', avatar: 'https://i.pravatar.cc/150?u=1' },
   { user: 'Michael Chen', action: 'finished "Advanced JavaScript Patterns" with 95% score', time: '12 min ago', avatar: 'https://i.pravatar.cc/150?u=2' },
   { user: 'System', action: 'Added 3 video lessons to "Python for Data Science"', time: '1 hour ago', icon: <Upload size={16} className="text-primary-600" /> },
-  { user: 'System', action: 'Modified quiz questions in "UI/UX Design Fundamentals"', time: '2 hours ago', icon: <Settings size={16} className="text-orange-600" /> },
+  { user: 'System', action: 'Modified quiz questions in "UI/UX Design Fundamentals"', time: '2 hours ago', icon: <Settings size={16} className="text-gray-600" /> },
 ];
 
 const PLATFORM_STATS = [
@@ -74,14 +74,14 @@ const StatCard: React.FC<{ stat: typeof STATS[0], index: number }> = ({ stat, in
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.1 }}
-    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full"
+    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between h-full hover:border-primary-300 transition-colors"
   >
     <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl ${stat.bg}`}>
+      <div className={`p-3 rounded-xl border border-transparent ${stat.bg}`}>
         {stat.icon}
       </div>
       <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-        stat.trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        stat.trend === 'up' ? 'bg-primary-50 text-primary-700 border border-primary-100' : 'bg-gray-100 text-gray-700 border border-gray-200'
       }`}>
         {stat.change}
       </span>
@@ -101,7 +101,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
          initial={{ height: 0 }}
          animate={{ height: `${height}%` }}
          transition={{ delay: delay * 0.05, duration: 0.8, type: 'spring' }}
-         className="w-1/2 bg-emerald-500 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
+         className="w-1/2 bg-primary-400 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
        >
          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
            {Math.round(height * 5)} Students
@@ -113,7 +113,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
          initial={{ height: 0 }}
          animate={{ height: `${height * 0.6}%` }}
          transition={{ delay: (delay * 0.05) + 0.1, duration: 0.8, type: 'spring' }}
-         className="w-1/2 bg-blue-600 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
+         className="w-1/2 bg-gray-300 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
        />
     </div>
     <span className="text-[10px] text-gray-400 font-medium uppercase">{label}</span>
@@ -125,12 +125,12 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
   return (
     <motion.div 
       layout
-      className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all group"
+      className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all group hover:border-primary-300"
     >
       <div className="h-40 overflow-hidden relative">
         <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute top-3 right-3">
-          <span className="bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+          <span className="bg-primary-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
             Published
           </span>
         </div>
@@ -139,8 +139,8 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         <h3 className="font-bold text-gray-900 text-lg mb-1 line-clamp-1" title={course.title}>{course.title}</h3>
         
         <div className="flex items-center text-xs text-gray-500 mb-4 space-x-4">
-           <span className="flex items-center"><Users size={14} className="mr-1" /> {course.enrolledStudents || 120} enrolled</span>
-           <span className="flex items-center"><CheckCircle size={14} className="mr-1" /> {Math.floor(Math.random() * 40 + 60)}% completed</span>
+           <span className="flex items-center"><Users size={14} className="mr-1 text-primary-500" /> {course.enrolledStudents || 120} enrolled</span>
+           <span className="flex items-center"><CheckCircle size={14} className="mr-1 text-primary-500" /> {Math.floor(Math.random() * 40 + 60)}% completed</span>
         </div>
 
         <div className="mb-5">
@@ -149,18 +149,18 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
               <span className="text-gray-900 font-bold">{course.progress || 42}%</span>
            </div>
            <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-primary-600 h-1.5 rounded-full" style={{ width: `${course.progress || 42}%` }}></div>
+              <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${course.progress || 42}%` }}></div>
            </div>
         </div>
 
         <div className="flex gap-2">
-           <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => navigate('/admin/course-builder')}>
+           <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200" onClick={() => navigate('/admin/course-builder')}>
               Edit
            </Button>
-           <Button variant="secondary" size="sm" className="flex-1 text-xs">
+           <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200">
               <BarChart2 size={14} className="mr-1" /> Analytics
            </Button>
-           <Button variant="primary" size="sm" className="text-xs bg-gray-900 hover:bg-black">
+           <Button variant="primary" size="sm" className="text-xs bg-gray-900 hover:bg-black border border-gray-900">
               Unpublish
            </Button>
         </div>
@@ -205,7 +205,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Header Section */}
       <div className="flex flex-col gap-1">
          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h1>
-         <p className="text-gray-500">Manage courses, monitor student progress, and analyze platform performance</p>
+         <p className="text-gray-600">Manage courses, monitor student progress, and analyze platform performance</p>
       </div>
 
       {/* Stats Grid */}
@@ -301,17 +301,17 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex justify-center gap-6 mt-6">
                <div className="flex items-center text-xs text-gray-500">
-                  <span className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span> Enrolled Students
+                  <span className="w-3 h-3 rounded-full bg-primary-400 mr-2"></span> Enrolled Students
                </div>
                <div className="flex items-center text-xs text-gray-500">
-                  <span className="w-3 h-3 rounded-full bg-blue-600 mr-2"></span> Completed Courses
+                  <span className="w-3 h-3 rounded-full bg-gray-300 mr-2"></span> Completed Courses
                </div>
             </div>
          </div>
 
          {/* Quick Actions */}
          <div className="space-y-6">
-            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 h-full">
+            <div className="bg-gray-100 p-6 rounded-2xl border border-gray-200 h-full">
                <h3 className="font-bold text-gray-900 mb-1">Quick Actions</h3>
                <p className="text-sm text-gray-500 mb-6">Common administrative tasks</p>
                
@@ -336,12 +336,12 @@ export const AdminDashboard: React.FC = () => {
                       <button 
                         onClick={handleSeedDatabase}
                         disabled={isSeeding}
-                        className="bg-white p-4 rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-md transition-all text-left group"
+                        className="bg-white p-4 rounded-xl border border-gray-200 hover:border-primary-500 hover:shadow-md transition-all text-left group"
                       >
                          {isSeeding ? (
-                            <RefreshCw className="mb-3 text-emerald-600 animate-spin" size={24} />
+                            <RefreshCw className="mb-3 text-primary-600 animate-spin" size={24} />
                          ) : (
-                            <Database className="mb-3 text-emerald-600 group-hover:scale-110 transition-transform" size={24} />
+                            <Database className="mb-3 text-primary-600 group-hover:scale-110 transition-transform" size={24} />
                          )}
                          <span className="font-bold text-gray-800 text-sm block">Seed Database</span>
                          <span className="text-[10px] text-gray-500">Populate dummy data...</span>
@@ -381,7 +381,7 @@ export const AdminDashboard: React.FC = () => {
          </div>
 
          {/* Platform Statistics */}
-         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
+         <div className="bg-gray-100 p-6 rounded-2xl border border-gray-200">
             <h3 className="font-bold text-gray-900 mb-1">Platform Statistics</h3>
             <p className="text-sm text-gray-500 mb-6">Key performance indicators for December 2025</p>
             

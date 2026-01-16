@@ -18,8 +18,8 @@ const METRICS = [
     change: '+12.5%', 
     trend: 'up', 
     period: 'vs last month',
-    icon: <DollarSign size={22} className="text-emerald-600" />,
-    bg: 'bg-emerald-50'
+    icon: <DollarSign size={22} className="text-primary-700" />,
+    bg: 'bg-primary-100'
   },
   { 
     label: 'Active Students', 
@@ -27,8 +27,8 @@ const METRICS = [
     change: '+18.2%', 
     trend: 'up', 
     period: 'vs last month',
-    icon: <Users size={22} className="text-blue-600" />,
-    bg: 'bg-blue-50'
+    icon: <Users size={22} className="text-gray-800" />,
+    bg: 'bg-gray-200'
   },
   { 
     label: 'Course Completion', 
@@ -36,8 +36,8 @@ const METRICS = [
     change: '-2.1%', 
     trend: 'down', 
     period: 'vs last month',
-    icon: <TrendingUp size={22} className="text-indigo-600" />,
-    bg: 'bg-indigo-50'
+    icon: <TrendingUp size={22} className="text-primary-600" />,
+    bg: 'bg-primary-50'
   },
   { 
     label: 'Avg. Session', 
@@ -45,8 +45,8 @@ const METRICS = [
     change: '+5.3%', 
     trend: 'up', 
     period: 'vs last month',
-    icon: <Clock size={22} className="text-amber-600" />,
-    bg: 'bg-amber-50'
+    icon: <Clock size={22} className="text-gray-700" />,
+    bg: 'bg-gray-100'
   },
 ];
 
@@ -63,8 +63,8 @@ const TOP_COURSES = [
 
 const DEVICE_STATS = [
   { device: 'Desktop', percentage: 58, icon: <Monitor size={16} />, color: 'bg-primary-600' },
-  { device: 'Mobile', percentage: 32, icon: <Smartphone size={16} />, color: 'bg-blue-500' },
-  { device: 'Tablet', percentage: 10, icon: <Tablet size={16} />, color: 'bg-indigo-400' },
+  { device: 'Mobile', percentage: 32, icon: <Smartphone size={16} />, color: 'bg-primary-400' },
+  { device: 'Tablet', percentage: 10, icon: <Tablet size={16} />, color: 'bg-gray-400' },
 ];
 
 // --- Components ---
@@ -90,8 +90,8 @@ const AreaChart = () => {
         {/* Gradient Definition */}
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#cfaa33" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#cfaa33" stopOpacity="0" />
+            <stop offset="0%" stopColor="#d1a845" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#d1a845" stopOpacity="0" />
           </linearGradient>
         </defs>
         
@@ -103,7 +103,7 @@ const AreaChart = () => {
             y1={p * height} 
             x2={width} 
             y2={p * height} 
-            stroke="#f3f4f6" 
+            stroke="#e5e7eb" 
             strokeWidth="1" 
           />
         ))}
@@ -120,7 +120,7 @@ const AreaChart = () => {
         {/* The Line */}
         <motion.polyline
           fill="none"
-          stroke="#b38e20"
+          stroke="#d1a845"
           strokeWidth="3"
           points={points}
           strokeLinecap="round"
@@ -136,7 +136,7 @@ const AreaChart = () => {
            const y = height - ((val - min) / (max - min)) * height;
            return (
              <g key={i} className="group">
-               <circle cx={x} cy={y} r="6" fill="#fff" stroke="#b38e20" strokeWidth="2" className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
+               <circle cx={x} cy={y} r="6" fill="#fff" stroke="#d1a845" strokeWidth="2" className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
                <rect x={x - 40} y={y - 45} width="80" height="35" rx="6" fill="#1f2937" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                <text x={x} y={y - 22} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="bold" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
                  ${val}
@@ -163,20 +163,20 @@ export const AdminAnalytics: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Analytics Overview</h1>
-          <p className="text-gray-500">Monitor your platform's performance and growth metrics.</p>
+          <p className="text-gray-600">Monitor your platform's performance and growth metrics.</p>
         </div>
         
         <div className="flex gap-3 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-           <Button variant="ghost" size="sm" className="text-gray-600">
+           <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-50">
              <Calendar size={16} className="mr-2" />
              {dateRange}
              <ChevronDown size={14} className="ml-2 opacity-50" />
            </Button>
            <div className="w-px bg-gray-200 my-1"></div>
-           <Button variant="ghost" size="sm" className="text-gray-600">
+           <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-50">
              <Filter size={16} className="mr-2" /> Filter
            </Button>
-           <Button variant="ghost" size="sm" className="text-gray-600">
+           <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-50">
              <Download size={16} className="mr-2" /> Export
            </Button>
         </div>
@@ -190,19 +190,19 @@ export const AdminAnalytics: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md hover:border-primary-200 transition-all"
           >
             <div className="flex justify-between items-start mb-4">
                <div className={`p-3 rounded-xl ${metric.bg}`}>
                   {metric.icon}
                </div>
                {metric.trend === 'up' ? (
-                 <span className="flex items-center text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                    <ArrowUpRight size={14} className="mr-1" /> {metric.change}
+                 <span className="flex items-center text-xs font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2 py-1 rounded-full">
+                    <ArrowUpRight size={14} className="mr-1 text-green-600" /> {metric.change}
                  </span>
                ) : (
-                 <span className="flex items-center text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">
-                    <ArrowDownRight size={14} className="mr-1" /> {metric.change}
+                 <span className="flex items-center text-xs font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2 py-1 rounded-full">
+                    <ArrowDownRight size={14} className="mr-1 text-red-600" /> {metric.change}
                  </span>
                )}
             </div>
@@ -239,7 +239,7 @@ export const AdminAnalytics: React.FC = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-6">Device Breakdown</h3>
               <div className="relative w-48 h-48 mx-auto mb-8">
                  {/* CSS Conic Gradient Pie Chart approximation */}
-                 <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(#b38e20 0% 58%, #3b82f6 58% 90%, #818cf8 90% 100%)` }}></div>
+                 <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(#d1a845 0% 58%, #eab308 58% 90%, #9ca3af 90% 100%)` }}></div>
                  <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
                     <span className="text-3xl font-bold text-gray-900">58%</span>
                     <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Desktop</span>
@@ -277,7 +277,7 @@ export const AdminAnalytics: React.FC = () => {
                   <h3 className="text-lg font-bold text-gray-900">Top Performing Courses</h3>
                   <p className="text-sm text-gray-500">Based on revenue and student retention</p>
                </div>
-               <Button variant="ghost" size="sm">View All</Button>
+               <Button variant="ghost" size="sm" className="text-primary-600 hover:text-primary-700">View All</Button>
             </div>
             
             <div className="overflow-x-auto">
@@ -299,13 +299,13 @@ export const AdminAnalytics: React.FC = () => {
                            <td className="px-6 py-4 text-gray-600">{course.students}</td>
                            <td className="px-6 py-4">
                               <span className="flex items-center text-gray-800 font-bold">
-                                 <span className="text-amber-400 mr-1">★</span> {course.rating}
+                                 <span className="text-primary-500 mr-1">★</span> {course.rating}
                               </span>
                            </td>
                            <td className="px-6 py-4 text-right">
                               <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${
-                                 parseInt(course.retention) > 90 ? 'bg-green-100 text-green-700' : 
-                                 parseInt(course.retention) > 80 ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                                 parseInt(course.retention) > 90 ? 'bg-primary-100 text-primary-800' : 
+                                 parseInt(course.retention) > 80 ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
                               }`}>
                                  {course.retention}
                               </span>

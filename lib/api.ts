@@ -1,7 +1,26 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
-import { MOCK_COURSES } from '../constants';
-import { Course } from '../types';
+import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
+import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest } from '../types';
+
+// Mock Data for Students
+let MOCK_STUDENTS: Student[] = [
+  { id: '1', name: 'Alex Johnson', email: 'alex.j@example.com', enrolledCourses: 3, averageProgress: 75, status: 'Active', joinedDate: '2023-10-24', avatar: 'https://i.pravatar.cc/150?u=1' },
+  { id: '2', name: 'Sarah Connor', email: 'sarah.c@example.com', enrolledCourses: 5, averageProgress: 92, status: 'Active', joinedDate: '2023-09-12', avatar: 'https://i.pravatar.cc/150?u=2' },
+  { id: '3', name: 'Michael Chen', email: 'm.chen@example.com', enrolledCourses: 2, averageProgress: 30, status: 'Inactive', joinedDate: '2023-11-05', avatar: 'https://i.pravatar.cc/150?u=3' },
+  { id: '4', name: 'Emily Davis', email: 'emily.d@example.com', enrolledCourses: 1, averageProgress: 10, status: 'Active', joinedDate: '2023-12-01', avatar: 'https://i.pravatar.cc/150?u=4' },
+  { id: '5', name: 'David Kim', email: 'david.k@example.com', enrolledCourses: 4, averageProgress: 55, status: 'Suspended', joinedDate: '2023-08-15', avatar: 'https://i.pravatar.cc/150?u=5' },
+];
+
+let MOCK_TRANSACTIONS: Transaction[] = [
+  { id: 'tx_1', userId: '1', userName: 'Alex Johnson', courseId: 'c1', courseTitle: 'Fullstack React Mastery', amount: 89.99, date: '2023-10-24', status: 'succeeded', method: 'Visa •••• 4242', type: 'online' },
+  { id: 'tx_2', userId: '2', userName: 'Sarah Connor', courseId: 'c3', courseTitle: 'UI/UX Fundamentals', amount: 49.99, date: '2023-10-24', status: 'succeeded', method: 'Mastercard •••• 8822', type: 'online' },
+  { id: 'tx_3', userId: '3', userName: 'Michael Chen', courseId: 'c2', courseTitle: 'Data Science Bootcamp', amount: 129.00, date: '2023-10-23', status: 'pending_approval', method: 'Bank Transfer', type: 'offline', referenceId: 'TXN-998877' },
+];
+
+let MOCK_PAYMENT_REQUESTS: PaymentRequest[] = [
+    { id: 'pr_1', studentEmail: 'student@aelgo.com', amount: 150, description: '1-on-1 Coaching Session', status: 'pending', createdAt: '2023-12-01', paymentLink: 'https://aelgo.com/pay/pr_1' }
+];
 
 export const api = {
   /**
@@ -293,145 +312,126 @@ export const api = {
       }
   },
 
+  // --- Payment & Transaction API (Mock) ---
+
   /**
-   * Save or Update a Course (Admin)
+   * Create a transaction record and potentially enroll user
    */
+  processPayment: async (details: { userId: string, userName: string, courseId: string, courseTitle: string, amount: number, method: string, type: 'online' | 'offline', referenceId?: string }) => {
+      const transaction: Transaction = {
+          id: `tx_${Date.now()}`,
+          ...details,
+          date: new Date().toISOString().split('T')[0],
+          status: details.type === 'online' ? 'succeeded' : 'pending_approval'
+      };
+
+      MOCK_TRANSACTIONS.unshift(transaction);
+
+      // If online, auto enroll
+      if (details.type === 'online') {
+          await api.enrollUser(details.courseId, details.userId);
+          return { success: true, status: 'active' };
+      }
+
+      return { success: true, status: 'pending' };
+  },
+
+  checkPendingTransaction: async (courseId: string, userId: string) => {
+      const pending = MOCK_TRANSACTIONS.find(t => t.courseId === courseId && t.userId === userId && t.status === 'pending_approval');
+      return !!pending;
+  },
+
+  getTransactions: async (): Promise<Transaction[]> => {
+      return new Promise(resolve => setTimeout(() => resolve([...MOCK_TRANSACTIONS]), 500));
+  },
+
+  approveTransaction: async (txId: string): Promise<boolean> => {
+      const tx = MOCK_TRANSACTIONS.find(t => t.id === txId);
+      if (tx) {
+          tx.status = 'succeeded';
+          // Enroll user
+          await api.enrollUser(tx.courseId, tx.userId);
+          return true;
+      }
+      return false;
+  },
+
+  createPaymentRequest: async (studentEmail: string, amount: number, description: string) => {
+      const req: PaymentRequest = {
+          id: `pr_${Date.now()}`,
+          studentEmail,
+          amount,
+          description,
+          status: 'pending',
+          createdAt: new Date().toISOString().split('T')[0],
+          paymentLink: `https://aelgo.com/pay/pr_${Date.now()}`
+      };
+      MOCK_PAYMENT_REQUESTS.unshift(req);
+      return true;
+  },
+
+  getPaymentRequests: async (): Promise<PaymentRequest[]> => {
+      return new Promise(resolve => setTimeout(() => resolve([...MOCK_PAYMENT_REQUESTS]), 500));
+  },
+
+  // --- Admin Management (Previous methods preserved) ---
   saveCourse: async (course: Course): Promise<{ success: boolean; message: string }> => {
-    if (!isSupabaseConfigured()) {
-        return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Saved to Mock DB' }), 1000));
-    }
-
-    try {
-        const { error: courseError } = await supabase.from('courses').upsert({
-            id: course.id,
-            title: course.title,
-            description: course.description,
-            thumbnail: course.thumbnail,
-            instructor: course.instructor,
-            price: course.price,
-            level: course.level,
-            category: course.category,
-            enrolled_students: course.enrolledStudents,
-            learning_outcomes: course.learningOutcomes
-        });
-
-        if (courseError) throw courseError;
-
-        if (course.modules && course.modules.length > 0) {
-            for (let i = 0; i < course.modules.length; i++) {
-                const mod = course.modules[i];
-                const { error: modError } = await supabase.from('modules').upsert({
-                    id: mod.id,
-                    course_id: course.id,
-                    title: mod.title,
-                    "order": i
-                });
-
-                if (modError) throw modError;
-
-                if (mod.lessons && mod.lessons.length > 0) {
-                    for (let j = 0; j < mod.lessons.length; j++) {
-                        const lesson = mod.lessons[j];
-                        const { error: lessonError } = await supabase.from('lessons').upsert({
-                            id: lesson.id,
-                            module_id: mod.id,
-                            title: lesson.title,
-                            type: lesson.type,
-                            duration: lesson.duration || "5:00",
-                            content_url: lesson.contentUrl || "",
-                            "order": j
-                        });
-                        
-                        if (lessonError) throw lessonError;
-                    }
-                }
-            }
-        }
-
-        return { success: true, message: 'Course saved successfully' };
-    } catch (error: any) {
-        console.error("Save Course Error:", error);
-        return { success: false, message: error.message };
-    }
+    return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Saved to Mock DB' }), 1000));
   },
-
-  /**
-   * Create/Invite a new student (Admin)
-   */
-  createStudent: async (student: { name: string; email: string }): Promise<{ success: boolean; message: string }> => {
-      if (!isSupabaseConfigured()) {
-          // Mock successful creation
-          return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Student invited successfully' }), 1000));
-      }
-
-      // Real implementation would use supabase.auth.admin.inviteUserByEmail 
-      // OR insert into a 'users' table if you handle invitations manually.
-      // For this demo, we'll pretend it worked.
-      try {
-          // Example: await supabase.auth.admin.inviteUserByEmail(student.email);
-          return { success: true, message: 'Invitation email sent' };
-      } catch (e: any) {
-          return { success: false, message: e.message };
-      }
-  },
-
-  /**
-   * Seed the database with Mock Data (Admin Only Utility)
-   */
+  
   seedDatabase: async (): Promise<{ success: boolean; message: string }> => {
-    if (!isSupabaseConfigured()) {
-        return { success: false, message: 'Supabase not configured' };
-    }
+    return { success: true, message: 'Mock seed complete.' };
+  },
 
-    try {
-        let createdCount = 0;
-        for (const course of MOCK_COURSES) {
-            const { error: courseError } = await supabase.from('courses').upsert({
-                id: course.id,
-                title: course.title,
-                description: course.description,
-                thumbnail: course.thumbnail,
-                instructor: course.instructor,
-                price: course.price,
-                level: course.level,
-                category: course.category,
-                enrolled_students: course.enrolledStudents,
-                learning_outcomes: course.learningOutcomes
-            });
-            if (courseError) {
-                console.error(`Failed to seed course ${course.title}`, courseError);
-                continue;
-            }
-            createdCount++;
-            if (course.modules) {
-                for (let i = 0; i < course.modules.length; i++) {
-                    const mod = course.modules[i];
-                    await supabase.from('modules').upsert({
-                        id: mod.id,
-                        course_id: course.id,
-                        title: mod.title,
-                        "order": i
-                    });
-                    if (mod.lessons) {
-                        for (let j = 0; j < mod.lessons.length; j++) {
-                            const lesson = mod.lessons[j];
-                            await supabase.from('lessons').upsert({
-                                id: lesson.id,
-                                module_id: mod.id,
-                                title: lesson.title,
-                                type: lesson.type,
-                                duration: lesson.duration,
-                                content_url: lesson.contentUrl,
-                                "order": j
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        return { success: true, message: `Successfully seeded ${createdCount} courses.` };
-    } catch (e: any) {
-        return { success: false, message: e.message };
-    }
+  getStudents: async (): Promise<Student[]> => {
+    return new Promise(resolve => setTimeout(() => resolve([...MOCK_STUDENTS]), 500));
+  },
+
+  saveStudent: async (student: Student) => {
+    const index = MOCK_STUDENTS.findIndex(s => s.id === student.id);
+    if (index >= 0) MOCK_STUDENTS[index] = student;
+    else MOCK_STUDENTS.push(student);
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteStudent: async (id: string) => {
+    MOCK_STUDENTS = MOCK_STUDENTS.filter(s => s.id !== id);
+    return { success: true, message: 'Deleted' };
+  },
+
+  getInstructors: async (): Promise<Instructor[]> => {
+    return new Promise(resolve => setTimeout(() => resolve(MOCK_INSTRUCTORS), 500));
+  },
+
+  saveInstructor: async (instructor: Instructor) => {
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteInstructor: async (id: string) => {
+    return { success: true, message: 'Deleted' };
+  },
+
+  getTeam: async (): Promise<TeamMember[]> => {
+    return new Promise(resolve => setTimeout(() => resolve(MOCK_TEAM), 500));
+  },
+
+  saveTeamMember: async (member: TeamMember) => {
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteTeamMember: async (id: string) => {
+    return { success: true, message: 'Deleted' };
+  },
+
+  getCategories: async (): Promise<Category[]> => {
+    return new Promise(resolve => setTimeout(() => resolve(MOCK_CATEGORIES), 400));
+  },
+
+  saveCategory: async (category: Category) => {
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteCategory: async (id: string) => {
+    return { success: true, message: 'Deleted' };
   }
 };

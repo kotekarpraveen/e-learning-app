@@ -113,8 +113,8 @@ export const LandingPage: React.FC = () => {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-gray-50">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-secondary-300 rounded-full blur-3xl opacity-20 mix-blend-multiply animate-blob"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[500px] h-[500px] bg-primary-200 rounded-full blur-3xl opacity-30 mix-blend-multiply animate-blob animation-delay-2000"></div>
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary-100 rounded-full blur-3xl opacity-20 mix-blend-multiply animate-blob"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[500px] h-[500px] bg-gray-200 rounded-full blur-3xl opacity-30 mix-blend-multiply animate-blob animation-delay-2000"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto mb-12">
@@ -123,7 +123,7 @@ export const LandingPage: React.FC = () => {
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.6 }}
             >
-               <span className="inline-block py-1 px-3 rounded-full bg-secondary-100 text-secondary-800 text-sm font-bold tracking-wide mb-6 border border-secondary-200">
+               <span className="inline-block py-1 px-3 rounded-full bg-primary-100 text-primary-800 text-sm font-bold tracking-wide mb-6 border border-primary-200">
                  🚀 Launch your tech career today
                </span>
                <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight leading-tight mb-6">
@@ -136,7 +136,7 @@ export const LandingPage: React.FC = () => {
                  <Button size="lg" className="px-8 py-4 text-lg w-full sm:w-auto" onClick={() => navigate('/login')}>
                    Get Started <ArrowRight className="ml-2" size={20} />
                  </Button>
-                 <Button size="lg" variant="secondary" className="px-8 py-4 text-lg w-full sm:w-auto" onClick={() => scrollToSection('courses')}>
+                 <Button size="lg" variant="secondary" className="px-8 py-4 text-lg w-full sm:w-auto border-gray-300" onClick={() => scrollToSection('courses')}>
                    Explore Courses
                  </Button>
                </div>
@@ -196,7 +196,7 @@ export const LandingPage: React.FC = () => {
                 key={idx}
                 {...fadeInUp}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
+                className="bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-primary-200 transition-all duration-300"
               >
                 <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center text-primary-600 mb-6">
                   {feature.icon}
@@ -272,7 +272,7 @@ export const LandingPage: React.FC = () => {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer border border-gray-100"
+                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer border border-gray-100 hover:border-primary-200"
                     onClick={() => navigate(`/course/${course.id}/details`)}
                   >
                      <div className="h-48 overflow-hidden relative">
@@ -285,7 +285,7 @@ export const LandingPage: React.FC = () => {
                         <div className="flex items-center text-xs text-gray-500 mb-3 space-x-2">
                            <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-medium">{course.level}</span>
                            <span>•</span>
-                           <span className="flex items-center"><Star size={12} className="text-yellow-400 fill-yellow-400 mr-1" /> 4.9</span>
+                           <span className="flex items-center"><Star size={12} className="text-primary-400 fill-primary-400 mr-1" /> 4.9</span>
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">
                            {course.title}
@@ -317,7 +317,7 @@ export const LandingPage: React.FC = () => {
       {/* NEW: Team Section */}
       <section id="team" className="py-24 bg-gray-50 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-           <div className="absolute top-20 -left-20 w-72 h-72 bg-secondary-200 rounded-full blur-3xl opacity-20"></div>
+           <div className="absolute top-20 -left-20 w-72 h-72 bg-primary-100 rounded-full blur-3xl opacity-20"></div>
            <div className="absolute bottom-20 -right-20 w-80 h-80 bg-primary-200 rounded-full blur-3xl opacity-20"></div>
         </div>
 
@@ -375,7 +375,7 @@ export const LandingPage: React.FC = () => {
                   <div className="text-center md:text-left flex-1">
                      <div className="mb-2">
                         <h3 className="text-xl font-bold text-gray-900">James Anderson</h3>
-                        <p className="text-blue-600 font-bold text-sm tracking-wide uppercase flex items-center justify-center md:justify-start gap-2">
+                        <p className="text-primary-600 font-bold text-sm tracking-wide uppercase flex items-center justify-center md:justify-start gap-2">
                           <Code size={16} /> Lead Content Developer
                         </p>
                      </div>
@@ -406,14 +406,14 @@ export const LandingPage: React.FC = () => {
                  <motion.div 
                    key={i}
                    whileHover={{ y: -5 }}
-                   className="bg-gray-50 p-8 rounded-2xl border border-gray-100 relative"
+                   className="bg-gray-50 p-8 rounded-2xl border border-gray-100 relative hover:border-primary-200 transition-colors"
                  >
-                    <div className="flex text-yellow-400 mb-4">
+                    <div className="flex text-primary-400 mb-4">
                        {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
                     </div>
                     <p className="text-gray-600 italic mb-6">"{t.text}"</p>
                     <div className="flex items-center">
-                       <div className="w-10 h-10 bg-primary-200 rounded-full flex items-center justify-center font-bold text-primary-800 mr-3">
+                       <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center font-bold text-primary-800 mr-3">
                           {t.name.charAt(0)}
                        </div>
                        <div>

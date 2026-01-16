@@ -11,12 +11,16 @@ import { CoursePlayer } from './pages/CoursePlayer';
 import { Settings } from './pages/Settings';
 import { Billing } from './pages/Billing';
 import { AdminStudents } from './pages/AdminStudents';
+import { AdminInstructors } from './pages/AdminInstructors';
+import { AdminTeam } from './pages/AdminTeam';
+import { AdminCategories } from './pages/AdminCategories';
 import { AdminAnalytics } from './pages/AdminAnalytics'; 
 import { LandingPage } from './pages/LandingPage'; 
 import { Layout } from './components/Layout';
 import { MOCK_USER_STUDENT, MOCK_USER_ADMIN } from './constants';
 import { User, UserRole } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { loadTheme } from './lib/theme';
 
 // --- Auth Context ---
 interface AuthContextType {
@@ -37,35 +41,38 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   // Helper to map Supabase User to App User
   const mapSupabaseUser = (sbUser: any): User => {
-    // 1. Supabase 'role' is always 'authenticated' for logged in users.
-    // 2. We check 'user_metadata.role' for our App's 'admin' | 'student' role.
-    // 3. Fallback: Check email pattern if metadata is missing.
     const metadataRole = sbUser.user_metadata?.role;
     const emailRole = sbUser.email?.includes('admin') ? 'admin' : 'student';
-    const finalRole: UserRole = (metadataRole === 'admin' || metadataRole === 'student') 
-        ? metadataRole 
-        : emailRole;
+    let finalRole: UserRole = 'student';
+    
+    if (['super_admin', 'admin', 'sub_admin', 'viewer', 'approver', 'instructor'].includes(metadataRole)) {
+        finalRole = metadataRole;
+    } else if (emailRole === 'admin') {
+        finalRole = 'admin'; 
+    }
 
     return {
         id: sbUser.id,
         email: sbUser.email!,
         name: sbUser.user_metadata?.full_name || sbUser.email?.split('@')[0] || 'User',
         role: finalRole,
-        avatar: sbUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${sbUser.email}`
+        avatar: sbUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${sbUser.email}`,
+        permissions: sbUser.user_metadata?.permissions || []
     };
   };
 
   useEffect(() => {
-    // 1. Check if Supabase is actually configured with keys
+    // Initialize Theme
+    loadTheme();
+
+    // Check Auth
     if (!isSupabaseConfigured()) {
-       // Fallback to local storage mock auth
        const stored = localStorage.getItem('aelgo_user');
        if (stored) setUser(JSON.parse(stored));
        setLoading(false);
        return;
     }
 
-    // 2. Real Supabase Auth Logic
     const initSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -81,7 +88,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
     initSession();
 
-    // Listen for auth changes (Login, Logout, Auto-refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
           setUser(mapSupabaseUser(session.user));
@@ -95,9 +101,9 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }, []);
 
   const login = async (email: string, role: UserRole) => {
-    // If Supabase is NOT configured, use Mock logic
     if (!isSupabaseConfigured()) {
-        const mockUser = role === 'admin' ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
+        const mockUser = (role.includes('admin') || role === 'instructor') ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
+        mockUser.role = role;
         setUser(mockUser);
         localStorage.setItem('aelgo_user', JSON.stringify(mockUser));
         return;
@@ -129,12 +135,16 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 // --- Protected Routes ---
-const ProtectedRoute = ({ allowedRole }: { allowedRole?: UserRole }) => {
+const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: UserRole[] }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) return null; 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (allowedRole && user?.role !== allowedRole) return <Navigate to="/dashboard" replace />;
+  
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+     if (user.role === 'student') return <Navigate to="/dashboard" replace />;
+     return <Navigate to="/admin" replace />;
+  }
   
   return (
     <Layout>
@@ -151,6 +161,7 @@ const App: React.FC = () => {
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/login/:loginType" element={<Login />} />
           
           {/* Student Routes */}
           <Route element={<ProtectedRoute />}>
@@ -161,13 +172,16 @@ const App: React.FC = () => {
              <Route path="/profile" element={<Settings />} />
           </Route>
 
-          {/* Admin Routes */}
-          <Route element={<ProtectedRoute allowedRole="admin" />}>
+          {/* Admin & Instructor Routes */}
+          <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'sub_admin', 'viewer', 'approver', 'instructor']} />}>
              <Route path="/admin" element={<AdminDashboard />} />
              <Route path="/admin/analytics" element={<AdminAnalytics />} />
              <Route path="/admin/courses" element={<AdminDashboard />} />
              <Route path="/admin/course-builder" element={<CourseBuilder />} />
              <Route path="/admin/students" element={<AdminStudents />} /> 
+             <Route path="/admin/instructors" element={<AdminInstructors />} />
+             <Route path="/admin/team" element={<AdminTeam />} />
+             <Route path="/admin/categories" element={<AdminCategories />} />
              <Route path="/admin/settings" element={<Settings />} />
              <Route path="/admin/billing" element={<Billing />} />
           </Route>
