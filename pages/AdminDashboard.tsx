@@ -11,6 +11,7 @@ import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { Course } from '../types';
+import { useAuth } from '../App';
 
 // --- Mock Data ---
 const STATS = [
@@ -171,6 +172,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -179,11 +181,19 @@ export const AdminDashboard: React.FC = () => {
     const fetchCourses = async () => {
         setIsLoading(true);
         const data = await api.getCourses();
-        setCourses(data);
+        
+        if (user?.role === 'instructor') {
+            // Filter courses for this instructor
+            // Note: In real app, check ID. Here we check name string as per mock data structure
+            const myCourses = data.filter(c => c.instructor === user.name);
+            setCourses(myCourses);
+        } else {
+            setCourses(data);
+        }
         setIsLoading(false);
     };
     fetchCourses();
-  }, []);
+  }, [user]);
 
   const handleSeedDatabase = async () => {
       if(!confirm("This will insert default mock data into your Supabase database. Continue?")) return;
@@ -200,12 +210,18 @@ export const AdminDashboard: React.FC = () => {
       }
   };
 
+  const isAdmin = user?.role !== 'instructor';
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header Section */}
       <div className="flex flex-col gap-1">
-         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h1>
-         <p className="text-gray-600">Manage courses, monitor student progress, and analyze platform performance</p>
+         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            {isAdmin ? 'Admin Dashboard' : 'Instructor Dashboard'}
+         </h1>
+         <p className="text-gray-600">
+            {isAdmin ? 'Manage courses, monitor student progress, and analyze platform performance' : 'Manage your courses and content library'}
+         </p>
       </div>
 
       {/* Stats Grid */}
@@ -217,8 +233,12 @@ export const AdminDashboard: React.FC = () => {
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
            <div className="space-y-1">
-              <h2 className="text-xl font-bold text-gray-900">Course Management</h2>
-              <p className="text-sm text-gray-500">View and manage all courses on the platform</p>
+              <h2 className="text-xl font-bold text-gray-900">
+                  {isAdmin ? 'Course Management' : 'My Courses'}
+              </h2>
+              <p className="text-sm text-gray-500">
+                  {isAdmin ? 'View and manage all courses on the platform' : 'Create and manage your specific courses'}
+              </p>
            </div>
            <Button icon={<Plus size={18} />} onClick={() => navigate('/admin/course-builder')} className="shadow-lg shadow-primary-500/20">
              Create Course
@@ -231,24 +251,16 @@ export const AdminDashboard: React.FC = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                  type="text" 
-                 placeholder="Search courses by title, instructor, or topic..." 
+                 placeholder="Search courses by title..." 
                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
            </div>
            <div className="flex gap-4">
               <div className="relative min-w-[160px]">
                  <select className="w-full appearance-none px-4 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
-                    <option>All Courses</option>
+                    <option>All Status</option>
                     <option>Published</option>
                     <option>Drafts</option>
-                 </select>
-                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              </div>
-              <div className="relative min-w-[160px]">
-                 <select className="w-full appearance-none px-4 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
-                    <option>Most Recent</option>
-                    <option>Popularity</option>
-                    <option>Completion Rate</option>
                  </select>
                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
               </div>
@@ -272,15 +284,18 @@ export const AdminDashboard: React.FC = () => {
                 <CourseCard key={course.id} course={course} />
             ))}
             {courses.length === 0 && (
-                <div className="col-span-full py-12 text-center text-gray-500">
-                    No courses found. Try seeding the database if this is a fresh install.
+                <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    {user?.role === 'instructor' 
+                        ? "You haven't created any courses yet. Click 'Create Course' to start teaching."
+                        : "No courses found. Try seeding the database if this is a fresh install."}
                 </div>
             )}
             </div>
         )}
       </section>
 
-      {/* Analytics & Quick Actions Split */}
+      {/* Analytics & Quick Actions Split - Only show extensive analytics for admins */}
+      {isAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          {/* Enrollment Trends */}
          <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -351,6 +366,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
          </div>
       </div>
+      )}
 
       {/* Bottom Section: Activity & Platform Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -380,9 +396,11 @@ export const AdminDashboard: React.FC = () => {
             </div>
          </div>
 
-         {/* Platform Statistics */}
+         {/* Platform Statistics - Hidden for Instructors who care mostly about their own courses usually, but allowed here for overview */}
          <div className="bg-gray-100 p-6 rounded-2xl border border-gray-200">
-            <h3 className="font-bold text-gray-900 mb-1">Platform Statistics</h3>
+            <h3 className="font-bold text-gray-900 mb-1">
+                {isAdmin ? 'Platform Statistics' : 'Your Statistics'}
+            </h3>
             <p className="text-sm text-gray-500 mb-6">Key performance indicators for December 2025</p>
             
             <div className="space-y-0 divide-y divide-gray-200">

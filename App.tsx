@@ -42,13 +42,15 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   // Helper to map Supabase User to App User
   const mapSupabaseUser = (sbUser: any): User => {
     const metadataRole = sbUser.user_metadata?.role;
-    const emailRole = sbUser.email?.includes('admin') ? 'admin' : 'student';
+    const emailRole = sbUser.email?.includes('admin') ? 'admin' : sbUser.email?.includes('instructor') ? 'instructor' : 'student';
     let finalRole: UserRole = 'student';
     
     if (['super_admin', 'admin', 'sub_admin', 'viewer', 'approver', 'instructor'].includes(metadataRole)) {
         finalRole = metadataRole;
     } else if (emailRole === 'admin') {
         finalRole = 'admin'; 
+    } else if (emailRole === 'instructor') {
+        finalRole = 'instructor';
     }
 
     return {
@@ -104,6 +106,10 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (!isSupabaseConfigured()) {
         const mockUser = (role.includes('admin') || role === 'instructor') ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
         mockUser.role = role;
+        // Adjust name for instructor demo for filtering to work nicely
+        if (role === 'instructor') {
+            mockUser.name = "Dr. Angela Yu"; // Matches mock data
+        }
         setUser(mockUser);
         localStorage.setItem('aelgo_user', JSON.stringify(mockUser));
         return;
@@ -154,6 +160,10 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: UserRole[] }) => {
 };
 
 const App: React.FC = () => {
+  // Roles
+  const adminRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin'];
+  const instructorRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin', 'instructor'];
+  
   return (
     <AuthProvider>
       <Router>
@@ -172,17 +182,21 @@ const App: React.FC = () => {
              <Route path="/profile" element={<Settings />} />
           </Route>
 
-          {/* Admin & Instructor Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'sub_admin', 'viewer', 'approver', 'instructor']} />}>
+          {/* Instructor & Admin Shared Routes */}
+          <Route element={<ProtectedRoute allowedRoles={instructorRoles} />}>
              <Route path="/admin" element={<AdminDashboard />} />
-             <Route path="/admin/analytics" element={<AdminAnalytics />} />
              <Route path="/admin/courses" element={<AdminDashboard />} />
              <Route path="/admin/course-builder" element={<CourseBuilder />} />
+             <Route path="/admin/settings" element={<Settings />} />
+          </Route>
+
+          {/* Pure Admin Routes (Hidden from Instructors) */}
+          <Route element={<ProtectedRoute allowedRoles={adminRoles} />}>
+             <Route path="/admin/analytics" element={<AdminAnalytics />} />
              <Route path="/admin/students" element={<AdminStudents />} /> 
              <Route path="/admin/instructors" element={<AdminInstructors />} />
              <Route path="/admin/team" element={<AdminTeam />} />
              <Route path="/admin/categories" element={<AdminCategories />} />
-             <Route path="/admin/settings" element={<Settings />} />
              <Route path="/admin/billing" element={<Billing />} />
           </Route>
         </Routes>

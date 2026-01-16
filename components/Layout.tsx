@@ -80,6 +80,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   ];
 
+  // Instructor Sidebar Structure
+  const instructorSections: NavSection[] = [
+    {
+      title: 'Instructor Workspace',
+      items: [
+        { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard size={20} /> },
+        { label: 'Course Builder', path: '/admin/course-builder', icon: <PenTool size={20} /> },
+        { label: 'My Library', path: '/admin/courses', icon: <Library size={20} /> },
+      ]
+    },
+    {
+      title: 'Account',
+      items: [
+        { label: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
+      ]
+    }
+  ];
+
   // Student Sidebar Structure
   const studentSections: NavSection[] = [
     {
@@ -92,8 +110,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   ];
 
-  const isAdmin = user?.role !== 'student';
-  const sections = isAdmin ? adminSections : studentSections;
+  let sections: NavSection[] = studentSections;
+  
+  if (user?.role === 'instructor') {
+      sections = instructorSections;
+  } else if (user?.role && user.role !== 'student') {
+      sections = adminSections;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
