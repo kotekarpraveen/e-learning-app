@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +15,7 @@ import { useAuth } from '../App';
 const JupyterCell = () => {
   const [output, setOutput] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const MotionDiv = motion.div as any;
 
   const runCode = () => {
     setIsRunning(true);
@@ -42,14 +42,14 @@ const JupyterCell = () => {
       </div>
       <AnimatePresence>
         {output && (
-          <motion.div 
+          <MotionDiv 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             className="border-t border-gray-200 bg-white p-4"
           >
             <span className="text-red-500 mr-2">Out [1]:</span>
             {output}
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>
@@ -71,6 +71,8 @@ export const CoursePlayer: React.FC = () => {
   // New State for Sidebar Tabs (Curriculum vs Audio)
   const [sidebarTab, setSidebarTab] = useState<'curriculum' | 'audio'>('curriculum');
   
+  const MotionDiv = motion.div as any;
+
   useEffect(() => {
     const fetchCourseAndProgress = async () => {
         if (!courseId) return;
@@ -157,7 +159,7 @@ export const CoursePlayer: React.FC = () => {
                    {/* Animated Waveform (Fake) */}
                    <div className="absolute inset-x-0 bottom-0 h-32 flex items-end justify-center gap-1 opacity-20 pointer-events-none">
                       {[...Array(30)].map((_, i) => (
-                          <motion.div 
+                          <MotionDiv 
                              key={i}
                              animate={isPlaying ? { height: [20, Math.random() * 100 + 20, 20] } : { height: 20 }}
                              transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.05 }}
@@ -167,13 +169,13 @@ export const CoursePlayer: React.FC = () => {
                    </div>
                    
                    <div className="relative z-10 text-center px-6 flex flex-col items-center">
-                      <motion.div 
+                      <MotionDiv 
                         animate={isPlaying ? { scale: [1, 1.05, 1] } : { scale: 1 }}
                         transition={{ repeat: Infinity, duration: 2 }}
                         className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-4 border border-white/20 shadow-lg"
                       >
                           <Mic className="text-white" size={32} />
-                      </motion.div>
+                      </MotionDiv>
                       <h2 className="text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
                       <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {currentLesson.duration || '15:00'}</p>
                    </div>
@@ -321,7 +323,7 @@ export const CoursePlayer: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-6rem)] -m-4 lg:-m-8">
       {/* Player Sidebar */}
-      <motion.div 
+      <MotionDiv 
         initial={false}
         animate={{ width: sidebarExpanded ? 320 : 0, opacity: sidebarExpanded ? 1 : 0 }}
         className="bg-white border-r border-gray-200 overflow-hidden flex-shrink-0 relative flex flex-col"
@@ -414,7 +416,7 @@ export const CoursePlayer: React.FC = () => {
             )}
           </div>
         </div>
-      </motion.div>
+      </MotionDiv>
 
       {/* Main Player Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50/50">
@@ -429,14 +431,14 @@ export const CoursePlayer: React.FC = () => {
                </Button>
              </div>
              
-             <motion.div
+             <MotionDiv
                key={currentLesson?.id || 'loading'}
                initial={{ opacity: 0, x: 10 }}
                animate={{ opacity: 1, x: 0 }}
                transition={{ duration: 0.3 }}
              >
                 {renderContent()}
-             </motion.div>
+             </MotionDiv>
            </div>
         </div>
         

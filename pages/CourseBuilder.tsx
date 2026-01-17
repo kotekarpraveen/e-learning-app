@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +32,7 @@ interface LessonState {
 }
 
 // --- Helper Components ---
+const MotionDiv = motion.div as any;
 
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
   useEffect(() => {
@@ -41,7 +41,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
   }, [onClose]);
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 50, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.9 }}
@@ -61,7 +61,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
       <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4">
         <X size={16} />
       </button>
-    </motion.div>
+    </MotionDiv>
   );
 };
 
@@ -171,7 +171,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-        <motion.div 
+        <MotionDiv 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           className={`bg-white rounded-2xl shadow-2xl w-full ${isCodePractice ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
@@ -308,7 +308,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                 </Button>
             </div>
           )}
-        </motion.div>
+        </MotionDiv>
       </div>
     );
 };
@@ -321,9 +321,6 @@ const InfoTab: React.FC<{
     categories: Category[],
     onCreateCategory: (name: string) => Promise<void>
 }> = ({ courseInfo, setCourseInfo, categories, onCreateCategory }) => {
-    // ... (Same implementation as previous step, omitted for brevity, ensure import from previous XML if overriding full file)
-    // To save tokens, I am not repeating 200 lines of InfoTab code unless requested.
-    // Assuming context is preserved. But for full file validity, I will include it.
     
     const [showNewCatInput, setShowNewCatInput] = useState(false);
     const [newCatName, setNewCatName] = useState('');
@@ -471,8 +468,7 @@ const StructureTab: React.FC<{
 }> = ({ 
     modules, setModules, addModule, deleteModule, toggleModule, addLesson, contentLibrary, onOpenUpload, isAudioSeries 
 }) => {
-    // ... (Same implementation logic as before) ...
-    // Re-implenting fully to ensure file validity
+    
     const standardModules = modules.filter(m => m.id !== 'podcast-module');
     const podcastModule = modules.find(m => m.id === 'podcast-module');
 
@@ -552,7 +548,7 @@ const StructureTab: React.FC<{
 
             <div className="space-y-4">
                 {standardModules.map((module, idx) => (
-                <motion.div 
+                <MotionDiv 
                     key={module.id} 
                     layout 
                     initial={{ opacity: 0, y: 10 }}
@@ -596,7 +592,7 @@ const StructureTab: React.FC<{
 
                     <AnimatePresence>
                     {module.isExpanded && (
-                        <motion.div 
+                        <MotionDiv 
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -735,10 +731,10 @@ const StructureTab: React.FC<{
                             )})}
                             </div>
                         </div>
-                        </motion.div>
+                        </MotionDiv>
                     )}
                     </AnimatePresence>
-                </motion.div>
+                </MotionDiv>
                 ))}
             </div>
         </div>
@@ -751,7 +747,9 @@ const StructureTab: React.FC<{
 
 const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType: any, handleDeleteContent: any }> = ({ 
     contentLibrary, setActiveUploadType, handleDeleteContent 
-}) => (
+}) => {
+    const MotionDiv = motion.div as any;
+    return (
     <div className="max-w-6xl mx-auto space-y-10">
        <div>
          <div className="flex items-center space-x-2 mb-2">
@@ -770,7 +768,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
              { title: 'Code Practice', desc: 'Create interactive coding challenges', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50 border-orange-100' },
              { title: 'Quiz/Assessment', desc: 'Create interactive quizzes', icon: <ClipboardList size={28} />, color: 'text-red-500 bg-red-50 border-red-100' },
            ].map((item, i) => (
-             <motion.div 
+             <MotionDiv 
                key={i}
                whileHover={{ y: -5, scale: 1.02 }}
                whileTap={{ scale: 0.98 }}
@@ -782,7 +780,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
                </div>
                <h3 className="font-bold text-gray-900 mb-2 text-lg">{item.title}</h3>
                <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
-             </motion.div>
+             </MotionDiv>
            ))}
          </div>
        </div>
@@ -851,7 +849,8 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
           </div>
        </div>
     </div>
-);
+    );
+};
 
 const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, setSettings }) => (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-10">
@@ -1092,6 +1091,8 @@ export const CourseBuilder: React.FC = () => {
 
   const isAudioSeries = courseInfo.category === 'Audio Series';
 
+  const MotionDiv = motion.div as any;
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <AnimatePresence>
@@ -1154,7 +1155,7 @@ export const CourseBuilder: React.FC = () => {
                 <span className="mr-2.5">{tab.icon}</span>
                 {tab.label}
                 {activeTab === tab.id && (
-                   <motion.div 
+                   <MotionDiv 
                      className="absolute inset-0 border-2 border-primary-100 rounded-xl pointer-events-none"
                      initial={false}
                    />

@@ -1,3 +1,4 @@
+
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
 import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset } from '../types';
@@ -71,6 +72,7 @@ export const api = {
         modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
+            isPodcast: m.is_podcast,
             lessons: m.lessons?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((l: any) => ({
                 id: l.id,
                 title: l.title,
@@ -129,6 +131,7 @@ export const api = {
         modules: data.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
+            isPodcast: m.is_podcast,
             lessons: m.lessons?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((l: any) => ({
                 id: l.id,
                 title: l.title,
@@ -187,6 +190,7 @@ export const api = {
                 modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
                     id: m.id,
                     title: m.title,
+                    isPodcast: m.is_podcast,
                     lessons: m.lessons?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((l: any) => ({
                         id: l.id,
                         title: l.title,
@@ -650,9 +654,138 @@ export const api = {
       }
   },
 
-  // --- Admin Management (Previous methods preserved) ---
+  // --- Category Management (Real Supabase) ---
+
+  getCategories: async (): Promise<Category[]> => {
+    if (!isSupabaseConfigured()) {
+        return new Promise(resolve => setTimeout(() => resolve(MOCK_CATEGORIES), 400));
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('categories')
+            .select('*')
+            .order('name');
+            
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error("Error fetching categories:", err);
+        return [];
+    }
+  },
+
+  saveCategory: async (category: Category) => {
+    if (!isSupabaseConfigured()) {
+        // Update Mock
+        const index = MOCK_CATEGORIES.findIndex(c => c.id === category.id);
+        if (index >= 0) MOCK_CATEGORIES[index] = category;
+        else MOCK_CATEGORIES.push(category);
+        return { success: true, message: 'Saved to Mock' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('categories')
+            .upsert({
+                id: category.id,
+                name: category.name,
+                slug: category.slug,
+                description: category.description,
+                count: category.count
+            });
+
+        if (error) throw error;
+        return { success: true, message: 'Category saved' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+  },
+
+  deleteCategory: async (id: string) => {
+    if (!isSupabaseConfigured()) {
+        const index = MOCK_CATEGORIES.findIndex(c => c.id === id);
+        if (index >= 0) MOCK_CATEGORIES.splice(index, 1);
+        return { success: true, message: 'Deleted from Mock' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true, message: 'Category deleted' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+  },
+
+  // --- Admin Management (Real Persistence for Save Course) ---
   saveCourse: async (course: Course): Promise<{ success: boolean; message: string }> => {
-    return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Saved to Mock DB' }), 1000));
+    if (!isSupabaseConfigured()) {
+        return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Saved to Mock DB' }), 1000));
+    }
+
+    try {
+        // 1. Save Course Details
+        const { error: courseError } = await supabase.from('courses').upsert({
+            id: course.id,
+            title: course.title,
+            description: course.description,
+            thumbnail: course.thumbnail,
+            instructor: course.instructor, // Schema handles string
+            price: course.price,
+            level: course.level,
+            category: course.category,
+            learning_outcomes: course.learningOutcomes,
+            total_modules: course.totalModules,
+            published: true, 
+            updated_at: new Date()
+        });
+
+        if (courseError) throw courseError;
+
+        // 2. Save Modules & Lessons Recursively
+        for (let i = 0; i < course.modules.length; i++) {
+            const m = course.modules[i];
+            
+            // Upsert Module
+            const { error: moduleError } = await supabase.from('modules').upsert({
+                id: m.id,
+                course_id: course.id,
+                title: m.title,
+                description: "", 
+                "order": i,
+                is_podcast: m.isPodcast || false
+            });
+
+            if (moduleError) throw moduleError;
+
+            // Upsert Lessons for this Module
+            if (m.lessons && m.lessons.length > 0) {
+                for (let j = 0; j < m.lessons.length; j++) {
+                    const l = m.lessons[j];
+                    const { error: lessonError } = await supabase.from('lessons').upsert({
+                        id: l.id,
+                        module_id: m.id,
+                        title: l.title,
+                        type: l.type,
+                        content_url: l.contentUrl,
+                        duration: l.duration,
+                        "order": j
+                    });
+                    if (lessonError) throw lessonError;
+                }
+            }
+        }
+
+        return { success: true, message: 'Course saved successfully' };
+    } catch (error: any) {
+        console.error("Save Course Error:", error);
+        return { success: false, message: error.message };
+    }
   },
   
   seedDatabase: async (): Promise<{ success: boolean; message: string }> => {
@@ -696,18 +829,6 @@ export const api = {
   },
 
   deleteTeamMember: async (id: string) => {
-    return { success: true, message: 'Deleted' };
-  },
-
-  getCategories: async (): Promise<Category[]> => {
-    return new Promise(resolve => setTimeout(() => resolve(MOCK_CATEGORIES), 400));
-  },
-
-  saveCategory: async (category: Category) => {
-    return { success: true, message: 'Saved' };
-  },
-
-  deleteCategory: async (id: string) => {
     return { success: true, message: 'Deleted' };
   }
 };

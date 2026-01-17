@@ -15,8 +15,10 @@ import { applyTheme, loadTheme, resetTheme, DEFAULT_THEME, CustomFont } from '..
 type Tab = 'profile' | 'security' | 'notifications' | 'billing' | 'appearance';
 
 // --- Toast Component (Local) ---
-const Toast = ({ message, onClose }: { message: string, onClose: () => void }) => (
-  <motion.div
+const Toast = ({ message, onClose }: { message: string, onClose: () => void }) => {
+  const MotionDiv = motion.div as any;
+  return (
+  <MotionDiv
     initial={{ opacity: 0, y: 50, scale: 0.9 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     exit={{ opacity: 0, y: 20, scale: 0.9 }}
@@ -29,8 +31,9 @@ const Toast = ({ message, onClose }: { message: string, onClose: () => void }) =
     <button onClick={onClose} className="text-gray-400 hover:text-white ml-2">
       <X size={16} />
     </button>
-  </motion.div>
-);
+  </MotionDiv>
+  );
+};
 
 // --- Toggle Switch Component ---
 const Toggle = ({ label, description, checked, onChange }: { label: string, description?: string, checked: boolean, onChange: (v: boolean) => void }) => (
@@ -239,6 +242,8 @@ export const Settings: React.FC = () => {
   // Theme State
   const [themeData, setThemeData] = useState(DEFAULT_THEME);
 
+  const MotionDiv = motion.div as any;
+
   // Load Profile & Theme Data
   useEffect(() => {
     const loadProfile = async () => {
@@ -404,7 +409,7 @@ export const Settings: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1">
           <AnimatePresence mode="wait">
-            <motion.div
+            <MotionDiv
               key={activeTab}
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -630,7 +635,7 @@ export const Settings: React.FC = () => {
                    <Button variant="secondary">Add Payment Method</Button>
                 </div>
               )}
-            </motion.div>
+            </MotionDiv>
           </AnimatePresence>
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +12,8 @@ export const BrowseCourses: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const MotionDiv = motion.div as any;
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -81,7 +82,7 @@ export const BrowseCourses: React.FC = () => {
         /* Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCourses.map((course, index) => (
-            <motion.div
+            <MotionDiv
                 key={course.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -133,7 +134,7 @@ export const BrowseCourses: React.FC = () => {
                         </Button>
                     </div>
                 </div>
-            </motion.div>
+            </MotionDiv>
             ))}
 
             {filteredCourses.length === 0 && (

@@ -79,21 +79,28 @@ export const AdminCategories: React.FC = () => {
         count: selectedCategory?.count || 0
     };
 
-    await api.saveCategory(newCategory);
+    const result = await api.saveCategory(newCategory);
     
-    // Optimistic Update
-    if (modalMode === 'add') {
-        setCategories([...categories, newCategory]);
+    if (result.success) {
+        if (modalMode === 'add') {
+            setCategories([...categories, newCategory]);
+        } else {
+            setCategories(categories.map(c => c.id === newCategory.id ? newCategory : c));
+        }
+        setIsModalOpen(false);
     } else {
-        setCategories(categories.map(c => c.id === newCategory.id ? newCategory : c));
+        alert("Failed to save category: " + result.message);
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = async (id: string) => {
       if (confirm("Are you sure you want to delete this category?")) {
-          await api.deleteCategory(id);
-          setCategories(categories.filter(c => c.id !== id));
+          const result = await api.deleteCategory(id);
+          if (result.success) {
+              setCategories(categories.filter(c => c.id !== id));
+          } else {
+              alert("Failed to delete category: " + result.message);
+          }
       }
   };
 

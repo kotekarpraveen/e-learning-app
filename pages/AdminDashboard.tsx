@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -68,10 +67,12 @@ const PLATFORM_STATS = [
   { label: 'Student Satisfaction', value: '4.8/5.0' },
 ];
 
+const MotionDiv = motion.div as any;
+
 // --- Components ---
 
 const StatCard: React.FC<{ stat: typeof STATS[0], index: number }> = ({ stat, index }) => (
-  <motion.div 
+  <MotionDiv 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.1 }}
@@ -91,14 +92,14 @@ const StatCard: React.FC<{ stat: typeof STATS[0], index: number }> = ({ stat, in
       <h3 className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</h3>
       <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
     </div>
-  </motion.div>
+  </MotionDiv>
 );
 
 const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ height, label, delay }) => (
   <div className="flex flex-col items-center gap-2 flex-1 group cursor-pointer">
     <div className="w-full relative h-32 flex items-end gap-1">
        {/* Enrolled Bar */}
-       <motion.div 
+       <MotionDiv 
          initial={{ height: 0 }}
          animate={{ height: `${height}%` }}
          transition={{ delay: delay * 0.05, duration: 0.8, type: 'spring' }}
@@ -107,10 +108,10 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
            {Math.round(height * 5)} Students
          </div>
-       </motion.div>
+       </MotionDiv>
        
        {/* Completed Bar */}
-       <motion.div 
+       <MotionDiv 
          initial={{ height: 0 }}
          animate={{ height: `${height * 0.6}%` }}
          transition={{ delay: (delay * 0.05) + 0.1, duration: 0.8, type: 'spring' }}
@@ -124,7 +125,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
 const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
   const navigate = useNavigate();
   return (
-    <motion.div 
+    <MotionDiv 
       layout
       className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all group hover:border-primary-300"
     >
@@ -166,7 +167,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
            </Button>
         </div>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 };
 

@@ -1,14 +1,14 @@
-
 import React from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
-interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   icon?: React.ReactNode;
   children?: React.ReactNode;
+  [key: string]: any; // Allow motion props
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
@@ -36,8 +36,10 @@ export const Button: React.FC<ButtonProps> = ({
     danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-md",
   };
 
+  const MotionButton = motion.button as any;
+
   return (
-    <motion.button
+    <MotionButton
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={`${baseStyles} ${sizeStyles[size]} ${variants[variant]} ${className}`}
@@ -50,6 +52,6 @@ export const Button: React.FC<ButtonProps> = ({
         <span className="mr-2">{icon}</span>
       ) : null}
       {children}
-    </motion.button>
+    </MotionButton>
   );
 };

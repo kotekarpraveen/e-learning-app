@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +38,8 @@ export const StudentDashboard: React.FC = () => {
   const [stats, setStats] = useState(INITIAL_STATS);
   const [isLoading, setIsLoading] = useState(true);
   
+  const MotionDiv = motion.div as any;
+
   useEffect(() => {
     const fetchData = async () => {
         if (!user) return;
@@ -107,7 +108,7 @@ export const StudentDashboard: React.FC = () => {
             
             {/* Hero Resume Card */}
             {activeCourse ? (
-                <motion.div 
+                <MotionDiv 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative overflow-hidden group cursor-pointer"
@@ -136,7 +137,7 @@ export const StudentDashboard: React.FC = () => {
                             <span className="font-medium text-gray-900">{activeCourse.progress || 0}%</span>
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                            <motion.div 
+                            <MotionDiv 
                                 initial={{ width: 0 }}
                                 animate={{ width: `${activeCourse.progress || 0}%` }}
                                 className="bg-primary-600 h-full rounded-full"
@@ -145,7 +146,7 @@ export const StudentDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                </motion.div>
+                </MotionDiv>
             ) : (
                 <div className="bg-white p-12 rounded-2xl border border-gray-200 text-center flex flex-col items-center">
                     <BookOpen size={48} className="text-gray-300 mb-4" />
@@ -167,7 +168,7 @@ export const StudentDashboard: React.FC = () => {
                {courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {courses.map(course => (
-                        <motion.div 
+                        <MotionDiv 
                             key={course.id}
                             whileHover={{ y: -4 }}
                             className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all cursor-pointer"
@@ -192,7 +193,7 @@ export const StudentDashboard: React.FC = () => {
                                 </span>
                             </div>
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     ))}
                 </div>
                ) : (
@@ -284,7 +285,7 @@ export const StudentDashboard: React.FC = () => {
                      <div key={day.day} className="flex flex-col items-center gap-2 flex-1 group">
                         <div className="w-full relative h-full flex items-end">
                            <div className="w-full bg-gray-100 rounded-t-md relative overflow-hidden h-full">
-                               <motion.div 
+                               <MotionDiv 
                                  initial={{ height: 0 }}
                                  animate={{ height: `${(day.hours / 5) * 100}%` }}
                                  transition={{ delay: i * 0.1, duration: 0.5 }}

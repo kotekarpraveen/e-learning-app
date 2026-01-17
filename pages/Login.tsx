@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -93,6 +92,7 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const MotionDiv = motion.div as any;
 
   // Set default demo credentials based on type
   useEffect(() => {
@@ -218,7 +218,7 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
           </Link>
       </div>
 
-      <motion.div 
+      <MotionDiv 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="sm:mx-auto sm:w-full sm:max-w-md z-10"
@@ -234,10 +234,10 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
             {isSignUp ? `Create your ${type} account` : 'Sign in to your account'}
           </p>
         </div>
-      </motion.div>
+      </MotionDiv>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <motion.div 
+        <MotionDiv 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -346,7 +346,7 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
             </div>
           </form>
 
-        </motion.div>
+        </MotionDiv>
       </div>
     </div>
   );

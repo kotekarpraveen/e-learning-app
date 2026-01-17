@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -52,6 +51,8 @@ export const Billing: React.FC = () => {
   // Create Request Modal
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [newRequest, setNewRequest] = useState({ email: '', amount: '', description: '' });
+
+  const MotionDiv = motion.div as any;
 
   useEffect(() => {
       fetchData();
@@ -116,7 +117,7 @@ export const Billing: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {REVENUE_STATS.map((stat, i) => (
-            <motion.div 
+            <MotionDiv 
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -135,7 +136,7 @@ export const Billing: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</h3>
                 <p className="text-xs text-gray-400">{stat.description}</p>
-            </motion.div>
+            </MotionDiv>
         ))}
       </div>
 
@@ -298,7 +299,7 @@ export const Billing: React.FC = () => {
       <AnimatePresence>
         {showRequestModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-               <motion.div 
+               <MotionDiv 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -347,7 +348,7 @@ export const Billing: React.FC = () => {
                         </div>
                      </form>
                   </div>
-               </motion.div>
+               </MotionDiv>
             </div>
         )}
       </AnimatePresence>

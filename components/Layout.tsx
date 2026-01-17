@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -118,12 +117,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       sections = adminSections;
   }
 
+  const MotionDiv = motion.div as any;
+  const MotionAside = motion.aside as any;
+
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -134,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </AnimatePresence>
 
       {/* Sidebar - Uses dynamic bg-sidebar instead of fixed gray-100 */}
-      <motion.aside
+      <MotionAside
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-gray-200 transform lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -206,7 +208,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               Sign Out
             </button>
         </div>
-      </motion.aside>
+      </MotionAside>
 
       {/* Main Content - Using bg-gray-50 (Cream) */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50">
@@ -225,7 +227,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto h-full">
              <AnimatePresence mode="wait">
-                <motion.div
+                <MotionDiv
                   key={location.pathname}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -234,7 +236,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className="h-full"
                 >
                   {children}
-                </motion.div>
+                </MotionDiv>
              </AnimatePresence>
           </div>
         </main>
