@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -68,44 +69,93 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon: React.ReactNode}, onClose: () => void, onComplete: (item: ContentAsset) => void }) => {
     const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success'>('idle');
     const [progress, setProgress] = useState(0);
-    const [fileName, setFileName] = useState('');
+    
+    // Generic State
+    const [title, setTitle] = useState('');
     const [url, setUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     
-    // State for Code Practice
+    // Code Practice State
     const [codeExercise, setCodeExercise] = useState({
-        title: '',
         description: '',
         starterCode: '# Write your code here\n\ndef solution():\n    pass',
         solutionCode: 'def solution():\n    return "Correct"'
     });
 
+    // Quiz Builder State
+    const [quizQuestions, setQuizQuestions] = useState<{
+        id: string;
+        question: string;
+        options: string[];
+        correctAnswer: number;
+    }[]>([
+        { id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0 }
+    ]);
+
     const isVideo = type.title === 'Video Content';
+    const isPodcast = type.title === 'Podcast/Audio';
     const isCodePractice = type.title === 'Code Practice';
+    const isReading = type.title === 'Reading Material';
+    const isQuiz = type.title === 'Quiz/Assessment';
     
     let acceptType = '*';
     let label = 'File';
-    
-    if (type.title === 'Reading Material') {
+    if (isReading) {
         acceptType = '.pdf';
         label = 'PDF';
-    } else if (type.title === 'Podcast/Audio') {
-        acceptType = 'audio/*,.mp3,.wav';
-        label = 'Audio';
     }
 
+    const handleAddQuestion = () => {
+        setQuizQuestions([...quizQuestions, { id: `q${Date.now()}`, question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+    };
+
+    const handleQuestionChange = (index: number, field: string, value: any) => {
+        const updated = [...quizQuestions];
+        if (field === 'question') updated[index].question = value;
+        else if (field === 'correctAnswer') updated[index].correctAnswer = value;
+        setQuizQuestions(updated);
+    };
+
+    const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
+        const updated = [...quizQuestions];
+        updated[qIndex].options[oIndex] = value;
+        setQuizQuestions(updated);
+    };
+
+    const handleRemoveQuestion = (index: number) => {
+        if (quizQuestions.length > 1) {
+            setQuizQuestions(quizQuestions.filter((_, i) => i !== index));
+        }
+    };
+
     const startUpload = async () => {
+      if (!title) return; // Title is mandatory for everything now
+
       setUploadState('uploading');
       setProgress(20);
 
       try {
-          if (isCodePractice) {
-              if (!codeExercise.title || !codeExercise.description) return;
-              
+          // --- QUIZ LOGIC ---
+          if (isQuiz) {
               const newAsset = await api.createContentAsset({
-                  title: codeExercise.title,
+                  title: title,
                   type: type.title,
-                  fileName: 'Interactive Exercise',
+                  fileName: 'Interactive Quiz',
+                  fileSize: `${quizQuestions.length} Qs`,
+                  metadata: {
+                      questions: quizQuestions
+                  }
+              });
+              if(newAsset) finalize(newAsset);
+              return;
+          }
+
+          // --- CODE PRACTICE LOGIC ---
+          if (isCodePractice) {
+              const newAsset = await api.createContentAsset({
+                  title: title,
+                  type: type.title,
+                  fileName: 'Coding Challenge',
                   fileSize: 'Code',
                   metadata: {
                       description: codeExercise.description,
@@ -113,45 +163,45 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                       solutionCode: codeExercise.solutionCode
                   }
               });
-              
               if(newAsset) finalize(newAsset);
               return;
           }
 
-          if (isVideo) {
+          // --- VIDEO & PODCAST LOGIC (URL BASED) ---
+          if (isVideo || isPodcast) {
             if (!url) return;
-            
             const newAsset = await api.createContentAsset({
-                title: 'External Video',
+                title: title,
                 type: type.title,
                 fileName: url,
                 fileUrl: url,
                 fileSize: 'Link',
                 metadata: { url: url }
             });
-            
             if(newAsset) finalize(newAsset);
             return;
           }
 
-          // File Upload (PDF / Audio)
-          if (!selectedFile) return;
-          
-          setProgress(40);
-          const uploadResult = await api.uploadFileToStorage(selectedFile);
-          
-          if (!uploadResult) throw new Error("Upload failed");
-          setProgress(80);
+          // --- READING MATERIAL (FILE UPLOAD) ---
+          if (isReading) {
+              if (!selectedFile) return;
+              
+              setProgress(40);
+              const uploadResult = await api.uploadFileToStorage(selectedFile);
+              
+              if (!uploadResult) throw new Error("Upload failed");
+              setProgress(80);
 
-          const newAsset = await api.createContentAsset({
-              title: selectedFile.name.split('.')[0],
-              type: type.title,
-              fileName: selectedFile.name,
-              fileUrl: uploadResult.url,
-              fileSize: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
-          });
+              const newAsset = await api.createContentAsset({
+                  title: title,
+                  type: type.title,
+                  fileName: selectedFile.name,
+                  fileUrl: uploadResult.url,
+                  fileSize: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
+              });
 
-          if(newAsset) finalize(newAsset);
+              if(newAsset) finalize(newAsset);
+          }
 
       } catch (err) {
           console.error(err);
@@ -174,12 +224,12 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
         <MotionDiv 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className={`bg-white rounded-2xl shadow-2xl w-full ${isCodePractice ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
+          className={`bg-white rounded-2xl shadow-2xl w-full ${isCodePractice || isQuiz ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
         >
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
              <h3 className="font-bold text-gray-800 flex items-center gap-2">
                {type.icon}
-               <span>{isVideo ? 'Add Video Link' : isCodePractice ? 'Create Code Challenge' : `Upload ${label}`}</span>
+               <span>{isQuiz ? 'Create Quiz' : isCodePractice ? 'Create Code Challenge' : `Add ${type.title}`}</span>
              </h3>
              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-full">
                <X size={20} />
@@ -188,15 +238,118 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
           
           <div className="p-6 overflow-y-auto custom-scrollbar">
             {uploadState === 'idle' ? (
-              <>
-                {isCodePractice ? (
-                    <div className="space-y-6">
-                        <Input 
-                            label="Exercise Title" 
-                            placeholder="e.g. Array Manipulation Basics"
-                            value={codeExercise.title}
-                            onChange={e => setCodeExercise({...codeExercise, title: e.target.value})}
+              <div className="space-y-6">
+                
+                {/* GLOBAL TITLE INPUT FOR ALL TYPES */}
+                <Input 
+                    label="Content Title" 
+                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Chapter 1 Notes'}`}
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    required
+                    autoFocus
+                />
+
+                {/* --- VIDEO & PODCAST (URL) --- */}
+                {(isVideo || isPodcast) && (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">{isPodcast ? 'Podcast/Audio URL' : 'Video URL (YouTube/Vimeo)'}</label>
+                            <Input 
+                                placeholder={isPodcast ? "https://site.com/episode.mp3" : "https://www.youtube.com/watch?v=..."}
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                            />
+                        </div>
+                        <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm flex items-start border border-blue-100">
+                             <Info size={18} className="mt-0.5 mr-3 flex-shrink-0 text-blue-600" />
+                             <p>
+                                 {isPodcast 
+                                    ? "Provide a direct link to an MP3 or audio stream. We'll load it into the custom audio player."
+                                    : "Paste a video link. We'll automatically fetch the thumbnail and embed it for seamless playback."
+                                 }
+                             </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- READING MATERIAL (FILE) --- */}
+                {isReading && (
+                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 hover:border-primary-500 transition-all cursor-pointer relative group bg-gray-50/50">
+                        <div className="w-16 h-16 bg-white text-primary-600 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100">
+                            <Upload size={28} />
+                        </div>
+                        <p className="font-semibold text-gray-900 text-lg">
+                            {selectedFile ? selectedFile.name : `Click to browse or drag ${label} here`}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-2">Accepts {acceptType} files up to 50MB</p>
+                        <input 
+                            type="file" 
+                            accept={acceptType}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                    setSelectedFile(e.target.files[0]);
+                                    // Auto-fill title if empty
+                                    if(!title) setTitle(e.target.files[0].name.split('.')[0]);
+                                }
+                            }}
                         />
+                    </div>
+                )}
+
+                {/* --- QUIZ BUILDER --- */}
+                {isQuiz && (
+                    <div className="space-y-6">
+                        <div className="space-y-4">
+                            {quizQuestions.map((q, qIdx) => (
+                                <div key={q.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200 relative group">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Question {qIdx + 1}</label>
+                                        {quizQuestions.length > 1 && (
+                                            <button onClick={() => handleRemoveQuestion(qIdx)} className="text-red-400 hover:text-red-600">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <Input 
+                                        placeholder="Enter the question here..."
+                                        value={q.question}
+                                        onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)}
+                                        className="mb-4 bg-white"
+                                    />
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {q.options.map((opt, oIdx) => (
+                                            <div key={oIdx} className="flex items-center gap-2">
+                                                <input 
+                                                    type="radio" 
+                                                    name={`correct-${q.id}`}
+                                                    checked={q.correctAnswer === oIdx}
+                                                    onChange={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}
+                                                    className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+                                                />
+                                                <input 
+                                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                                    placeholder={`Option ${oIdx + 1}`}
+                                                    value={opt}
+                                                    onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <Button variant="secondary" onClick={handleAddQuestion} className="w-full border-dashed border-2 border-gray-300 hover:border-primary-500 hover:text-primary-600">
+                            <Plus size={16} className="mr-2" /> Add Another Question
+                        </Button>
+                    </div>
+                )}
+
+                {/* --- CODE PRACTICE --- */}
+                {isCodePractice && (
+                    <div className="space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Problem Description</label>
                             <textarea 
@@ -229,44 +382,9 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                             </div>
                         </div>
                     </div>
-                ) : isVideo ? (
-                    <div className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">YouTube URL</label>
-                            <Input 
-                                placeholder="https://www.youtube.com/watch?v=..." 
-                                value={url}
-                                onChange={(e) => setUrl(e.target.value)}
-                                autoFocus
-                            />
-                        </div>
-                        <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm flex items-start border border-blue-100">
-                             <Info size={18} className="mt-0.5 mr-3 flex-shrink-0 text-blue-600" />
-                             <p>Paste a YouTube link. We'll automatically fetch the thumbnail and embed it in the course player for seamless playback.</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 hover:border-primary-500 transition-all cursor-pointer relative group bg-gray-50/50">
-                        <div className="w-16 h-16 bg-white text-primary-600 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100">
-                            <Upload size={28} />
-                        </div>
-                        <p className="font-semibold text-gray-900 text-lg">
-                            {selectedFile ? selectedFile.name : `Click to browse or drag ${label} here`}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-2">Accepts {acceptType === '*' ? 'all files' : acceptType} up to 50MB</p>
-                        <input 
-                            type="file" 
-                            accept={acceptType}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                    setSelectedFile(e.target.files[0]);
-                                }
-                            }}
-                        />
-                    </div>
                 )}
-              </>
+
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12">
                  {uploadState === 'uploading' ? (
@@ -278,7 +396,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                         </div>
                      </div>
                      <h4 className="text-lg font-bold text-gray-900 mb-2">
-                        {isVideo ? 'Verifying Link...' : isCodePractice ? 'Saving Exercise...' : 'Uploading File...'}
+                        {isVideo || isPodcast ? 'Verifying Link...' : isCodePractice || isQuiz ? 'Saving Content...' : 'Uploading File...'}
                      </h4>
                    </div>
                  ) : (
@@ -298,13 +416,14 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                 <Button 
                     onClick={startUpload} 
                     disabled={
-                    isCodePractice ? (!codeExercise.title || !codeExercise.description) :
-                    isVideo ? !url : 
-                    !selectedFile
+                        !title || 
+                        (isCodePractice && !codeExercise.description) ||
+                        ((isVideo || isPodcast) && !url) ||
+                        (isReading && !selectedFile)
                     }
                     className="w-full sm:w-auto min-w-[120px]"
                 >
-                    {isCodePractice ? 'Create Exercise' : isVideo ? 'Add Link' : 'Start Upload'}
+                    {isCodePractice || isQuiz ? 'Save Content' : (isVideo || isPodcast) ? 'Add Link' : 'Start Upload'}
                 </Button>
             </div>
           )}
@@ -764,7 +883,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
            {[
              { title: 'Video Content', desc: 'Add YouTube link for embedded playback', icon: <Video size={28} />, color: 'text-blue-500 bg-blue-50 border-blue-100' },
              { title: 'Reading Material', desc: 'Upload PDF documents', icon: <FileText size={28} />, color: 'text-green-500 bg-green-50 border-green-100' },
-             { title: 'Podcast/Audio', desc: 'Upload MP3 or WAV audio files', icon: <Mic size={28} />, color: 'text-purple-500 bg-purple-50 border-purple-100' },
+             { title: 'Podcast/Audio', desc: 'Add Link to MP3 or Audio file', icon: <Mic size={28} />, color: 'text-purple-500 bg-purple-50 border-purple-100' },
              { title: 'Code Practice', desc: 'Create interactive coding challenges', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50 border-orange-100' },
              { title: 'Quiz/Assessment', desc: 'Create interactive quizzes', icon: <ClipboardList size={28} />, color: 'text-red-500 bg-red-50 border-red-100' },
            ].map((item, i) => (
@@ -812,11 +931,11 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-4 font-medium text-gray-900 flex items-center max-w-sm">
                       <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mr-4 text-gray-500 flex-shrink-0 border border-gray-200 group-hover:bg-white group-hover:shadow-sm transition-all">
-                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' ? <Code size={18} /> : item.type === 'Podcast/Audio' ? <Mic size={18} /> : <File size={18} />}
+                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' ? <Code size={18} /> : item.type === 'Podcast/Audio' ? <Mic size={18} /> : item.type === 'Quiz/Assessment' ? <ClipboardList size={18} /> : <File size={18} />}
                       </div>
                       <div className="flex flex-col truncate">
                         <span className="truncate font-semibold text-gray-800" title={item.fileName || item.title}>
-                            {item.fileName || item.title}
+                            {item.title}
                         </span>
                         <span className="text-xs text-gray-400">ID: {item.id}</span>
                       </div>
@@ -826,7 +945,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
                             {item.type}
                         </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-500 font-mono text-xs">{item.fileSize}</td>
+                    <td className="px-6 py-4 text-gray-500 font-mono text-xs max-w-[150px] truncate">{item.fileSize || item.fileUrl}</td>
                     <td className="px-6 py-4 text-gray-500">{item.date}</td>
                     <td className="px-6 py-4 text-right">
                       <button 
@@ -973,15 +1092,16 @@ export const CourseBuilder: React.FC = () => {
             title: m.title,
             lessons: m.lessons.map(l => {
                 let resolvedContentUrl = undefined;
+                let resolvedContentData = undefined;
+
                 if (l.contentId) {
                     const contentItem = contentLibrary.find(c => c.id === l.contentId);
                     if (contentItem) {
-                        if (contentItem.type === 'Video Content') {
-                            resolvedContentUrl = contentItem.metadata?.url || contentItem.fileUrl || contentItem.fileName;
-                        } else if (contentItem.type === 'Code Practice') {
-                            resolvedContentUrl = JSON.stringify(contentItem.metadata);
+                        if (contentItem.type === 'Video Content' || contentItem.type === 'Podcast/Audio' || contentItem.type === 'Reading Material') {
+                            resolvedContentUrl = contentItem.fileUrl || contentItem.metadata?.url || contentItem.fileName;
                         } else {
-                            resolvedContentUrl = contentItem.fileUrl; // PDF/Audio URL
+                            // For complex types like Quiz or Code, store the metadata structure
+                            resolvedContentData = contentItem.metadata;
                         }
                     }
                 }
@@ -991,7 +1111,8 @@ export const CourseBuilder: React.FC = () => {
                     title: l.title,
                     type: l.type,
                     completed: false,
-                    contentUrl: resolvedContentUrl
+                    contentUrl: resolvedContentUrl,
+                    contentData: resolvedContentData
                 };
             })
         }))

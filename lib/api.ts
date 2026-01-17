@@ -79,6 +79,7 @@ export const api = {
                 type: l.type,
                 duration: l.duration,
                 contentUrl: l.content_url,
+                contentData: l.content_data, // Mapped
                 completed: false
             })) || []
         })) || []
@@ -138,6 +139,7 @@ export const api = {
                 type: l.type,
                 duration: l.duration,
                 contentUrl: l.content_url,
+                contentData: l.content_data, // Mapped
                 completed: false
             })) || []
         })) || []
@@ -197,6 +199,7 @@ export const api = {
                         type: l.type,
                         duration: l.duration,
                         contentUrl: l.content_url,
+                        contentData: l.content_data,
                         completed: false
                     })) || []
                 })) || []
@@ -773,6 +776,7 @@ export const api = {
                         title: l.title,
                         type: l.type,
                         content_url: l.contentUrl,
+                        content_data: l.contentData, // Save structured data (quiz/code)
                         duration: l.duration,
                         "order": j
                     });

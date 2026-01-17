@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,15 +13,16 @@ import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 
 // Mock Component for Jupyter
-const JupyterCell = () => {
+const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   const [output, setOutput] = useState<string | null>(null);
+  const [code, setCode] = useState(starterCode || '');
   const [isRunning, setIsRunning] = useState(false);
   const MotionDiv = motion.div as any;
 
   const runCode = () => {
     setIsRunning(true);
     setTimeout(() => {
-      setOutput("Result: [1, 1, 2, 3, 5, 8, 13, 21]");
+      setOutput("Result: Success (Simulation)");
       setIsRunning(false);
     }, 1500);
   };
@@ -33,12 +35,12 @@ const JupyterCell = () => {
           <Play size={12} className="mr-1" /> Run
         </Button>
       </div>
-      <div className="p-4 bg-gray-50/30">
-        <div className="text-green-600">def fibonacci(n):</div>
-        <div className="pl-4 text-gray-800">if n &lt;= 0: return []</div>
-        <div className="pl-4 text-gray-800">elif n == 1: return [0]</div>
-        <div className="pl-4 text-gray-800"># ... implementation</div>
-        <div className="text-gray-800 mt-2">print(fibonacci(8))</div>
+      <div className="p-0">
+        <textarea 
+            className="w-full p-4 bg-gray-50/30 font-mono text-gray-800 focus:outline-none resize-y min-h-[100px]"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+        />
       </div>
       <AnimatePresence>
         {output && (
@@ -47,7 +49,7 @@ const JupyterCell = () => {
             animate={{ height: 'auto', opacity: 1 }}
             className="border-t border-gray-200 bg-white p-4"
           >
-            <span className="text-red-500 mr-2">Out [1]:</span>
+            <span className="text-green-600 mr-2">Out [1]:</span>
             {output}
           </MotionDiv>
         )}
@@ -137,7 +139,7 @@ export const CoursePlayer: React.FC = () => {
              <iframe 
                 width="100%" 
                 height="100%" 
-                src={`https://www.youtube.com/embed/${currentLesson.contentUrl}?modestbranding=1&rel=0`} 
+                src={`https://www.youtube.com/embed/${currentLesson.contentUrl?.replace('https://youtu.be/','').replace('https://www.youtube.com/watch?v=','')}?modestbranding=1&rel=0`} 
                 title="Video player" 
                 frameBorder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -240,6 +242,7 @@ export const CoursePlayer: React.FC = () => {
           </div>
         );
       case 'jupyter':
+        const codeData = currentLesson.contentData;
         return (
           <div className="space-y-6 max-w-4xl mx-auto">
              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -247,33 +250,42 @@ export const CoursePlayer: React.FC = () => {
                     <Terminal className="mr-2 text-blue-500" />
                     Code Practice: {currentLesson.title}
                 </h2>
-                <p className="text-gray-600 mb-6">Use this Jupyter Notebook environment to practice your code. Execute the blocks to verify your solutions.</p>
-                <JupyterCell />
-                <JupyterCell />
+                <p className="text-gray-600 mb-6">{codeData?.description || "Practice coding by completing the cells below."}</p>
+                <JupyterCell starterCode={codeData?.starterCode} />
              </div>
           </div>
         );
       case 'quiz':
+         const questions = currentLesson.contentData?.questions || [];
+         
          return (
            <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Knowledge Check</h2>
-                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">3 Questions</span>
+                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">{questions.length} Questions</span>
              </div>
-             <div className="space-y-6">
-               <div className="space-y-3">
-                   <p className="font-medium text-gray-800 text-lg">1. What is the primary purpose of React?</p>
-                   <div className="space-y-2">
-                       {['To manage databases', 'To build user interfaces', 'To handle server requests'].map((opt, i) => (
-                           <div key={i} className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 cursor-pointer transition-colors flex items-center">
-                               <div className="w-5 h-5 rounded-full border border-gray-300 mr-3"></div>
-                               <span className="text-gray-600">{opt}</span>
-                           </div>
-                       ))}
-                   </div>
-               </div>
-               <Button className="w-full mt-4" onClick={() => toggleComplete(currentLesson.id)}>Submit Answer & Complete</Button>
-             </div>
+             
+             {questions.length > 0 ? (
+                 <div className="space-y-8">
+                    {questions.map((q: any, i: number) => (
+                        <div key={i} className="space-y-3 pb-6 border-b border-gray-100 last:border-0 last:pb-0">
+                            <p className="font-medium text-gray-800 text-lg">{i+1}. {q.question}</p>
+                            <div className="space-y-2">
+                                {q.options.map((opt: string, optIdx: number) => (
+                                    <div key={optIdx} className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 cursor-pointer transition-colors flex items-center group">
+                                        <div className="w-5 h-5 rounded-full border border-gray-300 mr-3 group-hover:border-primary-500"></div>
+                                        <span className="text-gray-600">{opt}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+             ) : (
+                 <p className="text-gray-500 italic">No questions available for this quiz.</p>
+             )}
+
+             <Button className="w-full mt-8" onClick={() => toggleComplete(currentLesson.id)}>Submit Answers & Complete</Button>
            </div>
          );
       default:
@@ -283,10 +295,16 @@ export const CoursePlayer: React.FC = () => {
             <p className="lead">Read through the material below to prepare for the next quiz.</p>
             <hr className="my-6 border-gray-100"/>
             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-            <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
             <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 my-4 text-blue-800 text-sm">
                 <strong>Note:</strong> Make sure to download the attached PDF resources for a cheat sheet on this topic.
             </div>
+            {currentLesson.contentUrl && (
+                <div className="mt-6">
+                    <Button variant="secondary" icon={<Download size={16} />} onClick={() => window.open(currentLesson.contentUrl, '_blank')}>
+                        Download PDF Resource
+                    </Button>
+                </div>
+            )}
           </div>
         );
     }
@@ -374,8 +392,7 @@ export const CoursePlayer: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                     {module.lessons
-                        // If in audio mode, only show podcasts. If curriculum, show all (or filter out podcasts if you want separation).
-                        // For now, Audio Tab = Only Podcasts. Curriculum = Everything.
+                        // If in audio mode, only show podcasts. If curriculum, show all.
                         .filter(l => sidebarTab === 'audio' ? l.type === 'podcast' : true)
                         .map((lesson) => {
                             const isActive = currentLesson && lesson.id === currentLesson.id;

@@ -105,6 +105,7 @@ create table public.lessons (
   title text not null,
   type text not null, -- video, reading, quiz, podcast, jupyter
   content_url text,
+  content_data jsonb, -- Stores Quiz questions, Code challenge details, etc.
   duration text,
   "order" integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now())

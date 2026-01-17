@@ -61,7 +61,8 @@ export interface Lesson {
   title: string;
   type: LessonType;
   duration?: string; // e.g., "10 min"
-  contentUrl?: string; // YouTube ID or text content
+  contentUrl?: string; // YouTube ID or PDF URL
+  contentData?: any; // JSON Object for Quizzes, Code Configs, etc.
   completed?: boolean;
 }
 
@@ -124,6 +125,7 @@ export interface ContentAsset {
     description?: string;
     starterCode?: string;
     solutionCode?: string;
+    questions?: any[];
   };
 }
 
