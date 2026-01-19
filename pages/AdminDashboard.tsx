@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -12,66 +13,11 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { Course } from '../types';
 import { useAuth } from '../App';
 
-// --- Mock Data ---
-const STATS = [
-  { 
-    label: 'Total Courses', 
-    value: '24', 
-    change: '+12%', 
-    trend: 'up', 
-    icon: <BookOpen className="text-primary-600" size={24} />, 
-    bg: 'bg-primary-50',
-    color: 'text-primary-600' 
-  },
-  { 
-    label: 'Active Students', 
-    value: '1,847', 
-    change: '+23%', 
-    trend: 'up', 
-    icon: <Users className="text-gray-700" size={24} />, 
-    bg: 'bg-gray-100',
-    color: 'text-gray-700'
-  },
-  { 
-    label: 'Completion Rate', 
-    value: '78%', 
-    change: '+5%', 
-    trend: 'up', 
-    icon: <TrendingUp className="text-primary-500" size={24} />, 
-    bg: 'bg-primary-50',
-    color: 'text-primary-500'
-  },
-  { 
-    label: 'Avg. Engagement', 
-    value: '4.2h', 
-    change: '-3%', 
-    trend: 'down', 
-    icon: <Clock className="text-gray-600" size={24} />, 
-    bg: 'bg-gray-100',
-    color: 'text-gray-600'
-  }
-];
-
-const RECENT_ACTIVITY = [
-  { user: 'Sarah Johnson', action: 'enrolled in "Introduction to React Development"', time: '5 min ago', avatar: 'https://i.pravatar.cc/150?u=1' },
-  { user: 'Michael Chen', action: 'finished "Advanced JavaScript Patterns" with 95% score', time: '12 min ago', avatar: 'https://i.pravatar.cc/150?u=2' },
-  { user: 'System', action: 'Added 3 video lessons to "Python for Data Science"', time: '1 hour ago', icon: <Upload size={16} className="text-primary-600" /> },
-  { user: 'System', action: 'Modified quiz questions in "UI/UX Design Fundamentals"', time: '2 hours ago', icon: <Settings size={16} className="text-gray-600" /> },
-];
-
-const PLATFORM_STATS = [
-  { label: 'Total Revenue', value: '$47,892' },
-  { label: 'New Signups', value: '234' },
-  { label: 'Course Completions', value: '1,456' },
-  { label: 'Avg. Session Time', value: '42 min' },
-  { label: 'Student Satisfaction', value: '4.8/5.0' },
-];
-
 const MotionDiv = motion.div as any;
 
 // --- Components ---
 
-const StatCard: React.FC<{ stat: typeof STATS[0], index: number }> = ({ stat, index }) => (
+const StatCard: React.FC<{ stat: any, index: number }> = ({ stat, index }) => (
   <MotionDiv 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -82,11 +28,7 @@ const StatCard: React.FC<{ stat: typeof STATS[0], index: number }> = ({ stat, in
       <div className={`p-3 rounded-xl border border-transparent ${stat.bg}`}>
         {stat.icon}
       </div>
-      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-        stat.trend === 'up' ? 'bg-primary-50 text-primary-700 border border-primary-100' : 'bg-gray-100 text-gray-700 border border-gray-200'
-      }`}>
-        {stat.change}
-      </span>
+      {/* Trends removed for MVP Dynamic data, could add later */}
     </div>
     <div>
       <h3 className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</h3>
@@ -103,19 +45,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
          initial={{ height: 0 }}
          animate={{ height: `${height}%` }}
          transition={{ delay: delay * 0.05, duration: 0.8, type: 'spring' }}
-         className="w-1/2 bg-primary-400 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
-       >
-         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-           {Math.round(height * 5)} Students
-         </div>
-       </MotionDiv>
-       
-       {/* Completed Bar */}
-       <MotionDiv 
-         initial={{ height: 0 }}
-         animate={{ height: `${height * 0.6}%` }}
-         transition={{ delay: (delay * 0.05) + 0.1, duration: 0.8, type: 'spring' }}
-         className="w-1/2 bg-gray-300 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
+         className="w-full bg-primary-400 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative"
        />
     </div>
     <span className="text-[10px] text-gray-400 font-medium uppercase">{label}</span>
@@ -132,8 +62,8 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
       <div className="h-40 overflow-hidden relative">
         <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute top-3 right-3">
-          <span className="bg-primary-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-            Published
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full shadow-sm ${course.published ? 'bg-primary-500 text-white' : 'bg-gray-500 text-white'}`}>
+            {course.published ? 'Published' : 'Draft'}
           </span>
         </div>
       </div>
@@ -141,18 +71,8 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         <h3 className="font-bold text-gray-900 text-lg mb-1 line-clamp-1" title={course.title}>{course.title}</h3>
         
         <div className="flex items-center text-xs text-gray-500 mb-4 space-x-4">
-           <span className="flex items-center"><Users size={14} className="mr-1 text-primary-500" /> {course.enrolledStudents || 120} enrolled</span>
-           <span className="flex items-center"><CheckCircle size={14} className="mr-1 text-primary-500" /> {Math.floor(Math.random() * 40 + 60)}% completed</span>
-        </div>
-
-        <div className="mb-5">
-           <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-gray-500 font-medium">Course Progress</span>
-              <span className="text-gray-900 font-bold">{course.progress || 42}%</span>
-           </div>
-           <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${course.progress || 42}%` }}></div>
-           </div>
+           <span className="flex items-center"><Users size={14} className="mr-1 text-primary-500" /> {course.enrolledStudents || 0} enrolled</span>
+           <span className="flex items-center font-bold text-green-600">${course.price}</span>
         </div>
 
         <div className="flex gap-2">
@@ -161,9 +81,6 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
            </Button>
            <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200">
               <BarChart2 size={14} className="mr-1" /> Analytics
-           </Button>
-           <Button variant="primary" size="sm" className="text-xs bg-gray-900 hover:bg-black border border-gray-900">
-              Unpublish
            </Button>
         </div>
       </div>
@@ -177,23 +94,73 @@ export const AdminDashboard: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
+  
+  // Real Data State
+  const [stats, setStats] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [platformStats, setPlatformStats] = useState<any[]>([]);
+  const [enrollmentTrends, setEnrollmentTrends] = useState<{label: string, value: number}[]>([]);
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const loadDashboardData = async () => {
         setIsLoading(true);
-        const data = await api.getCourses();
         
+        // 1. Fetch Aggregated Stats
+        const dashStats = await api.getAdminDashboardStats();
+        setStats([
+            { 
+                label: 'Total Courses', 
+                value: dashStats.totalCourses.toString(), 
+                icon: <BookOpen className="text-primary-600" size={24} />, 
+                bg: 'bg-primary-50'
+            },
+            { 
+                label: 'Active Students', 
+                value: dashStats.totalStudents.toLocaleString(), 
+                icon: <Users className="text-gray-700" size={24} />, 
+                bg: 'bg-gray-100'
+            },
+            { 
+                label: 'Total Revenue', 
+                value: `$${dashStats.totalRevenue.toLocaleString()}`, 
+                icon: <TrendingUp className="text-primary-500" size={24} />, 
+                bg: 'bg-primary-50'
+            },
+            { 
+                label: 'Avg. Engagement', 
+                value: 'Active', 
+                icon: <Clock className="text-gray-600" size={24} />, 
+                bg: 'bg-gray-100'
+            }
+        ]);
+
+        // 2. Fetch Recent Activity
+        const activity = await api.getRecentActivity();
+        setRecentActivity(activity);
+
+        // 3. Fetch Platform Stats
+        setPlatformStats([
+            { label: 'Total Revenue', value: `$${dashStats.totalRevenue.toLocaleString()}` },
+            { label: 'Total Students', value: dashStats.totalStudents.toLocaleString() },
+            { label: 'Total Courses', value: dashStats.totalCourses.toString() },
+        ]);
+
+        // 4. Fetch Enrollment Trends
+        const trends = await api.getEnrollmentTrends();
+        setEnrollmentTrends(trends);
+
+        // 5. Fetch Courses
+        const courseData = await api.getCourses();
         if (user?.role === 'instructor') {
-            // Filter courses for this instructor
-            // Note: In real app, check ID. Here we check name string as per mock data structure
-            const myCourses = data.filter(c => c.instructor === user.name);
+            const myCourses = courseData.filter(c => c.instructor === user.name);
             setCourses(myCourses);
         } else {
-            setCourses(data);
+            setCourses(courseData);
         }
+
         setIsLoading(false);
     };
-    fetchCourses();
+    loadDashboardData();
   }, [user]);
 
   const handleSeedDatabase = async () => {
@@ -227,7 +194,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat, i) => <StatCard key={i} stat={stat} index={i} />)}
+        {stats.map((stat, i) => <StatCard key={i} stat={stat} index={i} />)}
       </div>
 
       {/* Course Management Section */}
@@ -303,7 +270,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex justify-between items-center mb-8">
                <div>
                   <h3 className="text-lg font-bold text-gray-900">Student Enrollment Trends</h3>
-                  <p className="text-sm text-gray-500">Monthly enrollment and completion statistics</p>
+                  <p className="text-sm text-gray-500">New enrollments over the last 12 months</p>
                </div>
                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
                   Last 12 Months <ChevronDown size={14} className="ml-1" />
@@ -311,16 +278,21 @@ export const AdminDashboard: React.FC = () => {
             </div>
             
             <div className="h-64 w-full flex items-end justify-between gap-2 px-2">
-               {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                  <ChartBar key={m} height={Math.random() * 60 + 20} label={m} delay={i} />
-               ))}
+               {enrollmentTrends.length > 0 ? enrollmentTrends.map((t, i) => (
+                  <ChartBar 
+                    key={t.label} 
+                    // Normalize height relative to max value or 1 if empty
+                    height={t.value > 0 ? (t.value / (Math.max(...enrollmentTrends.map(x => x.value)) || 1)) * 90 : 5} 
+                    label={t.label} 
+                    delay={i} 
+                  />
+               )) : (
+                   <p className="w-full text-center text-gray-400 text-sm">No trend data available.</p>
+               )}
             </div>
             <div className="flex justify-center gap-6 mt-6">
                <div className="flex items-center text-xs text-gray-500">
-                  <span className="w-3 h-3 rounded-full bg-primary-400 mr-2"></span> Enrolled Students
-               </div>
-               <div className="flex items-center text-xs text-gray-500">
-                  <span className="w-3 h-3 rounded-full bg-gray-300 mr-2"></span> Completed Courses
+                  <span className="w-3 h-3 rounded-full bg-primary-400 mr-2"></span> New Enrollments
                </div>
             </div>
          </div>
@@ -377,13 +349,13 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-sm text-gray-500 mb-6">Latest platform updates and user actions</p>
             
             <div className="space-y-6">
-               {RECENT_ACTIVITY.map((item, i) => (
+               {recentActivity.length > 0 ? recentActivity.map((item, i) => (
                   <div key={i} className="flex gap-4 items-start">
                      {item.avatar ? (
                         <img src={item.avatar} alt="" className="w-10 h-10 rounded-full bg-gray-100" />
                      ) : (
                         <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center border border-primary-100">
-                           {item.icon}
+                           <Users size={16} className="text-primary-600" />
                         </div>
                      )}
                      <div className="flex-1">
@@ -393,19 +365,21 @@ export const AdminDashboard: React.FC = () => {
                         <p className="text-xs text-gray-400 mt-1">{item.time}</p>
                      </div>
                   </div>
-               ))}
+               )) : (
+                   <p className="text-gray-500 text-sm italic">No recent activity.</p>
+               )}
             </div>
          </div>
 
-         {/* Platform Statistics - Hidden for Instructors who care mostly about their own courses usually, but allowed here for overview */}
+         {/* Platform Statistics */}
          <div className="bg-gray-100 p-6 rounded-2xl border border-gray-200">
             <h3 className="font-bold text-gray-900 mb-1">
                 {isAdmin ? 'Platform Statistics' : 'Your Statistics'}
             </h3>
-            <p className="text-sm text-gray-500 mb-6">Key performance indicators for December 2025</p>
+            <p className="text-sm text-gray-500 mb-6">Key performance indicators</p>
             
             <div className="space-y-0 divide-y divide-gray-200">
-               {PLATFORM_STATS.map((stat, i) => (
+               {platformStats.map((stat, i) => (
                   <div key={i} className="flex justify-between items-center py-4 first:pt-0 last:pb-0">
                      <span className="text-sm text-gray-600 font-medium">{stat.label}</span>
                      <span className="font-bold text-gray-900">{stat.value}</span>

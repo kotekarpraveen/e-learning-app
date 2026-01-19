@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -20,22 +21,13 @@ const INITIAL_STATS = {
   points: 0
 };
 
-const WEEKLY_ACTIVITY = [
-  { day: 'Mon', hours: 2.5 },
-  { day: 'Tue', hours: 1.0 },
-  { day: 'Wed', hours: 0 },
-  { day: 'Thu', hours: 3.5 },
-  { day: 'Fri', hours: 2.0 },
-  { day: 'Sat', hours: 4.0 },
-  { day: 'Sun', hours: 1.5 },
-];
-
 export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [generalAudioCourse, setGeneralAudioCourse] = useState<Course | null>(null);
   const [stats, setStats] = useState(INITIAL_STATS);
+  const [weeklyActivity, setWeeklyActivity] = useState<{day: string, hours: number}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const MotionDiv = motion.div as any;
@@ -46,14 +38,16 @@ export const StudentDashboard: React.FC = () => {
         setIsLoading(true);
         
         // Parallel Fetch
-        const [enrolledCourses, allCourses, userStats] = await Promise.all([
+        const [enrolledCourses, allCourses, userStats, activity] = await Promise.all([
             api.getEnrolledCourses(user.id),
             api.getCourses(),
-            api.getStudentStats(user.id)
+            api.getStudentStats(user.id),
+            api.getStudentWeeklyActivity(user.id)
         ]);
 
         setCourses(enrolledCourses);
         setStats(userStats);
+        setWeeklyActivity(activity);
 
         // Find a General Audio Series course for the dashboard widget
         const audioSeries = allCourses.find(c => c.category === 'Audio Series');
@@ -88,7 +82,7 @@ export const StudentDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">
                Welcome back, {user?.name.split(' ')[0] || 'Student'}! 👋
             </h1>
-            <p className="text-gray-500 mt-1">You've learned for <span className="font-semibold text-primary-600">32 minutes</span> today. Keep it up!</p>
+            <p className="text-gray-500 mt-1">You've learned for <span className="font-semibold text-primary-600">{stats.hoursSpent} hours</span> total. Keep it up!</p>
          </div>
          <div className="flex items-center space-x-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
              <div className="flex items-center px-3 py-1 bg-orange-50 text-orange-600 rounded-lg">
@@ -281,7 +275,7 @@ export const StudentDashboard: React.FC = () => {
                </div>
                
                <div className="flex items-end justify-between h-32 gap-2">
-                  {WEEKLY_ACTIVITY.map((day, i) => (
+                  {weeklyActivity.map((day, i) => (
                      <div key={day.day} className="flex flex-col items-center gap-2 flex-1 group">
                         <div className="w-full relative h-full flex items-end">
                            <div className="w-full bg-gray-100 rounded-t-md relative overflow-hidden h-full">

@@ -88,6 +88,7 @@ export interface Course {
   category: string;
   learningOutcomes?: string[];
   enrolledStudents?: number;
+  published?: boolean;
 }
 
 export interface Instructor {

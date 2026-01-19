@@ -84,7 +84,8 @@ create table public.courses (
   published boolean default false,
   learning_outcomes text[],
   total_modules integer default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now())
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
 );
 
 -- 4. MODULES
@@ -235,29 +236,32 @@ alter table public.content_assets enable row level security;
 -- PROFILES
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
 create policy "Admins can view all profiles" on public.profiles for select using (
-  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
 
 -- CATEGORIES
 create policy "Public categories are viewable by everyone" on public.categories for select using (true);
+create policy "Admins and Instructors can manage categories" on public.categories for all using (
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
+);
 
 -- COURSES
 create policy "Public courses are viewable by everyone" on public.courses for select using (true);
 create policy "Admins can manage courses" on public.courses for all using (
-  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
 
 -- MODULES
 create policy "Public modules are viewable by everyone" on public.modules for select using (true);
 create policy "Admins can manage modules" on public.modules for all using (
-  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
 
 -- LESSONS
 create policy "Public lessons are viewable by everyone" on public.lessons for select using (true);
 create policy "Admins can manage lessons" on public.lessons for all using (
-  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
 
 -- ENROLLMENTS
@@ -272,21 +276,21 @@ create policy "Users can delete own progress" on public.user_progress for delete
 -- TRANSACTIONS
 create policy "Users can view own transactions" on public.transactions for select using (auth.uid() = user_id);
 create policy "Admins can view all transactions" on public.transactions for select using (
-  public.check_user_role(ARRAY['admin', 'super_admin'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'sub_admin'])
 );
 create policy "Users can create transactions" on public.transactions for insert with check (auth.uid() = user_id);
 create policy "Admins can update transactions" on public.transactions for update using (
-  public.check_user_role(ARRAY['admin', 'super_admin'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'sub_admin'])
 );
 
 -- CONTENT ASSETS
 create policy "Admins and Instructors can manage assets" on public.content_assets for all using (
-  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
 
 -- PAYMENT REQUESTS
 create policy "Admins can manage payment requests" on public.payment_requests for all using (
-  public.check_user_role(ARRAY['admin', 'super_admin'])
+  public.check_user_role(ARRAY['admin', 'super_admin', 'sub_admin'])
 );
 
 -- STORAGE POLICIES
@@ -301,15 +305,15 @@ begin
       -- Check if we are inserting/updating/deleting in the course-content bucket
       create policy "Admins can upload course content" on storage.objects for insert to authenticated with check (
         bucket_id = 'course-content' and
-        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
       );
       create policy "Admins can update course content" on storage.objects for update to authenticated using (
         bucket_id = 'course-content' and
-        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
       );
       create policy "Admins can delete course content" on storage.objects for delete to authenticated using (
         bucket_id = 'course-content' and
-        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor'])
+        public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
       );
       create policy "Public Access" on storage.objects for select using ( bucket_id = 'course-content' ); 
   end if;

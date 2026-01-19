@@ -69,6 +69,7 @@ export const api = {
         enrolledStudents: d.enrolled_students || 0,
         learningOutcomes: d.learning_outcomes || [],
         totalModules: d.modules?.length || 0,
+        published: d.published,
         modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
@@ -129,6 +130,7 @@ export const api = {
         enrolledStudents: data.enrolled_students || 0,
         learningOutcomes: data.learning_outcomes || [],
         totalModules: data.modules?.length || 0,
+        published: data.published,
         modules: data.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
@@ -189,6 +191,7 @@ export const api = {
                 learningOutcomes: d.learning_outcomes || [],
                 progress: 0, // Needs calculation logic in real app
                 totalModules: d.modules?.length || 0,
+                published: d.published,
                 modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
                     id: m.id,
                     title: m.title,
@@ -248,6 +251,176 @@ export const api = {
   },
 
   /**
+   * Calculate Weekly Activity for Student Chart
+   */
+  getStudentWeeklyActivity: async (userId: string) => {
+    if (!isSupabaseConfigured()) {
+        return [
+            { day: 'Mon', hours: 2.5 },
+            { day: 'Tue', hours: 1.0 },
+            { day: 'Wed', hours: 0 },
+            { day: 'Thu', hours: 3.5 },
+            { day: 'Fri', hours: 2.0 },
+            { day: 'Sat', hours: 4.0 },
+            { day: 'Sun', hours: 1.5 },
+        ];
+    }
+
+    try {
+        // Fetch completed lessons in last 7 days from user_progress
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const { data, error } = await supabase
+            .from('user_progress')
+            .select('completed_at')
+            .eq('user_id', userId)
+            .gte('completed_at', sevenDaysAgo.toISOString());
+
+        if (error) throw error;
+
+        // Initialize array for last 7 days
+        const activityMap = new Map<string, number>();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        // Fill last 7 days with 0
+        const result = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dayName = days[d.getDay()];
+            // Mock estimation: 0.5 hours per completed lesson for demo purposes
+            // In real app, sum(lessons.duration) join would be better
+            const count = data?.filter(row => {
+                const rowDate = new Date(row.completed_at);
+                return rowDate.getDate() === d.getDate() && rowDate.getMonth() === d.getMonth();
+            }).length || 0;
+            
+            result.push({ day: dayName, hours: count * 0.5 }); 
+        }
+        
+        return result;
+    } catch (e) {
+        return [];
+    }
+  },
+
+  // --- ADMIN DASHBOARD AGGREGATION ---
+
+  getAdminDashboardStats: async () => {
+    if (!isSupabaseConfigured()) {
+      return {
+        totalCourses: 24,
+        totalStudents: 1847,
+        totalRevenue: 47892,
+        avgEngagement: 4.2
+      };
+    }
+
+    try {
+      const [courses, students, transactions] = await Promise.all([
+        supabase.from('courses').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('transactions').select('amount').eq('status', 'succeeded')
+      ]);
+
+      const totalRevenue = transactions.data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
+
+      return {
+        totalCourses: courses.count || 0,
+        totalStudents: students.count || 0,
+        totalRevenue: totalRevenue,
+        avgEngagement: 0 // Placeholder until analytics logic
+      };
+    } catch (e) {
+      console.error("Admin stats error", e);
+      return { totalCourses: 0, totalStudents: 0, totalRevenue: 0, avgEngagement: 0 };
+    }
+  },
+
+  getRecentActivity: async () => {
+    if (!isSupabaseConfigured()) {
+      return [
+        { user: 'Sarah Johnson', action: 'enrolled in "React Mastery"', time: '5 min ago', avatar: '' },
+        { user: 'Michael Chen', action: 'completed "Python Basics"', time: '1 hour ago', avatar: '' }
+      ];
+    }
+
+    try {
+      // Fetch recent transactions (enrollments)
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          profiles(full_name, avatar),
+          courses(title)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      return data.map((t: any) => ({
+        user: t.profiles?.full_name || 'Unknown User',
+        action: `enrolled in "${t.courses?.title}"`,
+        time: new Date(t.created_at).toLocaleDateString(),
+        avatar: t.profiles?.avatar,
+        isSystem: false
+      }));
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getTopPerformingCourses: async () => {
+    if (!isSupabaseConfigured()) return [];
+    
+    try {
+      // Simple fetch ordered by enrolled_students
+      const { data } = await supabase
+        .from('courses')
+        .select('title, enrolled_students, price, thumbnail, progress')
+        .order('enrolled_students', { ascending: false })
+        .limit(5);
+        
+      return data || [];
+    } catch(e) {
+      return [];
+    }
+  },
+
+  /**
+   * Aggregate enrollment trends for the Admin Dashboard Chart
+   */
+  getEnrollmentTrends: async () => {
+      if (!isSupabaseConfigured()) {
+          // Mock Data match
+          return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(m => ({ label: m, value: Math.random() * 60 + 20 }));
+      }
+
+      try {
+          const { data, error } = await supabase
+            .from('enrollments')
+            .select('enrolled_at')
+            .gte('enrolled_at', new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString());
+
+          if (error) throw error;
+
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const counts = new Array(12).fill(0);
+
+          data?.forEach(row => {
+              const d = new Date(row.enrolled_at);
+              counts[d.getMonth()]++;
+          });
+
+          return months.map((m, i) => ({ label: m, value: counts[i] }));
+      } catch (e) {
+          return [];
+      }
+  },
+
+  /**
    * Check if a user is enrolled in a specific course
    */
   checkEnrollment: async (courseId: string, userId: string): Promise<boolean> => {
@@ -279,6 +452,15 @@ export const api = {
           console.error("Enrollment failed:", error);
           return false;
       }
+      
+      // Update course count
+      await supabase.rpc('increment_course_enrollment', { course_row_id: courseId }); // requires rpc or manual update
+      // Manual fallback if RPC doesn't exist
+      const { data: course } = await supabase.from('courses').select('enrolled_students').eq('id', courseId).single();
+      if(course) {
+          await supabase.from('courses').update({ enrolled_students: (course.enrolled_students || 0) + 1 }).eq('id', courseId);
+      }
+
       return true;
   },
 
@@ -744,7 +926,7 @@ export const api = {
             category: course.category,
             learning_outcomes: course.learningOutcomes,
             total_modules: course.totalModules,
-            published: true, 
+            published: course.published ?? false, 
             updated_at: new Date()
         });
 

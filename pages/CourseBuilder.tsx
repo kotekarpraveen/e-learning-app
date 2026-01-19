@@ -7,7 +7,8 @@ import {
   Video, FileText, Mic, Terminal, ClipboardList, Trash2, 
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
-  Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon
+  Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -444,6 +445,7 @@ const InfoTab: React.FC<{
     const [showNewCatInput, setShowNewCatInput] = useState(false);
     const [newCatName, setNewCatName] = useState('');
     const [isCreatingCat, setIsCreatingCat] = useState(false);
+    const [isUploadingThumb, setIsUploadingThumb] = useState(false);
 
     const handleCreate = async () => {
         if (!newCatName.trim()) return;
@@ -454,8 +456,32 @@ const InfoTab: React.FC<{
         setIsCreatingCat(false);
     };
 
+    const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Basic validation
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file (PNG, JPG, GIF)');
+            return;
+        }
+
+        setIsUploadingThumb(true);
+        try {
+            const result = await api.uploadFileToStorage(file);
+            if (result) {
+                setCourseInfo({ ...courseInfo, thumbnail: result.url });
+            }
+        } catch (error) {
+            console.error("Thumbnail upload failed", error);
+            alert("Failed to upload thumbnail");
+        } finally {
+            setIsUploadingThumb(false);
+        }
+    };
+
     return (
-    <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-8">
+    <div className="max-w-5xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-8">
        <div className="border-b border-gray-100 pb-6">
          <div className="flex items-center space-x-2 mb-2">
             <BookOpen className="text-primary-600" size={24} />
@@ -464,110 +490,139 @@ const InfoTab: React.FC<{
          <p className="text-gray-500">Basic details about your course that will appear on the landing page.</p>
        </div>
 
-       <div className="space-y-6">
-         <Input 
-            label="Course Title *" 
-            placeholder="e.g., Complete React Development Bootcamp" 
-            value={courseInfo.title}
-            onChange={e => setCourseInfo({...courseInfo, title: e.target.value})}
-         />
-         
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-              {!showNewCatInput ? (
-                  <div className="flex gap-2">
-                      <select 
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white transition-shadow"
-                        value={courseInfo.category}
-                        onChange={e => setCourseInfo({...courseInfo, category: e.target.value})}
-                      >
-                        <option value="">Select category</option>
-                        {categories.map(cat => (
-                            <option key={cat.id} value={cat.name}>{cat.name}</option>
-                        ))}
-                      </select>
-                      <button 
-                        onClick={() => setShowNewCatInput(true)}
-                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors"
-                        title="Create New Category"
-                      >
-                          <Plus size={18} />
-                      </button>
-                  </div>
-              ) : (
-                  <div className="flex gap-2">
-                      <input 
-                        className="w-full px-4 py-2 rounded-lg border border-primary-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                        placeholder="New Category Name"
-                        value={newCatName}
-                        onChange={e => setNewCatName(e.target.value)}
-                        autoFocus
-                      />
-                      <button 
-                        onClick={handleCreate}
-                        disabled={isCreatingCat}
-                        className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
-                      >
-                          {isCreatingCat ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                      </button>
-                      <button 
-                        onClick={() => setShowNewCatInput(false)}
-                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                          <X size={18} />
-                      </button>
-                  </div>
-              )}
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+         {/* Left Column: Thumbnail Upload */}
+         <div className="lg:col-span-1">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Course Thumbnail</label>
+            <div className="relative aspect-video bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden group hover:border-primary-500 transition-colors">
+                {courseInfo.thumbnail ? (
+                    <img src={courseInfo.thumbnail} alt="Course Thumbnail" className="w-full h-full object-cover" />
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                        <ImageIcon size={32} className="mb-2" />
+                        <span className="text-xs">No image selected</span>
+                    </div>
+                )}
+                
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <label className="cursor-pointer bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:bg-gray-50 flex items-center transition-transform hover:scale-105">
+                        {isUploadingThumb ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />}
+                        {isUploadingThumb ? 'Uploading...' : 'Change Image'}
+                        <input type="file" className="hidden" accept="image/png, image/jpeg, image/gif, image/webp" onChange={handleThumbnailUpload} />
+                    </label>
+                    <p className="text-white/80 text-[10px] mt-2 font-medium">Supports JPG, PNG, GIF</p>
+                </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty Level *</label>
-              <select 
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white transition-shadow"
-                value={courseInfo.level}
-                onChange={e => setCourseInfo({...courseInfo, level: e.target.value})}
-              >
-                <option value="">Select level</option>
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-              </select>
+            <p className="text-xs text-gray-500 mt-2">Recommended size: 1280x720 pixels.</p>
+         </div>
+
+         {/* Right Column: Form Fields */}
+         <div className="lg:col-span-2 space-y-6">
+            <Input 
+                label="Course Title *" 
+                placeholder="e.g., Complete React Development Bootcamp" 
+                value={courseInfo.title}
+                onChange={e => setCourseInfo({...courseInfo, title: e.target.value})}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                {!showNewCatInput ? (
+                    <div className="flex gap-2">
+                        <select 
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white transition-shadow"
+                            value={courseInfo.category}
+                            onChange={e => setCourseInfo({...courseInfo, category: e.target.value})}
+                        >
+                            <option value="">Select category</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                            ))}
+                        </select>
+                        <button 
+                            onClick={() => setShowNewCatInput(true)}
+                            className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors"
+                            title="Create New Category"
+                        >
+                            <Plus size={18} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex gap-2">
+                        <input 
+                            className="w-full px-4 py-2 rounded-lg border border-primary-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                            placeholder="New Category Name"
+                            value={newCatName}
+                            onChange={e => setNewCatName(e.target.value)}
+                            autoFocus
+                        />
+                        <button 
+                            onClick={handleCreate}
+                            disabled={isCreatingCat}
+                            className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+                        >
+                            {isCreatingCat ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                        </button>
+                        <button 
+                            onClick={() => setShowNewCatInput(false)}
+                            className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                )}
+                </div>
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty Level *</label>
+                <select 
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white transition-shadow"
+                    value={courseInfo.level}
+                    onChange={e => setCourseInfo({...courseInfo, level: e.target.value})}
+                >
+                    <option value="">Select level</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                </select>
+                </div>
             </div>
-         </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input 
-                label="Duration (hours)" 
-                placeholder="e.g., 40" 
-                value={courseInfo.duration}
-                onChange={e => setCourseInfo({...courseInfo, duration: e.target.value})}
-            />
-            <Input 
-                label="Price (USD)" 
-                placeholder="e.g., 99.99" 
-                value={courseInfo.price}
-                onChange={e => setCourseInfo({...courseInfo, price: e.target.value})}
-            />
-         </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input 
+                    label="Duration (hours)" 
+                    placeholder="e.g., 40" 
+                    value={courseInfo.duration}
+                    onChange={e => setCourseInfo({...courseInfo, duration: e.target.value})}
+                />
+                <Input 
+                    label="Price (USD)" 
+                    placeholder="e.g., 99.99" 
+                    value={courseInfo.price}
+                    onChange={e => setCourseInfo({...courseInfo, price: e.target.value})}
+                />
+            </div>
 
-         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Course Description *</label>
-            <textarea 
-               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[150px] transition-shadow"
-               placeholder="Provide a comprehensive description of what students will learn..."
-               value={courseInfo.description}
-               onChange={e => setCourseInfo({...courseInfo, description: e.target.value})}
-            />
-         </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Course Description *</label>
+                <textarea 
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[150px] transition-shadow"
+                placeholder="Provide a comprehensive description of what students will learn..."
+                value={courseInfo.description}
+                onChange={e => setCourseInfo({...courseInfo, description: e.target.value})}
+                />
+            </div>
 
-         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">What You'll Learn</label>
-            <textarea 
-               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[120px] transition-shadow"
-               placeholder="• Master React fundamentals&#10;• Build real-world applications"
-               value={courseInfo.learningOutcomes}
-               onChange={e => setCourseInfo({...courseInfo, learningOutcomes: e.target.value})}
-            />
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">What You'll Learn</label>
+                <textarea 
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[120px] transition-shadow"
+                placeholder="• Master React fundamentals&#10;• Build real-world applications"
+                value={courseInfo.learningOutcomes}
+                onChange={e => setCourseInfo({...courseInfo, learningOutcomes: e.target.value})}
+                />
+            </div>
          </div>
        </div>
     </div>
@@ -1022,7 +1077,8 @@ export const CourseBuilder: React.FC = () => {
     price: '',
     description: '',
     learningOutcomes: '',
-    prerequisites: ''
+    prerequisites: '',
+    thumbnail: 'https://picsum.photos/800/600'
   });
 
   const [modules, setModules] = useState<ModuleState[]>([
@@ -1070,7 +1126,7 @@ export const CourseBuilder: React.FC = () => {
       setToast({ message: 'Category created successfully', type: 'success' });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (shouldPublish: boolean = false) => {
     setIsLoading(true);
     
     // Construct Course Object from State
@@ -1078,7 +1134,7 @@ export const CourseBuilder: React.FC = () => {
         id: courseInfo.id,
         title: courseInfo.title || "Untitled Course",
         description: courseInfo.description || "No description provided.",
-        thumbnail: 'https://picsum.photos/800/600',
+        thumbnail: courseInfo.thumbnail,
         instructor: 'Admin User',
         price: parseFloat(courseInfo.price) || 0,
         level: (courseInfo.level as any) || 'Beginner',
@@ -1087,6 +1143,7 @@ export const CourseBuilder: React.FC = () => {
         totalModules: modules.length,
         enrolledStudents: 0,
         learningOutcomes: courseInfo.learningOutcomes.split('\n').filter(s => s.trim().length > 0),
+        published: shouldPublish,
         modules: modules.map(m => ({
             id: m.id,
             title: m.title,
@@ -1122,18 +1179,14 @@ export const CourseBuilder: React.FC = () => {
     setIsLoading(false);
 
     if (result.success) {
-        setToast({ message: 'Course saved successfully.', type: 'success' });
+        const msg = shouldPublish ? 'Course published successfully!' : 'Draft saved successfully.';
+        setToast({ message: msg, type: 'success' });
+        if (shouldPublish) {
+             setTimeout(() => navigate('/admin/courses'), 2000);
+        }
     } else {
         setToast({ message: 'Error saving course: ' + result.message, type: 'error' });
     }
-  };
-
-  const handlePublish = async () => {
-    await handleSave();
-    setTimeout(() => {
-        setToast({ message: 'Course published to catalog!', type: 'success' });
-        setTimeout(() => navigate('/admin/courses'), 2000);
-    }, 500);
   };
 
   const toggleModule = (id: string) => {
@@ -1236,7 +1289,7 @@ export const CourseBuilder: React.FC = () => {
            <Button 
              variant="secondary" 
              icon={<Save size={18} />} 
-             onClick={handleSave} 
+             onClick={() => handleSave(false)} 
              isLoading={isLoading}
              className="border-gray-300 shadow-sm"
             >
@@ -1245,7 +1298,7 @@ export const CourseBuilder: React.FC = () => {
            <Button 
              variant="primary" 
              icon={<Upload size={18} />} 
-             onClick={handlePublish} 
+             onClick={() => handleSave(true)} 
              isLoading={isLoading}
              className="shadow-md shadow-primary-500/20"
             >
