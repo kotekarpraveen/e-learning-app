@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Save, Upload, Layout as LayoutIcon, Settings, Eye, ChevronLeft, Plus, 
   Video, FileText, Mic, Terminal, ClipboardList, Trash2, 
@@ -642,7 +642,7 @@ const StructureTab: React.FC<{
 }> = ({ 
     modules, setModules, addModule, deleteModule, toggleModule, addLesson, contentLibrary, onOpenUpload, isAudioSeries 
 }) => {
-    
+    // ... (This component remains the same as before, no logic change needed for edit)
     const standardModules = modules.filter(m => m.id !== 'podcast-module');
     const podcastModule = modules.find(m => m.id === 'podcast-module');
 
@@ -914,7 +914,97 @@ const StructureTab: React.FC<{
         </div>
       )}
 
-      {/* Podcast Section Omitted for Brevity - Standard modules section demonstrates the point */}
+      {/* Podcast / Audio Series Section */}
+      <div className="space-y-6 pt-8 border-t border-gray-100">
+         <div className="flex justify-between items-start">
+            <div>
+               <div className="flex items-center space-x-2 mb-1">
+                  <Headphones className="text-purple-600" size={24} />
+                  <h2 className="text-2xl font-bold text-gray-900">{isAudioSeries ? 'Audio Series Content' : 'Audio Companion & Podcast'}</h2>
+               </div>
+               <p className="text-gray-500 max-w-2xl">
+                  {isAudioSeries 
+                    ? 'Manage your audio episodes. These will be the primary content for this course.'
+                    : 'Add a dedicated audio section for students to listen on the go. Great for recaps or interviews.'}
+               </p>
+            </div>
+            {!podcastModule && !isAudioSeries && (
+                <Button onClick={handleAddPodcastEpisode} variant="secondary" className="border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100">
+                    Enable Podcast Section
+                </Button>
+            )}
+         </div>
+
+         {(podcastModule || isAudioSeries) && (
+             <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-100 overflow-hidden shadow-sm">
+                <div className="p-4 bg-purple-100/50 border-b border-purple-100 flex items-center justify-between">
+                    <span className="font-bold text-purple-900 flex items-center">
+                        <Music size={18} className="mr-2" /> 
+                        {isAudioSeries ? 'Series Episodes' : 'Audio Only Modules'}
+                    </span>
+                    <Button size="sm" onClick={handleAddPodcastEpisode} className="bg-purple-600 hover:bg-purple-700 text-white border-none h-8 text-xs">
+                        <Plus size={14} className="mr-1" /> Add Episode
+                    </Button>
+                </div>
+                
+                <div className="p-4 space-y-3">
+                    {podcastModule?.lessons.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400 italic">No episodes added yet.</div>
+                    ) : (
+                        podcastModule?.lessons.map((lesson) => {
+                            const audioContent = contentLibrary.filter(c => c.type === 'Podcast/Audio');
+                            return (
+                            <div key={lesson.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-100 shadow-sm group">
+                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                                    <Mic size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <input 
+                                        className="w-full font-semibold text-gray-800 bg-transparent focus:outline-none focus:ring-0 placeholder-gray-400"
+                                        value={lesson.title}
+                                        onChange={(e) => updatePodcastLesson(lesson.id, e.target.value)}
+                                        placeholder="Episode Title"
+                                    />
+                                </div>
+                                <div className="w-1/3">
+                                    <select
+                                        className={`w-full text-xs px-2 py-1.5 border rounded bg-gray-50 focus:ring-purple-500 focus:border-purple-500 ${!lesson.contentId ? 'border-orange-300 text-orange-600' : 'border-gray-200 text-gray-600'}`}
+                                        value={lesson.contentId || ""}
+                                        onChange={(e) => {
+                                            // Manual update logic for podcast module
+                                            const newModules = modules.map(m => {
+                                                if(m.id === 'podcast-module') {
+                                                    const newLessons = m.lessons.map(l => 
+                                                        l.id === lesson.id ? { ...l, contentId: e.target.value } : l
+                                                    );
+                                                    return { ...m, lessons: newLessons };
+                                                }
+                                                return m;
+                                            });
+                                            setModules(newModules);
+                                        }}
+                                    >
+                                        <option value="">-- Select Audio File --</option>
+                                        {audioContent.map(content => (
+                                            <option key={content.id} value={content.id}>
+                                                {content.title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button 
+                                    onClick={() => deletePodcastLesson(lesson.id)}
+                                    className="p-2 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        )})
+                    )}
+                </div>
+             </div>
+         )}
+      </div>
     </div>
     );
 };
@@ -922,6 +1012,7 @@ const StructureTab: React.FC<{
 const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType: any, handleDeleteContent: any }> = ({ 
     contentLibrary, setActiveUploadType, handleDeleteContent 
 }) => {
+    // ... (This component remains the same)
     const MotionDiv = motion.div as any;
     return (
     <div className="max-w-6xl mx-auto space-y-10">
@@ -1026,6 +1117,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
     );
 };
 
+// ... SettingsTab (No changes needed) ...
 const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, setSettings }) => (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-10">
       <div className="border-b border-gray-100 pb-6">
@@ -1059,8 +1151,12 @@ const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, 
 
 export const CourseBuilder: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editCourseId = searchParams.get('courseId');
+
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeLessonUpload, setActiveLessonUpload] = useState<{moduleId: string, lessonId: string} | null>(null);
@@ -1100,17 +1196,82 @@ export const CourseBuilder: React.FC = () => {
     enableDiscussion: false
   });
 
+  // Load Categories & Content Library
   useEffect(() => {
       const loadData = async () => {
+          setIsInitializing(true);
           const [cats, assets] = await Promise.all([
               api.getCategories(),
               api.getContentLibrary()
           ]);
           setCategories(cats);
           setContentLibrary(assets);
+          setIsInitializing(false);
       };
       loadData();
   }, []);
+
+  // Load Existing Course for Editing
+  useEffect(() => {
+      if (!editCourseId) return;
+      if (contentLibrary.length === 0 && !isInitializing) {
+          // If library is empty but we finished initializing, we might miss linking. 
+          // But usually library loads fast. Let's just wait for logic.
+      }
+
+      const fetchCourse = async () => {
+          setIsLoading(true);
+          const data = await api.getCourseById(editCourseId);
+          if (data) {
+              setCourseInfo({
+                  id: data.id,
+                  title: data.title,
+                  category: data.category,
+                  level: data.level,
+                  duration: data.duration || '',
+                  price: data.price.toString(),
+                  description: data.description,
+                  learningOutcomes: data.learningOutcomes?.join('\n') || '',
+                  prerequisites: '',
+                  thumbnail: data.thumbnail
+              });
+
+              // Map Modules & Lessons
+              const mappedModules: ModuleState[] = data.modules.map(m => ({
+                  id: m.id,
+                  title: m.title,
+                  description: m.description || '',
+                  isExpanded: false,
+                  isPodcast: m.isPodcast,
+                  lessons: m.lessons.map(l => {
+                      // Attempt to reverse lookup contentId from URL if possible
+                      // This is a heuristic since we don't store contentId in the Lesson table directly in this simple schema
+                      // In a real app, Lesson table would FK to ContentAsset.
+                      // Here we try to match by fileUrl or exact metadata match.
+                      const libraryItem = contentLibrary.find(asset => 
+                          (asset.fileUrl && asset.fileUrl === l.contentUrl) || 
+                          (asset.metadata?.url && asset.metadata.url === l.contentUrl)
+                      );
+
+                      return {
+                          id: l.id,
+                          title: l.title,
+                          type: l.type as any,
+                          contentId: libraryItem?.id
+                      };
+                  })
+              }));
+              
+              setModules(mappedModules);
+              setSettings(prev => ({ ...prev, visibility: data.published ? 'public' : 'unlisted' })); // Simple mapping
+          }
+          setIsLoading(false);
+      };
+
+      if (!isInitializing) {
+          fetchCourse();
+      }
+  }, [editCourseId, isInitializing, contentLibrary.length]); // Re-run when library loads to ensure linking works
 
   const handleCreateCategory = async (name: string) => {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -1144,9 +1305,11 @@ export const CourseBuilder: React.FC = () => {
         enrolledStudents: 0,
         learningOutcomes: courseInfo.learningOutcomes.split('\n').filter(s => s.trim().length > 0),
         published: shouldPublish,
+        duration: courseInfo.duration, // Persist Duration
         modules: modules.map(m => ({
             id: m.id,
             title: m.title,
+            isPodcast: m.isPodcast,
             lessons: m.lessons.map(l => {
                 let resolvedContentUrl = undefined;
                 let resolvedContentData = undefined;
@@ -1168,6 +1331,7 @@ export const CourseBuilder: React.FC = () => {
                     title: l.title,
                     type: l.type,
                     completed: false,
+                    duration: '10 min', // Default placeholder if not set
                     contentUrl: resolvedContentUrl,
                     contentData: resolvedContentData
                 };
@@ -1267,6 +1431,14 @@ export const CourseBuilder: React.FC = () => {
 
   const MotionDiv = motion.div as any;
 
+  if (isLoading && isInitializing) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <Loader2 className="animate-spin text-primary-600" size={40} />
+          </div>
+      );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <AnimatePresence>
@@ -1281,8 +1453,8 @@ export const CourseBuilder: React.FC = () => {
              <ChevronLeft size={22} />
            </Button>
            <div>
-             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Course Builder</h1>
-             <p className="text-xs text-gray-500 font-medium mt-0.5">Draft • Last saved just now</p>
+             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{editCourseId ? 'Edit Course' : 'Create Course'}</h1>
+             <p className="text-xs text-gray-500 font-medium mt-0.5">{editCourseId ? 'Editing existing content' : 'Draft • Last saved just now'}</p>
            </div>
         </div>
         <div className="flex space-x-3">
@@ -1380,7 +1552,15 @@ export const CourseBuilder: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Student Preview Mode</h3>
                 <p className="text-gray-500 mb-8 max-w-md mx-auto">Experience the course exactly as your students will see it. Test quizzes, watch videos, and review lessons.</p>
-                <Button size="lg" onClick={() => navigate(`/course/c1`)} className="px-8 py-4 text-lg">
+                <Button 
+                  size="lg" 
+                  onClick={async () => {
+                    await handleSave(false);
+                    navigate(`/course/${courseInfo.id}`);
+                  }} 
+                  className="px-8 py-4 text-lg"
+                  isLoading={isLoading}
+                >
                   Launch Student View
                 </Button>
               </div>

@@ -76,7 +76,12 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         </div>
 
         <div className="flex gap-2">
-           <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200" onClick={() => navigate('/admin/course-builder')}>
+           <Button 
+             variant="secondary" 
+             size="sm" 
+             className="flex-1 text-xs border-gray-200" 
+             onClick={() => navigate(`/admin/course-builder?courseId=${course.id}`)}
+           >
               Edit
            </Button>
            <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200">

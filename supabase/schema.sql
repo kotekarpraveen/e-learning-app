@@ -84,6 +84,7 @@ create table public.courses (
   published boolean default false,
   learning_outcomes text[],
   total_modules integer default 0,
+  duration text,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -267,6 +268,10 @@ create policy "Admins can manage lessons" on public.lessons for all using (
 -- ENROLLMENTS
 create policy "Users can view own enrollments" on public.enrollments for select using (auth.uid() = user_id);
 create policy "Users can enroll themselves" on public.enrollments for insert with check (auth.uid() = user_id);
+-- NEW: Allow Admins to see all enrollments (for student list counts and analytics)
+create policy "Admins can view all enrollments" on public.enrollments for select using (
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
+);
 
 -- PROGRESS
 create policy "Users can view own progress" on public.user_progress for select using (auth.uid() = user_id);

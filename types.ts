@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'student' | 'super_admin' | 'admin' | 'sub_admin' | 'viewer' | 'approver' | 'instructor';
 
 export interface User {
@@ -71,6 +72,7 @@ export interface Module {
   title: string;
   lessons: Lesson[];
   isPodcast?: boolean;
+  description?: string;
 }
 
 export interface Course {
@@ -89,6 +91,7 @@ export interface Course {
   learningOutcomes?: string[];
   enrolledStudents?: number;
   published?: boolean;
+  duration?: string; // Added for persistence
 }
 
 export interface Instructor {
