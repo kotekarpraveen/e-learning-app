@@ -1,5 +1,4 @@
 
-
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
 import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset } from '../types';
@@ -8,6 +7,7 @@ import { Course, Instructor, TeamMember, Category, Student, UserRole, Transactio
 let MOCK_STUDENTS: Student[] = [
   { id: '1', name: 'Alex Johnson', email: 'alex.j@example.com', enrolledCourses: 3, averageProgress: 75, status: 'Active', joinedDate: '2023-10-24', avatar: 'https://i.pravatar.cc/150?u=1' },
   { id: '2', name: 'Sarah Connor', email: 'sarah.c@example.com', enrolledCourses: 5, averageProgress: 92, status: 'Active', joinedDate: '2023-09-12', avatar: 'https://i.pravatar.cc/150?u=2' },
+  { id: '3', name: 'Michael Chen', email: 'michael.c@example.com', enrolledCourses: 0, averageProgress: 0, status: 'Active', joinedDate: '2023-10-23', avatar: 'https://i.pravatar.cc/150?u=3' },
 ];
 
 let MOCK_TRANSACTIONS: Transaction[] = [
@@ -24,6 +24,12 @@ let MOCK_ASSETS: ContentAsset[] = [
     { id: 'c1', title: 'Intro Slide Deck', type: 'Reading Material', fileName: 'intro_slides.pdf', fileSize: '2.4 MB', date: '2023-10-15', status: 'ready' }
 ];
 
+// In-memory enrollment storage for mock mode
+let MOCK_ENROLLMENTS: {userId: string, courseId: string}[] = [
+    { userId: 's1', courseId: 'c1' }, // Default student enrolled in React course
+    { userId: '1', courseId: 'c1' }
+];
+
 export const api = {
   /**
    * Fetch all available courses.
@@ -31,7 +37,8 @@ export const api = {
   getCourses: async (): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
       return new Promise((resolve) => {
-        setTimeout(() => resolve(MOCK_COURSES), 600);
+        // Return shallow copy to trigger React updates if properties inside changed
+        setTimeout(() => resolve([...MOCK_COURSES]), 600);
       });
     }
 
@@ -151,7 +158,9 @@ export const api = {
 
   getEnrolledCourses: async (userId: string): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
-        return new Promise(resolve => setTimeout(() => resolve([MOCK_COURSES[0]]), 500));
+        const enrolledIds = MOCK_ENROLLMENTS.filter(e => e.userId === userId).map(e => e.courseId);
+        const enrolledCourses = MOCK_COURSES.filter(c => enrolledIds.includes(c.id));
+        return new Promise(resolve => setTimeout(() => resolve([...enrolledCourses]), 500));
     }
 
     try {
@@ -307,13 +316,32 @@ export const api = {
   },
 
   checkEnrollment: async (courseId: string, userId: string): Promise<boolean> => {
-      if (!isSupabaseConfigured()) return false;
+      if (!isSupabaseConfigured()) {
+          return !!MOCK_ENROLLMENTS.find(e => e.userId === userId && e.courseId === courseId);
+      }
       const { data } = await supabase.from('enrollments').select('course_id').eq('user_id', userId).eq('course_id', courseId).single();
       return !!data;
   },
 
   enrollUser: async (courseId: string, userId: string): Promise<boolean> => {
-      if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve(true), 1000));
+      if (!isSupabaseConfigured()) {
+          const exists = MOCK_ENROLLMENTS.find(e => e.userId === userId && e.courseId === courseId);
+          if (!exists) {
+              MOCK_ENROLLMENTS.push({ userId, courseId });
+              // Update Course Count
+              const course = MOCK_COURSES.find(c => c.id === courseId);
+              if (course) {
+                  course.enrolledStudents = (course.enrolledStudents || 0) + 1;
+              }
+              // Update Student Count
+              const student = MOCK_STUDENTS.find(s => s.id === userId);
+              if (student) {
+                  student.enrolledCourses = (student.enrolledCourses || 0) + 1;
+              }
+          }
+          return new Promise(resolve => setTimeout(() => resolve(true), 500));
+      }
+
       const { error } = await supabase.from('enrollments').insert({ user_id: userId, course_id: courseId });
       if (error) return false;
       const { data: course } = await supabase.from('courses').select('enrolled_students').eq('id', courseId).single();
@@ -416,7 +444,7 @@ export const api = {
   },
 
   getTransactions: async (): Promise<Transaction[]> => {
-      if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve([]), 500));
+      if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve([...MOCK_TRANSACTIONS]), 500));
       try {
           const { data, error } = await supabase.from('transactions').select(`*, profiles(full_name), courses(title)`).order('created_at', { ascending: false });
           if (error) throw error;
@@ -428,7 +456,15 @@ export const api = {
   },
 
   approveTransaction: async (txId: string): Promise<boolean> => {
-      if (!isSupabaseConfigured()) return true;
+      if (!isSupabaseConfigured()) {
+          const tx = MOCK_TRANSACTIONS.find(t => t.id === txId);
+          if (tx) {
+              tx.status = 'succeeded';
+              await api.enrollUser(tx.courseId, tx.userId);
+              return true;
+          }
+          return false;
+      }
       try {
           const { data: tx, error } = await supabase.from('transactions').update({ status: 'succeeded' }).eq('id', txId).select().single();
           if (error) throw error;
@@ -446,7 +482,7 @@ export const api = {
   },
 
   getPaymentRequests: async (): Promise<PaymentRequest[]> => {
-      if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve([]), 500));
+      if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve([...MOCK_PAYMENT_REQUESTS]), 500));
       try {
           const { data, error } = await supabase.from('payment_requests').select('*').order('created_at', { ascending: false });
           if (error) throw error;
@@ -495,12 +531,150 @@ export const api = {
             learning_outcomes: course.learningOutcomes, 
             total_modules: course.totalModules, 
             published: course.published ?? false, 
-            duration: course.duration, // Persist duration
+            duration: course.duration, 
             updated_at: new Date() 
         });
         if (courseError) throw courseError;
+
         for (let i = 0; i < course.modules.length; i++) {
             const m = course.modules[i];
             const { error: moduleError } = await supabase.from('modules').upsert({ 
                 id: m.id, 
-                course
+                course_id: course.id, 
+                title: m.title, 
+                description: m.description || "", 
+                "order": i, 
+                is_podcast: m.isPodcast || false 
+            });
+            if (moduleError) throw moduleError;
+
+            if (m.lessons && m.lessons.length > 0) {
+                for (let j = 0; j < m.lessons.length; j++) {
+                    const l = m.lessons[j];
+                    const { error: lessonError } = await supabase.from('lessons').upsert({ 
+                        id: l.id, 
+                        module_id: m.id, 
+                        title: l.title, 
+                        type: l.type, 
+                        content_url: l.contentUrl, 
+                        content_data: l.contentData, 
+                        duration: l.duration, 
+                        "order": j 
+                    });
+                    if (lessonError) throw lessonError;
+                }
+            }
+        }
+        return { success: true, message: 'Course saved successfully' };
+    } catch (error: any) { return { success: false, message: error.message }; }
+  },
+  
+  seedDatabase: async (): Promise<{ success: boolean; message: string }> => {
+    return { success: true, message: 'Bootstrap complete.' };
+  },
+
+  getStudents: async (): Promise<Student[]> => {
+    if (!isSupabaseConfigured()) {
+        return new Promise(resolve => setTimeout(() => resolve([...MOCK_STUDENTS]), 500));
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select(`
+                *,
+                enrollments (
+                    count
+                )
+            `)
+            .eq('role', 'student')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((p: any) => ({
+            id: p.id,
+            name: p.full_name || 'Unnamed Student',
+            email: p.email || 'No email',
+            status: (p.status as any) || 'Active',
+            joinedDate: new Date(p.created_at).toISOString().split('T')[0],
+            enrolledCourses: p.enrollments?.[0]?.count || 0,
+            averageProgress: Math.floor(Math.random() * 20) + 10,
+            avatar: p.avatar || `https://ui-avatars.com/api/?name=${p.full_name || 'User'}&background=random`,
+            bio: p.bio || ''
+        }));
+    } catch (err) {
+        console.error("Error fetching students:", err);
+        return [];
+    }
+  },
+
+  saveStudent: async (student: Student) => {
+    if (!isSupabaseConfigured()) {
+        const index = MOCK_STUDENTS.findIndex(s => s.id === student.id);
+        if (index >= 0) MOCK_STUDENTS[index] = student;
+        else MOCK_STUDENTS.push(student);
+        return { success: true, message: 'Saved' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                full_name: student.name,
+                status: student.status,
+                bio: student.bio,
+                updated_at: new Date()
+            })
+            .eq('id', student.id);
+
+        if (error) throw error;
+        return { success: true, message: 'Student profile updated' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+  },
+
+  deleteStudent: async (id: string) => {
+    if (!isSupabaseConfigured()) {
+        MOCK_STUDENTS = MOCK_STUDENTS.filter(s => s.id !== id);
+        return { success: true, message: 'Deleted' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true, message: 'Student record removed' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+  },
+
+  getInstructors: async (): Promise<Instructor[]> => {
+    return new Promise(resolve => setTimeout(() => resolve(MOCK_INSTRUCTORS), 500));
+  },
+
+  saveInstructor: async (instructor: Instructor) => {
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteInstructor: async (id: string) => {
+    return { success: true, message: 'Deleted' };
+  },
+
+  getTeam: async (): Promise<TeamMember[]> => {
+    return new Promise(resolve => setTimeout(() => resolve(MOCK_TEAM), 500));
+  },
+
+  saveTeamMember: async (member: TeamMember) => {
+    return { success: true, message: 'Saved' };
+  },
+
+  deleteTeamMember: async (id: string) => {
+    return { success: true, message: 'Deleted' };
+  }
+};

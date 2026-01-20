@@ -272,6 +272,10 @@ create policy "Users can enroll themselves" on public.enrollments for insert wit
 create policy "Admins can view all enrollments" on public.enrollments for select using (
   public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
 );
+-- NEW: Allow Admins to enroll others (Required for Transaction Approval)
+create policy "Admins can enroll users" on public.enrollments for insert with check (
+  public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin'])
+);
 
 -- PROGRESS
 create policy "Users can view own progress" on public.user_progress for select using (auth.uid() = user_id);
