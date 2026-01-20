@@ -8,7 +8,7 @@ import {
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
   Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
-  Image as ImageIcon
+  Image as ImageIcon, FileCode, Clock
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -76,7 +76,11 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     const [url, setUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     
-    // Code Practice State
+    // Jupyter State
+    const [jupyterMode, setJupyterMode] = useState<'upload' | 'manual'>('upload');
+    const [notebookData, setNotebookData] = useState<any>(null); // Stores parsed .ipynb JSON
+
+    // Code Practice State (Manual)
     const [codeExercise, setCodeExercise] = useState({
         description: '',
         starterCode: '# Write your code here\n\ndef solution():\n    pass',
@@ -92,10 +96,11 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     }[]>([
         { id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0 }
     ]);
+    const [quizTimeLimit, setQuizTimeLimit] = useState<number | ''>(''); // Minutes
 
     const isVideo = type.title === 'Video Content';
     const isPodcast = type.title === 'Podcast/Audio';
-    const isCodePractice = type.title === 'Code Practice';
+    const isJupyter = type.title === 'Jupyter Notebook'; // Changed from 'Code Practice'
     const isReading = type.title === 'Reading Material';
     const isQuiz = type.title === 'Quiz/Assessment';
     
@@ -104,6 +109,10 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     if (isReading) {
         acceptType = '.pdf';
         label = 'PDF';
+    }
+    if (isJupyter && jupyterMode === 'upload') {
+        acceptType = '.ipynb';
+        label = 'Jupyter Notebook (.ipynb)';
     }
 
     const handleAddQuestion = () => {
@@ -129,8 +138,35 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
         }
     };
 
+    // Jupyter File Handler
+    const handleJupyterFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.ipynb')) {
+            alert('Please select a valid .ipynb file');
+            return;
+        }
+
+        setSelectedFile(file);
+        if(!title) setTitle(file.name.replace('.ipynb', ''));
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const json = JSON.parse(event.target?.result as string);
+                setNotebookData(json);
+            } catch (err) {
+                console.error("Invalid Notebook File", err);
+                alert("Could not parse Jupyter Notebook file.");
+                setSelectedFile(null);
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const startUpload = async () => {
-      if (!title) return; // Title is mandatory for everything now
+      if (!title) return; // Title is mandatory
 
       setUploadState('uploading');
       setProgress(20);
@@ -144,25 +180,44 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                   fileName: 'Interactive Quiz',
                   fileSize: `${quizQuestions.length} Qs`,
                   metadata: {
-                      questions: quizQuestions
+                      questions: quizQuestions,
+                      timeLimit: quizTimeLimit === '' ? 0 : Number(quizTimeLimit) // Store time limit in minutes
                   }
               });
               if(newAsset) finalize(newAsset);
               return;
           }
 
-          // --- CODE PRACTICE LOGIC ---
-          if (isCodePractice) {
-              const newAsset = await api.createContentAsset({
-                  title: title,
-                  type: type.title,
-                  fileName: 'Coding Challenge',
-                  fileSize: 'Code',
-                  metadata: {
+          // --- JUPYTER / CODE LOGIC ---
+          if (isJupyter) {
+              let metadata;
+              let fileName;
+              let fileSize;
+
+              if (jupyterMode === 'manual') {
+                  metadata = {
                       description: codeExercise.description,
                       starterCode: codeExercise.starterCode,
                       solutionCode: codeExercise.solutionCode
-                  }
+                  };
+                  fileName = 'Manual Exercise';
+                  fileSize = 'Code';
+              } else {
+                  // Upload Mode
+                  if (!notebookData) throw new Error("No notebook data");
+                  metadata = {
+                      notebook: notebookData // Store the full JSON
+                  };
+                  fileName = selectedFile?.name || 'Notebook.ipynb';
+                  fileSize = selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : '0 KB';
+              }
+
+              const newAsset = await api.createContentAsset({
+                  title: title,
+                  type: type.title,
+                  fileName: fileName,
+                  fileSize: fileSize,
+                  metadata: metadata
               });
               if(newAsset) finalize(newAsset);
               return;
@@ -225,12 +280,12 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
         <MotionDiv 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className={`bg-white rounded-2xl shadow-2xl w-full ${isCodePractice || isQuiz ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
+          className={`bg-white rounded-2xl shadow-2xl w-full ${isJupyter || isQuiz ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
         >
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
              <h3 className="font-bold text-gray-800 flex items-center gap-2">
                {type.icon}
-               <span>{isQuiz ? 'Create Quiz' : isCodePractice ? 'Create Code Challenge' : `Add ${type.title}`}</span>
+               <span>{isQuiz ? 'Create Quiz' : isJupyter ? 'Jupyter Notebook' : `Add ${type.title}`}</span>
              </h3>
              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-full">
                <X size={20} />
@@ -241,10 +296,10 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
             {uploadState === 'idle' ? (
               <div className="space-y-6">
                 
-                {/* GLOBAL TITLE INPUT FOR ALL TYPES */}
+                {/* GLOBAL TITLE INPUT */}
                 <Input 
                     label="Content Title" 
-                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Chapter 1 Notes'}`}
+                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Lecture Notebook'}`}
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     required
@@ -291,7 +346,6 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                             onChange={(e) => {
                                 if (e.target.files?.[0]) {
                                     setSelectedFile(e.target.files[0]);
-                                    // Auto-fill title if empty
                                     if(!title) setTitle(e.target.files[0].name.split('.')[0]);
                                 }
                             }}
@@ -302,6 +356,21 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                 {/* --- QUIZ BUILDER --- */}
                 {isQuiz && (
                     <div className="space-y-6">
+                        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-4">
+                            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
+                                <Clock size={16} className="mr-2 text-orange-600" />
+                                Time Limit (Optional)
+                            </label>
+                            <Input 
+                                type="number"
+                                placeholder="Enter limit in minutes (e.g. 15)"
+                                value={quizTimeLimit}
+                                onChange={e => setQuizTimeLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                className="bg-white"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Leave blank or 0 for no time limit.</p>
+                        </div>
+
                         <div className="space-y-4">
                             {quizQuestions.map((q, qIdx) => (
                                 <div key={q.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200 relative group">
@@ -348,40 +417,76 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                     </div>
                 )}
 
-                {/* --- CODE PRACTICE --- */}
-                {isCodePractice && (
+                {/* --- JUPYTER / CODE PRACTICE --- */}
+                {isJupyter && (
                     <div className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Problem Description</label>
-                            <textarea 
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] text-sm resize-y"
-                                placeholder="Describe the problem the student needs to solve..."
-                                value={codeExercise.description}
-                                onChange={e => setCodeExercise({...codeExercise, description: e.target.value})}
-                            />
+                        {/* Mode Switcher */}
+                        <div className="flex gap-4 border-b border-gray-200 pb-2">
+                            <button 
+                                onClick={() => setJupyterMode('upload')}
+                                className={`text-sm font-bold pb-2 transition-colors ${jupyterMode === 'upload' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-500'}`}
+                            >
+                                Upload .ipynb File
+                            </button>
+                            <button 
+                                onClick={() => setJupyterMode('manual')}
+                                className={`text-sm font-bold pb-2 transition-colors ${jupyterMode === 'manual' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-500'}`}
+                            >
+                                Manual Code Exercise
+                            </button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="flex flex-col h-full">
-                                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                    <Code size={14} className="text-gray-500" /> Starter Code (Visible)
-                                </label>
-                                <textarea 
-                                    className="w-full flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[200px] font-mono text-xs bg-gray-50 text-gray-800 leading-relaxed"
-                                    value={codeExercise.starterCode}
-                                    onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})}
+
+                        {jupyterMode === 'upload' ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 hover:border-orange-500 transition-all cursor-pointer relative group bg-gray-50/50">
+                                <div className="w-16 h-16 bg-white text-orange-600 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100">
+                                    <FileCode size={28} />
+                                </div>
+                                <p className="font-semibold text-gray-900 text-lg">
+                                    {selectedFile ? selectedFile.name : `Drop Jupyter Notebook (.ipynb) here`}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-2">We will parse the cells and create an interactive environment.</p>
+                                <input 
+                                    type="file" 
+                                    accept=".ipynb"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={handleJupyterFile}
                                 />
                             </div>
-                            <div className="flex flex-col h-full">
-                                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2 text-green-700">
-                                    <Check size={14} /> Reference Solution (Hidden)
-                                </label>
-                                <textarea 
-                                    className="w-full flex-1 px-4 py-3 rounded-xl border border-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[200px] font-mono text-xs bg-green-50/30 text-gray-800 leading-relaxed"
-                                    value={codeExercise.solutionCode}
-                                    onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})}
-                                />
+                        ) : (
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Problem Description</label>
+                                    <textarea 
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] text-sm resize-y"
+                                        placeholder="Describe the problem the student needs to solve..."
+                                        value={codeExercise.description}
+                                        onChange={e => setCodeExercise({...codeExercise, description: e.target.value})}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="flex flex-col h-full">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                            <Code size={14} className="text-gray-500" /> Starter Code (Visible)
+                                        </label>
+                                        <textarea 
+                                            className="w-full flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[200px] font-mono text-xs bg-gray-50 text-gray-800 leading-relaxed"
+                                            value={codeExercise.starterCode}
+                                            onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col h-full">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2 text-green-700">
+                                            <Check size={14} /> Reference Solution (Hidden)
+                                        </label>
+                                        <textarea 
+                                            className="w-full flex-1 px-4 py-3 rounded-xl border border-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[200px] font-mono text-xs bg-green-50/30 text-gray-800 leading-relaxed"
+                                            value={codeExercise.solutionCode}
+                                            onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 )}
 
@@ -397,7 +502,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                         </div>
                      </div>
                      <h4 className="text-lg font-bold text-gray-900 mb-2">
-                        {isVideo || isPodcast ? 'Verifying Link...' : isCodePractice || isQuiz ? 'Saving Content...' : 'Uploading File...'}
+                        {isVideo || isPodcast ? 'Verifying Link...' : isJupyter || isQuiz ? 'Saving Content...' : 'Uploading File...'}
                      </h4>
                    </div>
                  ) : (
@@ -418,13 +523,14 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                     onClick={startUpload} 
                     disabled={
                         !title || 
-                        (isCodePractice && !codeExercise.description) ||
+                        (isJupyter && jupyterMode === 'manual' && !codeExercise.description) ||
+                        (isJupyter && jupyterMode === 'upload' && !notebookData) ||
                         ((isVideo || isPodcast) && !url) ||
                         (isReading && !selectedFile)
                     }
                     className="w-full sm:w-auto min-w-[120px]"
                 >
-                    {isCodePractice || isQuiz ? 'Save Content' : (isVideo || isPodcast) ? 'Add Link' : 'Start Upload'}
+                    {isJupyter || isQuiz ? 'Save Content' : (isVideo || isPodcast) ? 'Add Link' : 'Start Upload'}
                 </Button>
             </div>
           )}
@@ -698,7 +804,7 @@ const StructureTab: React.FC<{
             case 'video': return contentLibrary.filter(c => c.type === 'Video Content');
             case 'reading': return contentLibrary.filter(c => c.type === 'Reading Material');
             case 'podcast': return contentLibrary.filter(c => c.type === 'Podcast/Audio');
-            case 'jupyter': return contentLibrary.filter(c => c.type === 'Code Practice');
+            case 'jupyter': return contentLibrary.filter(c => c.type === 'Jupyter Notebook' || c.type === 'Code Practice');
             case 'quiz': return contentLibrary.filter(c => c.type === 'Quiz/Assessment');
             default: return [];
         }
@@ -866,7 +972,7 @@ const StructureTab: React.FC<{
                                                 <option value="video">Video Lesson</option>
                                                 <option value="reading">Reading Material</option>
                                                 <option value="quiz">Quiz / Assessment</option>
-                                                <option value="jupyter">Code Practice</option>
+                                                <option value="jupyter">Jupyter / Code</option>
                                                 <option value="podcast">Podcast / Audio</option>
                                             </select>
                                         </div>
@@ -1030,7 +1136,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
              { title: 'Video Content', desc: 'Add YouTube link for embedded playback', icon: <Video size={28} />, color: 'text-blue-500 bg-blue-50 border-blue-100' },
              { title: 'Reading Material', desc: 'Upload PDF documents', icon: <FileText size={28} />, color: 'text-green-500 bg-green-50 border-green-100' },
              { title: 'Podcast/Audio', desc: 'Add Link to MP3 or Audio file', icon: <Mic size={28} />, color: 'text-purple-500 bg-purple-50 border-purple-100' },
-             { title: 'Code Practice', desc: 'Create interactive coding challenges', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50 border-orange-100' },
+             { title: 'Jupyter Notebook', desc: 'Upload .ipynb files or code challenges', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50 border-orange-100' },
              { title: 'Quiz/Assessment', desc: 'Create interactive quizzes', icon: <ClipboardList size={28} />, color: 'text-red-500 bg-red-50 border-red-100' },
            ].map((item, i) => (
              <MotionDiv 
@@ -1077,7 +1183,7 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-4 font-medium text-gray-900 flex items-center max-w-sm">
                       <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mr-4 text-gray-500 flex-shrink-0 border border-gray-200 group-hover:bg-white group-hover:shadow-sm transition-all">
-                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' ? <Code size={18} /> : item.type === 'Podcast/Audio' ? <Mic size={18} /> : item.type === 'Quiz/Assessment' ? <ClipboardList size={18} /> : <File size={18} />}
+                        {item.type === 'Video Content' ? <Link2 size={18} /> : item.type === 'Code Practice' || item.type === 'Jupyter Notebook' ? <Code size={18} /> : item.type === 'Podcast/Audio' ? <Mic size={18} /> : item.type === 'Quiz/Assessment' ? <ClipboardList size={18} /> : <File size={18} />}
                       </div>
                       <div className="flex flex-col truncate">
                         <span className="truncate font-semibold text-gray-800" title={item.fileName || item.title}>

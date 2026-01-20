@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
@@ -7,7 +6,7 @@ import { Lesson, Course } from '../types';
 import { 
   Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
   ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
-  BookOpen, Headphones
+  BookOpen, Headphones, Clock, XCircle, Award
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -58,6 +57,197 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   );
 };
 
+// New: Multi-cell Notebook Renderer
+const NotebookRenderer = ({ notebook }: { notebook: any }) => {
+  // Safe check for cells
+  const cells = notebook?.cells || [];
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+       <div className="border-b border-gray-100 pb-4 mb-4">
+          <h2 className="text-xl font-bold flex items-center text-gray-800">
+             <Terminal className="mr-2 text-orange-500" /> Jupyter Notebook
+          </h2>
+       </div>
+       
+       {cells.map((cell: any, idx: number) => (
+          <div key={idx} className="mb-6 last:mb-0">
+             {cell.cell_type === 'markdown' ? (
+                <div className="prose prose-sm max-w-none p-4 bg-transparent">
+                   {/* Simple line rendering for Markdown source array */}
+                   {Array.isArray(cell.source) ? cell.source.join('').split('\n').map((line:string, i:number) => (
+                      <p key={i} className="min-h-[1em] my-1">{line}</p>
+                   )) : <p>{cell.source}</p>}
+                </div>
+             ) : (
+                <div className="pl-2">
+                    <JupyterCell starterCode={Array.isArray(cell.source) ? cell.source.join('') : cell.source} />
+                </div>
+             )}
+          </div>
+       ))}
+       
+       {cells.length === 0 && (
+           <p className="text-gray-500 italic text-center py-8">Empty notebook.</p>
+       )}
+    </div>
+  )
+}
+
+// New: Quiz Player Component
+const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted }: { lessonId: string, contentData: any, onComplete: (id: string) => void, isCompleted: boolean }) => {
+    const questions = contentData?.questions || [];
+    const timeLimitMinutes = contentData?.timeLimit || 0; // 0 means no limit
+    
+    const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
+    const [isSubmitted, setIsSubmitted] = useState(isCompleted); // If re-visiting a completed lesson, start as submitted
+    const [timeLeft, setTimeLeft] = useState(timeLimitMinutes * 60); // Convert to seconds
+    const [score, setScore] = useState(0);
+
+    // Timer Logic
+    useEffect(() => {
+        if (timeLimitMinutes > 0 && !isSubmitted && timeLeft > 0) {
+            const timer = setInterval(() => {
+                setTimeLeft(prev => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        handleSubmit(); // Auto-submit
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [timeLeft, isSubmitted, timeLimitMinutes]);
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    const handleOptionSelect = (qIdx: number, oIdx: number) => {
+        if (isSubmitted) return;
+        setUserAnswers(prev => ({ ...prev, [qIdx]: oIdx }));
+    };
+
+    const handleSubmit = () => {
+        if (isSubmitted) return;
+
+        let correctCount = 0;
+        questions.forEach((q: any, idx: number) => {
+            if (userAnswers[idx] === q.correctAnswer) {
+                correctCount++;
+            }
+        });
+        
+        setScore(correctCount);
+        setIsSubmitted(true);
+        onComplete(lessonId); // Mark lesson as complete in DB
+    };
+
+    // Calculate progress for enabling submit button
+    const answeredCount = Object.keys(userAnswers).length;
+    const allAnswered = answeredCount === questions.length;
+
+    return (
+        <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100 relative">
+            {/* Sticky Timer Header */}
+            {timeLimitMinutes > 0 && !isSubmitted && (
+                <div className={`sticky top-0 z-10 -mx-8 -mt-8 px-8 py-3 mb-6 flex justify-between items-center shadow-sm ${timeLeft < 60 ? 'bg-red-50 text-red-700' : 'bg-orange-50 text-orange-800'}`}>
+                    <div className="flex items-center font-bold">
+                        <Clock size={18} className="mr-2" />
+                        Time Remaining: {formatTime(timeLeft)}
+                    </div>
+                    <div className="text-xs font-semibold uppercase tracking-wider">
+                        {timeLeft < 60 ? 'Hurry up!' : 'Time Bound Quiz'}
+                    </div>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Knowledge Check</h2>
+                <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">{questions.length} Questions</span>
+            </div>
+
+            {isSubmitted ? (
+                <div className="text-center py-8 animate-in fade-in zoom-in duration-300">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${score === questions.length ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                        {score === questions.length ? <CheckCircle size={40} /> : <Award size={40} />}
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Quiz Completed!</h3>
+                    <p className="text-lg text-gray-600 mb-6">
+                        You scored <span className="font-bold text-gray-900">{score}</span> out of <span className="font-bold text-gray-900">{questions.length}</span>
+                    </p>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-left space-y-4">
+                        <h4 className="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-2">Review:</h4>
+                        {questions.map((q: any, i: number) => {
+                            const isCorrect = userAnswers[i] === q.correctAnswer;
+                            return (
+                                <div key={i} className="text-sm">
+                                    <p className="font-medium text-gray-800 mb-1">
+                                        {i + 1}. {q.question}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        {isCorrect ? (
+                                            <span className="text-green-600 flex items-center text-xs font-bold"><CheckCircle size={12} className="mr-1"/> Correct</span>
+                                        ) : (
+                                            <span className="text-red-500 flex items-center text-xs font-bold"><XCircle size={12} className="mr-1"/> Incorrect (Your answer: {q.options[userAnswers[i]] || 'None'})</span>
+                                        )}
+                                    </div>
+                                    {!isCorrect && (
+                                        <p className="text-xs text-gray-500 mt-1 pl-4 border-l-2 border-green-200">
+                                            Correct Answer: {q.options[q.correctAnswer]}
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-8">
+                    {questions.map((q: any, i: number) => (
+                        <div key={i} className="space-y-3 pb-6 border-b border-gray-100 last:border-0 last:pb-0">
+                            <p className="font-medium text-gray-800 text-lg">{i + 1}. {q.question}</p>
+                            <div className="space-y-2">
+                                {q.options.map((opt: string, optIdx: number) => (
+                                    <div 
+                                        key={optIdx} 
+                                        onClick={() => handleOptionSelect(i, optIdx)}
+                                        className={`p-4 border rounded-lg cursor-pointer transition-colors flex items-center group ${
+                                            userAnswers[i] === optIdx 
+                                            ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
+                                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${
+                                            userAnswers[i] === optIdx ? 'border-primary-600 bg-primary-600' : 'border-gray-300'
+                                        }`}>
+                                            {userAnswers[i] === optIdx && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                        </div>
+                                        <span className="text-gray-600">{opt}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+
+                    <Button 
+                        className="w-full mt-8" 
+                        onClick={handleSubmit}
+                        disabled={!allAnswered}
+                        title={!allAnswered ? "Please answer all questions to submit" : "Submit Quiz"}
+                    >
+                        {!allAnswered ? `Answer all questions (${answeredCount}/${questions.length})` : 'Submit Answers & Complete'}
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const CoursePlayer: React.FC = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -68,7 +258,13 @@ export const CoursePlayer: React.FC = () => {
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  
+  // Audio Player State
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   
   // New State for Sidebar Tabs (Curriculum vs Audio)
   const [sidebarTab, setSidebarTab] = useState<'curriculum' | 'audio'>('curriculum');
@@ -99,6 +295,18 @@ export const CoursePlayer: React.FC = () => {
     fetchCourseAndProgress();
   }, [courseId, user]);
 
+  // Reset audio when lesson changes
+  useEffect(() => {
+    setIsPlaying(false);
+    setAudioProgress(0);
+    setAudioCurrentTime(0);
+    if(audioRef.current) {
+        audioRef.current.currentTime = 0;
+        // Don't auto-play to respect user context, or auto-play if preferred:
+        // audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+  }, [currentLesson]);
+
   const toggleComplete = async (lessonId: string) => {
       if (!user) return;
       
@@ -115,6 +323,54 @@ export const CoursePlayer: React.FC = () => {
       await api.toggleLessonCompletion(user.id, lessonId, newStatus);
   };
 
+  // --- Audio Handlers ---
+  const toggleAudio = () => {
+    if(!audioRef.current) return;
+    if (isPlaying) {
+        audioRef.current.pause();
+    } else {
+        audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if(!audioRef.current) return;
+    const current = audioRef.current.currentTime;
+    const dur = audioRef.current.duration || 1;
+    setAudioCurrentTime(current);
+    setAudioDuration(dur);
+    setAudioProgress((current / dur) * 100);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(!audioRef.current) return;
+    const manualChange = Number(e.target.value);
+    const dur = audioRef.current.duration || 1;
+    audioRef.current.currentTime = (manualChange / 100) * dur;
+    setAudioProgress(manualChange);
+  };
+
+  const skipAudio = (seconds: number) => {
+    if(!audioRef.current) return;
+    audioRef.current.currentTime += seconds;
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const getValidAudioUrl = (url?: string) => {
+      // Return a demo track if the URL is a placeholder or missing to ensure player works in demo
+      if (!url || url === 'audio_url' || url === 'url' || !url.startsWith('http')) {
+          return 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; 
+      }
+      return url;
+  };
+
   // Flatten lessons for easy navigation
   const allLessons = course ? course.modules.flatMap(m => m.lessons) : [];
 
@@ -129,17 +385,28 @@ export const CoursePlayer: React.FC = () => {
     }
   };
 
+  const getYoutubeId = (url: string | undefined) => {
+    if (!url) return '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : url;
+  };
+
   const renderContent = () => {
     if (!currentLesson) return <div className="p-8 text-center text-gray-500">Select a lesson to start</div>;
 
     switch (currentLesson.type) {
       case 'video':
+        const videoId = getYoutubeId(currentLesson.contentUrl);
         return (
           <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg relative">
              <iframe 
                 width="100%" 
                 height="100%" 
-                src={`https://www.youtube.com/embed/${currentLesson.contentUrl?.replace('https://youtu.be/','').replace('https://www.youtube.com/watch?v=','')}?modestbranding=1&rel=0`} 
+                // modestbranding=1 removes the logo from the control bar
+                // iv_load_policy=3 hides video annotations
+                // rel=0 ensures suggested videos are from the same channel
+                src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3`} 
                 title="Video player" 
                 frameBorder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -150,6 +417,15 @@ export const CoursePlayer: React.FC = () => {
       case 'podcast':
         return (
           <div className="max-w-3xl mx-auto space-y-8">
+             {/* Hidden Audio Element */}
+             <audio 
+                ref={audioRef}
+                src={getValidAudioUrl(currentLesson.contentUrl)}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={() => setIsPlaying(false)}
+                onLoadedMetadata={(e) => setAudioDuration(e.currentTarget.duration)}
+             />
+
              {/* Podcast Player UI */}
              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative">
                 {/* Header / Visualization */}
@@ -158,7 +434,7 @@ export const CoursePlayer: React.FC = () => {
                    <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-gray-900 opacity-90"></div>
                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                    
-                   {/* Animated Waveform (Fake) */}
+                   {/* Animated Waveform (Fake Visualization of Active State) */}
                    <div className="absolute inset-x-0 bottom-0 h-32 flex items-end justify-center gap-1 opacity-20 pointer-events-none">
                       {[...Array(30)].map((_, i) => (
                           <MotionDiv 
@@ -179,44 +455,75 @@ export const CoursePlayer: React.FC = () => {
                           <Mic className="text-white" size={32} />
                       </MotionDiv>
                       <h2 className="text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
-                      <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {currentLesson.duration || '15:00'}</p>
+                      <p className="text-primary-200 text-sm font-medium tracking-wide uppercase">Audio Episode • {formatTime(audioDuration)}</p>
                    </div>
                 </div>
 
                 {/* Player Controls */}
                 <div className="p-8">
                    <div className="space-y-6">
-                      {/* Progress Bar */}
-                      <div className="w-full bg-gray-100 rounded-full h-1.5 cursor-pointer group relative">
-                         <div className="bg-primary-500 h-full w-1/3 rounded-full relative group-hover:bg-primary-600 transition-colors">
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-primary-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      {/* Progress Bar (Interactive) */}
+                      <div className="w-full relative group">
+                         <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            value={audioProgress || 0} 
+                            onChange={handleSeek}
+                            className="absolute z-20 w-full h-1.5 opacity-0 cursor-pointer"
+                         />
+                         <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                            <div 
+                                className="bg-primary-500 h-full rounded-full transition-all duration-100" 
+                                style={{ width: `${audioProgress}%` }}
+                            ></div>
                          </div>
+                         <div 
+                            className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-primary-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                            style={{ left: `${audioProgress}%`, transform: `translate(-50%, -50%)` }}
+                         ></div>
                       </div>
                       
                       <div className="flex justify-between items-center text-xs text-gray-500 font-mono font-medium">
-                         <span>05:12</span>
-                         <span>{currentLesson.duration || '15:00'}</span>
+                         <span>{formatTime(audioCurrentTime)}</span>
+                         <span>{formatTime(audioDuration)}</span>
                       </div>
 
                       {/* Main Buttons */}
                       <div className="flex justify-center items-center gap-8">
-                         <button className="text-gray-400 hover:text-primary-600 transition-colors" title="Rewind 10s">
+                         <button 
+                            onClick={() => skipAudio(-10)}
+                            className="text-gray-400 hover:text-primary-600 transition-colors" title="Rewind 10s"
+                         >
                              <RefreshCw size={24} className="transform -scale-x-100" />
                          </button>
                          <button 
-                            onClick={() => setIsPlaying(!isPlaying)}
+                            onClick={toggleAudio}
                             className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-500/40 hover:scale-105 hover:bg-primary-600 transition-all"
                          >
                             {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} className="ml-1" fill="currentColor" />}
                          </button>
-                         <button className="text-gray-400 hover:text-primary-600 transition-colors" title="Forward 10s">
+                         <button 
+                            onClick={() => skipAudio(10)}
+                            className="text-gray-400 hover:text-primary-600 transition-colors" title="Forward 10s"
+                         >
                              <RefreshCw size={24} />
                          </button>
                       </div>
                       
                       <div className="flex justify-center">
-                          <button className="flex items-center text-xs font-bold text-gray-400 hover:text-primary-600 uppercase tracking-wide px-3 py-1 rounded-full border border-gray-100 hover:border-primary-100 transition-colors">
-                              <Volume2 size={14} className="mr-1.5" /> 1x Speed
+                          <button 
+                            onClick={() => {
+                                if(audioRef.current) {
+                                    const rates = [1, 1.25, 1.5, 2];
+                                    const nextRate = rates[(rates.indexOf(audioRef.current.playbackRate) + 1) % rates.length] || 1;
+                                    audioRef.current.playbackRate = nextRate;
+                                }
+                            }}
+                            className="flex items-center text-xs font-bold text-gray-400 hover:text-primary-600 uppercase tracking-wide px-3 py-1 rounded-full border border-gray-100 hover:border-primary-100 transition-colors"
+                          >
+                              <Volume2 size={14} className="mr-1.5" /> 
+                              {audioRef.current?.playbackRate || 1}x Speed
                           </button>
                       </div>
                    </div>
@@ -236,13 +543,20 @@ export const CoursePlayer: React.FC = () => {
                       <li>Real-world usage examples</li>
                       <li>Interview questions related to this topic</li>
                    </ul>
-                   <p className="text-xs text-gray-400 italic">Audio source: {currentLesson.contentUrl || 'Hosted internally'}</p>
+                   <p className="text-xs text-gray-400 italic">Audio source: {getValidAudioUrl(currentLesson.contentUrl)}</p>
                 </div>
              </div>
           </div>
         );
       case 'jupyter':
-        const codeData = currentLesson.contentData;
+        const contentData = currentLesson.contentData;
+        
+        // CHECK: Is this a full imported notebook?
+        if (contentData && contentData.notebook) {
+            return <NotebookRenderer notebook={contentData.notebook} />;
+        }
+
+        // Fallback: Manual Code Exercise
         return (
           <div className="space-y-6 max-w-4xl mx-auto">
              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -250,43 +564,20 @@ export const CoursePlayer: React.FC = () => {
                     <Terminal className="mr-2 text-blue-500" />
                     Code Practice: {currentLesson.title}
                 </h2>
-                <p className="text-gray-600 mb-6">{codeData?.description || "Practice coding by completing the cells below."}</p>
-                <JupyterCell starterCode={codeData?.starterCode} />
+                <p className="text-gray-600 mb-6">{contentData?.description || "Practice coding by completing the cells below."}</p>
+                <JupyterCell starterCode={contentData?.starterCode} />
              </div>
           </div>
         );
       case 'quiz':
-         const questions = currentLesson.contentData?.questions || [];
-         
+         // Use the new QuizPlayer component for enhanced logic
          return (
-           <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
-             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Knowledge Check</h2>
-                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">{questions.length} Questions</span>
-             </div>
-             
-             {questions.length > 0 ? (
-                 <div className="space-y-8">
-                    {questions.map((q: any, i: number) => (
-                        <div key={i} className="space-y-3 pb-6 border-b border-gray-100 last:border-0 last:pb-0">
-                            <p className="font-medium text-gray-800 text-lg">{i+1}. {q.question}</p>
-                            <div className="space-y-2">
-                                {q.options.map((opt: string, optIdx: number) => (
-                                    <div key={optIdx} className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 cursor-pointer transition-colors flex items-center group">
-                                        <div className="w-5 h-5 rounded-full border border-gray-300 mr-3 group-hover:border-primary-500"></div>
-                                        <span className="text-gray-600">{opt}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                 </div>
-             ) : (
-                 <p className="text-gray-500 italic">No questions available for this quiz.</p>
-             )}
-
-             <Button className="w-full mt-8" onClick={() => toggleComplete(currentLesson.id)}>Submit Answers & Complete</Button>
-           </div>
+            <QuizPlayer 
+                lessonId={currentLesson.id}
+                contentData={currentLesson.contentData}
+                onComplete={(id) => toggleComplete(id)}
+                isCompleted={completedLessonIds.has(currentLesson.id)}
+            />
          );
       default:
         return (
@@ -403,8 +694,6 @@ export const CoursePlayer: React.FC = () => {
                                 key={lesson.id}
                                 onClick={() => {
                                     setCurrentLesson(lesson);
-                                    // Stop audio if switching away from podcast
-                                    if (lesson.type !== 'podcast') setIsPlaying(false);
                                 }}
                                 className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-all text-left group ${
                                 isActive 
@@ -475,7 +764,8 @@ export const CoursePlayer: React.FC = () => {
                 Previous
                 </Button>
                 
-                {currentLesson && (
+                {/* For non-quiz lessons, allow manual completion toggle */}
+                {currentLesson && currentLesson.type !== 'quiz' && (
                     <button 
                         onClick={() => toggleComplete(currentLesson.id)}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
