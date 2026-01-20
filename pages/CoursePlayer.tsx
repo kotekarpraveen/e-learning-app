@@ -377,7 +377,6 @@ export const CoursePlayer: React.FC = () => {
     return (match && match[2].length === 11) ? match[2] : url;
   };
 
-  // Check if a URL is actually a YouTube link
   const isYoutubeUrl = (url: string) => {
       return url.includes('youtube.com') || url.includes('youtu.be');
   };
@@ -418,7 +417,7 @@ export const CoursePlayer: React.FC = () => {
       case 'podcast':
         const url = currentLesson.contentUrl || '';
         
-        // Handle YouTube Podcast logic
+        // Handle YouTube Podcast (Video Player with Audio Context)
         if (isYoutubeUrl(url)) {
             const ytId = getYoutubeId(url);
             return (
@@ -440,8 +439,8 @@ export const CoursePlayer: React.FC = () => {
                        Episode Notes
                     </h3>
                     <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
-                       <p>This podcast is hosted on YouTube. Watch the episode above.</p>
-                       <p className="text-xs text-gray-400 italic">Source: {url}</p>
+                       <p>This podcast episode is hosted on YouTube. You can watch the video version above.</p>
+                       <p className="text-xs text-gray-400 italic mt-2">Source: {url}</p>
                     </div>
                  </div>
               </div>

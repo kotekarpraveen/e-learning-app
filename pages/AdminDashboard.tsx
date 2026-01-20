@@ -100,6 +100,10 @@ export const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  
   // Real Data State
   const [stats, setStats] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -183,6 +187,14 @@ export const AdminDashboard: React.FC = () => {
       }
   };
 
+  const filteredCourses = courses.filter(course => {
+      const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'All' 
+          || (statusFilter === 'Published' && course.published) 
+          || (statusFilter === 'Drafts' && !course.published);
+      return matchesSearch && matchesStatus;
+  });
+
   const isAdmin = user?.role !== 'instructor';
 
   return (
@@ -226,22 +238,30 @@ export const AdminDashboard: React.FC = () => {
                  type="text" 
                  placeholder="Search courses by title..." 
                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
               />
            </div>
            <div className="flex gap-4">
               <div className="relative min-w-[160px]">
-                 <select className="w-full appearance-none px-4 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
-                    <option>All Status</option>
-                    <option>Published</option>
-                    <option>Drafts</option>
+                 <select 
+                    className="w-full appearance-none px-4 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                 >
+                    <option value="All">All Status</option>
+                    <option value="Published">Published</option>
+                    <option value="Drafts">Drafts</option>
                  </select>
                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
               </div>
-              <Button variant="secondary" className="px-3 border-gray-200 bg-gray-50 hover:bg-gray-100">
+              <Button 
+                variant="secondary" 
+                className="px-3 border-gray-200 bg-gray-50 hover:bg-gray-100"
+                onClick={() => { setSearchTerm(''); setStatusFilter('All'); }}
+                title="Reset Filters"
+              >
                  <RefreshCw size={18} className="text-gray-500" />
-              </Button>
-              <Button variant="primary" className="px-6">
-                 Apply Filters
               </Button>
            </div>
         </div>
@@ -253,14 +273,17 @@ export const AdminDashboard: React.FC = () => {
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => (
+            {filteredCourses.map((course) => (
                 <CourseCard key={course.id} course={course} />
             ))}
-            {courses.length === 0 && (
+            {filteredCourses.length === 0 && (
                 <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    {user?.role === 'instructor' 
-                        ? "You haven't created any courses yet. Click 'Create Course' to start teaching."
-                        : "No courses found. Try seeding the database if this is a fresh install."}
+                    {courses.length === 0 
+                        ? (user?.role === 'instructor' 
+                            ? "You haven't created any courses yet."
+                            : "No courses found in the database.")
+                        : "No courses match your search criteria."
+                    }
                 </div>
             )}
             </div>
