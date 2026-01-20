@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -302,8 +303,6 @@ export const CoursePlayer: React.FC = () => {
     setAudioCurrentTime(0);
     if(audioRef.current) {
         audioRef.current.currentTime = 0;
-        // Don't auto-play to respect user context, or auto-play if preferred:
-        // audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }, [currentLesson]);
 
@@ -371,6 +370,18 @@ export const CoursePlayer: React.FC = () => {
       return url;
   };
 
+  const getYoutubeId = (url: string | undefined) => {
+    if (!url) return '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : url;
+  };
+
+  // Check if a URL is actually a YouTube link
+  const isYoutubeUrl = (url: string) => {
+      return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
   // Flatten lessons for easy navigation
   const allLessons = course ? course.modules.flatMap(m => m.lessons) : [];
 
@@ -385,13 +396,6 @@ export const CoursePlayer: React.FC = () => {
     }
   };
 
-  const getYoutubeId = (url: string | undefined) => {
-    if (!url) return '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : url;
-  };
-
   const renderContent = () => {
     if (!currentLesson) return <div className="p-8 text-center text-gray-500">Select a lesson to start</div>;
 
@@ -403,9 +407,6 @@ export const CoursePlayer: React.FC = () => {
              <iframe 
                 width="100%" 
                 height="100%" 
-                // modestbranding=1 removes the logo from the control bar
-                // iv_load_policy=3 hides video annotations
-                // rel=0 ensures suggested videos are from the same channel
                 src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3`} 
                 title="Video player" 
                 frameBorder="0" 
@@ -415,6 +416,39 @@ export const CoursePlayer: React.FC = () => {
           </div>
         );
       case 'podcast':
+        const url = currentLesson.contentUrl || '';
+        
+        // Handle YouTube Podcast logic
+        if (isYoutubeUrl(url)) {
+            const ytId = getYoutubeId(url);
+            return (
+              <div className="max-w-3xl mx-auto space-y-8">
+                 <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg relative">
+                     <iframe 
+                        width="100%" 
+                        height="100%" 
+                        src={`https://www.youtube.com/embed/${ytId}?modestbranding=1&rel=0`} 
+                        title="Podcast Video" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowFullScreen
+                     ></iframe>
+                 </div>
+                 <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center">
+                       <FileText size={18} className="mr-2 text-primary-500" /> 
+                       Episode Notes
+                    </h3>
+                    <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
+                       <p>This podcast is hosted on YouTube. Watch the episode above.</p>
+                       <p className="text-xs text-gray-400 italic">Source: {url}</p>
+                    </div>
+                 </div>
+              </div>
+            );
+        }
+
+        // Standard Audio Player for MP3s
         return (
           <div className="max-w-3xl mx-auto space-y-8">
              {/* Hidden Audio Element */}
