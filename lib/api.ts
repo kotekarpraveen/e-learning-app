@@ -37,7 +37,6 @@ export const api = {
   getCourses: async (): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
       return new Promise((resolve) => {
-        // Return shallow copy to trigger React updates if properties inside changed
         setTimeout(() => resolve([...MOCK_COURSES]), 600);
       });
     }
@@ -328,12 +327,10 @@ export const api = {
           const exists = MOCK_ENROLLMENTS.find(e => e.userId === userId && e.courseId === courseId);
           if (!exists) {
               MOCK_ENROLLMENTS.push({ userId, courseId });
-              // Update Course Count
               const course = MOCK_COURSES.find(c => c.id === courseId);
               if (course) {
                   course.enrolledStudents = (course.enrolledStudents || 0) + 1;
               }
-              // Update Student Count
               const student = MOCK_STUDENTS.find(s => s.id === userId);
               if (student) {
                   student.enrolledCourses = (student.enrolledCourses || 0) + 1;
@@ -655,15 +652,84 @@ export const api = {
   },
 
   getInstructors: async (): Promise<Instructor[]> => {
-    return new Promise(resolve => setTimeout(() => resolve(MOCK_INSTRUCTORS), 500));
+    if (!isSupabaseConfigured()) {
+        return new Promise(resolve => setTimeout(() => resolve(MOCK_INSTRUCTORS), 500));
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select(`
+                *,
+                courses (
+                    count
+                )
+            `)
+            .eq('role', 'instructor')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((p: any) => ({
+            id: p.id,
+            name: p.full_name || 'Unnamed Instructor',
+            email: p.email || 'No email',
+            bio: p.bio || '',
+            role: p.job_title || 'Instructor',
+            avatar: p.avatar || `https://ui-avatars.com/api/?name=${p.full_name || 'Instructor'}&background=random`,
+            status: (p.status as any) || 'Active',
+            expertise: p.expertise || [],
+            joinedDate: new Date(p.created_at).toISOString().split('T')[0],
+            totalStudents: 0,
+            coursesCount: p.courses?.[0]?.count || 0
+        }));
+    } catch (err) {
+        console.error("Error fetching instructors:", err);
+        return [];
+    }
   },
 
   saveInstructor: async (instructor: Instructor) => {
-    return { success: true, message: 'Saved' };
+    if (!isSupabaseConfigured()) {
+        return { success: true, message: 'Saved' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                full_name: instructor.name,
+                job_title: instructor.role,
+                bio: instructor.bio,
+                status: instructor.status,
+                expertise: instructor.expertise,
+                updated_at: new Date()
+            })
+            .eq('id', instructor.id);
+
+        if (error) throw error;
+        return { success: true, message: 'Instructor profile updated' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
   },
 
   deleteInstructor: async (id: string) => {
-    return { success: true, message: 'Deleted' };
+    if (!isSupabaseConfigured()) {
+        return { success: true, message: 'Deleted' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true, message: 'Instructor record removed' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
   },
 
   getTeam: async (): Promise<TeamMember[]> => {
