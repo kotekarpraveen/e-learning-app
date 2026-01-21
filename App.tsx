@@ -16,6 +16,9 @@ import { AdminTeam } from './pages/AdminTeam';
 import { AdminCategories } from './pages/AdminCategories';
 import { AdminAnalytics } from './pages/AdminAnalytics'; 
 import { LandingPage } from './pages/LandingPage'; 
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
+import { CookieSettings } from './pages/CookieSettings';
 import { Layout } from './components/Layout';
 import { MOCK_USER_STUDENT, MOCK_USER_ADMIN } from './constants';
 import { User, UserRole } from './types';
@@ -186,6 +189,9 @@ const App: React.FC = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login/:loginType" element={<Login />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/cookies" element={<CookieSettings />} />
           
           {/* Student Routes */}
           <Route element={<ProtectedRoute />}>
