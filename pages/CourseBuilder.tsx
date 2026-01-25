@@ -8,14 +8,16 @@ import {
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
   Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
-  Image as ImageIcon, FileCode, Clock, PlusCircle
+  Image as ImageIcon, FileCode, Clock, PlusCircle, Award
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
 import { Course, Category, ContentAsset } from '../types';
+import { CertificateTemplate } from '../components/CertificateTemplate';
+import { useAuth } from '../App';
 
-type Tab = 'info' | 'structure' | 'content' | 'settings' | 'preview';
+type Tab = 'info' | 'structure' | 'content' | 'settings' | 'certificate' | 'preview';
 
 interface ModuleState {
   id: string;
@@ -93,14 +95,17 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
         question: string;
         options: string[];
         correctAnswer: number;
+        explanation?: string;
     }[]>([
-        { id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0 }
+        { id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }
     ]);
     const [quizTimeLimit, setQuizTimeLimit] = useState<number | ''>(''); // Minutes
+    const [passingScore, setPassingScore] = useState<number>(70); // Default 70%
 
     const isVideo = type.title === 'Video Content';
     const isPodcast = type.title === 'Podcast/Audio';
     const isJupyter = type.title === 'Jupyter Notebook'; 
+    const isCodePractice = type.title === 'Code Practice';
     const isReading = type.title === 'Reading Material';
     const isQuiz = type.title === 'Quiz/Assessment';
     
@@ -116,13 +121,12 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     }
 
     const handleAddQuestion = () => {
-        setQuizQuestions([...quizQuestions, { id: `q${Date.now()}`, question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+        setQuizQuestions([...quizQuestions, { id: `q${Date.now()}`, question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]);
     };
 
     const handleQuestionChange = (index: number, field: string, value: any) => {
         const updated = [...quizQuestions];
-        if (field === 'question') updated[index].question = value;
-        else if (field === 'correctAnswer') updated[index].correctAnswer = value;
+        (updated[index] as any)[field] = value;
         setQuizQuestions(updated);
     };
 
@@ -181,7 +185,25 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                   fileSize: `${quizQuestions.length} Qs`,
                   metadata: {
                       questions: quizQuestions,
-                      timeLimit: quizTimeLimit === '' ? 0 : Number(quizTimeLimit) 
+                      timeLimit: quizTimeLimit === '' ? 0 : Number(quizTimeLimit),
+                      passingScore: passingScore
+                  }
+              });
+              if(newAsset) finalize(newAsset);
+              return;
+          }
+
+          // --- CODE PRACTICE LOGIC ---
+          if (isCodePractice) {
+              const newAsset = await api.createContentAsset({
+                  title: title,
+                  type: type.title,
+                  fileName: 'Code Challenge',
+                  fileSize: 'Interactive',
+                  metadata: {
+                      description: codeExercise.description,
+                      starterCode: codeExercise.starterCode,
+                      solutionCode: codeExercise.solutionCode
                   }
               });
               if(newAsset) finalize(newAsset);
@@ -280,12 +302,17 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
         <MotionDiv 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className={`bg-white rounded-2xl shadow-2xl w-full ${isJupyter || isQuiz ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
+          className={`bg-white rounded-2xl shadow-2xl w-full ${isJupyter || isQuiz || isCodePractice ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
         >
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
              <h3 className="font-bold text-gray-800 flex items-center gap-2">
                {type.icon}
-               <span>{isQuiz ? 'Create Quiz' : isJupyter ? 'Jupyter Notebook' : `Add ${type.title}`}</span>
+               <span>
+                 {isQuiz ? 'Create Quiz' : 
+                  isJupyter ? 'Jupyter Notebook' : 
+                  isCodePractice ? 'Create Code Challenge' :
+                  `Add ${type.title}`}
+               </span>
              </h3>
              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-full">
                <X size={20} />
@@ -299,7 +326,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                 {/* GLOBAL TITLE INPUT */}
                 <Input 
                     label="Content Title" 
-                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Lecture Notebook'}`}
+                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Practice Exercise'}`}
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     required
@@ -355,44 +382,137 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                 {/* --- QUIZ BUILDER --- */}
                 {isQuiz && (
                     <div className="space-y-6">
-                        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-4">
-                            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-                                <Clock size={16} className="mr-2 text-orange-600" />
-                                Time Limit (Optional)
-                            </label>
-                            <Input 
-                                type="number"
-                                placeholder="Enter limit in minutes"
-                                value={quizTimeLimit}
-                                onChange={e => setQuizTimeLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
-                                className="bg-white"
-                            />
+                        {/* Quiz Configuration Panel */}
+                        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-5 mb-6">
+                            <div className="flex items-center gap-2 mb-4 text-orange-800">
+                                <Settings size={18} />
+                                <h4 className="font-bold text-sm uppercase tracking-wide">Quiz Settings</h4>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Time Limit */}
+                                <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-md shadow-sm text-orange-600">
+                                            <Clock size={18} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 uppercase">Time Limit</label>
+                                            <p className="text-[10px] text-gray-500">0 = No Limit</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="number" 
+                                            placeholder="0" 
+                                            value={quizTimeLimit} 
+                                            onChange={e => setQuizTimeLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            className="w-20 text-center font-bold text-lg bg-white h-10"
+                                            min="0"
+                                        />
+                                        <span className="text-sm font-bold text-gray-500">min</span>
+                                    </div>
+                                </div>
+
+                                {/* Passing Score */}
+                                <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-md shadow-sm text-green-600">
+                                            <Award size={18} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 uppercase">Passing Score</label>
+                                            <p className="text-[10px] text-gray-500">Required %</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="number" 
+                                            placeholder="70" 
+                                            value={passingScore} 
+                                            onChange={e => setPassingScore(parseInt(e.target.value))}
+                                            className="w-20 text-center font-bold text-lg bg-white h-10"
+                                            min="0"
+                                            max="100"
+                                        />
+                                        <span className="text-sm font-bold text-gray-500">%</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
                             {quizQuestions.map((q, qIdx) => (
-                                <div key={q.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200 relative group">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Question {qIdx + 1}</label>
+                                <div key={q.id} className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm relative group mb-4 transition-all hover:shadow-md">
+                                    {/* Header with Delete */}
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Question {qIdx + 1}</span>
+                                        </div>
                                         {quizQuestions.length > 1 && (
-                                            <button onClick={() => handleRemoveQuestion(qIdx)} className="text-red-400 hover:text-red-600">
+                                            <button onClick={() => handleRemoveQuestion(qIdx)} className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
                                                 <Trash2 size={16} />
                                             </button>
                                         )}
                                     </div>
+
+                                    {/* Question Input */}
                                     <Input 
-                                        placeholder="Enter question..."
+                                        placeholder="What is the main concept of...?"
                                         value={q.question}
                                         onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)}
-                                        className="mb-4 bg-white"
+                                        className="mb-6 font-medium text-lg border-gray-300 focus:border-primary-500"
                                     />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                                    {/* Options */}
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Answer Options (Select Correct One)</label>
                                         {q.options.map((opt, oIdx) => (
-                                            <div key={oIdx} className="flex items-center gap-2">
-                                                <input type="radio" checked={q.correctAnswer === oIdx} onChange={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)} />
-                                                <input className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder={`Option ${oIdx + 1}`} value={opt} onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)} />
+                                            <div 
+                                                key={oIdx} 
+                                                className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
+                                                    q.correctAnswer === oIdx 
+                                                    ? 'border-green-500 bg-green-50 shadow-sm ring-1 ring-green-500' 
+                                                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                                                }`}
+                                                onClick={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}
+                                            >
+                                                <div className="relative flex items-center justify-center">
+                                                    <input 
+                                                        type="radio" 
+                                                        name={`correct-${q.id}`}
+                                                        checked={q.correctAnswer === oIdx} 
+                                                        onChange={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}
+                                                        className="peer appearance-none w-5 h-5 rounded-full border-2 border-gray-300 checked:border-green-500 checked:bg-green-500 transition-all cursor-pointer"
+                                                    />
+                                                    <Check size={12} className="absolute text-white pointer-events-none opacity-0 peer-checked:opacity-100" />
+                                                </div>
+                                                
+                                                <input 
+                                                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-400" 
+                                                    placeholder={`Option ${oIdx + 1}`} 
+                                                    value={opt} 
+                                                    onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)} 
+                                                />
+                                                
+                                                {q.correctAnswer === oIdx && (
+                                                    <span className="text-xs font-bold text-green-600 uppercase tracking-wide px-2">Correct</span>
+                                                )}
                                             </div>
                                         ))}
+                                    </div>
+
+                                    {/* Explanation / Feedback Field */}
+                                    <div className="mt-6 pt-4 border-t border-gray-100">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1">
+                                            <Info size={12} /> Explanation / Feedback (For Learner)
+                                        </label>
+                                        <textarea 
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none text-sm min-h-[80px] resize-y transition-all"
+                                            placeholder="Explain why the answer is correct (optional)..."
+                                            value={q.explanation || ''}
+                                            onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)}
+                                        />
                                     </div>
                                 </div>
                             ))}
@@ -403,28 +523,60 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                     </div>
                 )}
 
+                {/* --- CODE PRACTICE --- */}
+                {isCodePractice && (
+                    <div className="space-y-6">
+                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-2 flex items-start gap-3">
+                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
+                                <Code size={18} />
+                            </div>
+                            <p className="text-sm text-indigo-900 leading-relaxed pt-1">
+                                Create a coding challenge for students. They will write code in an embedded editor to match your solution.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Problem Description</label>
+                            <textarea 
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[100px] focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                placeholder="Describe the coding problem..." 
+                                value={codeExercise.description} 
+                                onChange={e => setCodeExercise({...codeExercise, description: e.target.value})} 
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Starter Code (Student sees this)</label>
+                                <textarea 
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[300px] font-mono text-sm bg-gray-900 text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    value={codeExercise.starterCode} 
+                                    onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Solution Code (For validation)</label>
+                                <textarea 
+                                    className="w-full px-4 py-3 rounded-xl border border-green-200 min-h-[300px] font-mono text-sm bg-gray-50 text-gray-800 focus:ring-2 focus:ring-green-500 outline-none" 
+                                    value={codeExercise.solutionCode} 
+                                    onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})} 
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* --- JUPYTER --- */}
                 {isJupyter && (
                     <div className="space-y-6">
-                        <div className="flex gap-4 border-b border-gray-200 pb-2">
-                            <button onClick={() => setJupyterMode('upload')} className={`text-sm font-bold pb-2 transition-colors ${jupyterMode === 'upload' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-500'}`}>Upload .ipynb</button>
-                            <button onClick={() => setJupyterMode('manual')} className={`text-sm font-bold pb-2 transition-colors ${jupyterMode === 'manual' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-500'}`}>Manual Exercise</button>
+                        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-gray-50/50 relative hover:bg-orange-50/30 transition-colors">
+                            <FileCode size={28} className="text-orange-600 mb-4" />
+                            <p className="font-semibold text-gray-900 text-lg">{selectedFile ? selectedFile.name : `Drop Jupyter Notebook (.ipynb) here`}</p>
+                            <input type="file" accept=".ipynb" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleJupyterFile} />
                         </div>
-                        {jupyterMode === 'upload' ? (
-                            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-gray-50/50">
-                                <FileCode size={28} className="text-orange-600 mb-4" />
-                                <p className="font-semibold text-gray-900 text-lg">{selectedFile ? selectedFile.name : `Drop Jupyter Notebook (.ipynb) here`}</p>
-                                <input type="file" accept=".ipynb" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleJupyterFile} />
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                <textarea className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[100px]" placeholder="Problem Description..." value={codeExercise.description} onChange={e => setCodeExercise({...codeExercise, description: e.target.value})} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <textarea className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[200px] font-mono text-xs" value={codeExercise.starterCode} onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})} />
-                                    <textarea className="w-full px-4 py-3 rounded-xl border border-green-200 min-h-[200px] font-mono text-xs" value={codeExercise.solutionCode} onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})} />
-                                </div>
-                            </div>
-                        )}
+                        <p className="text-xs text-gray-500 text-center">
+                            Upload a standard Jupyter Notebook file to render as interactive content.
+                        </p>
                     </div>
                 )}
               </div>
@@ -453,7 +605,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
           {uploadState === 'idle' && (
              <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end">
                 <Button onClick={startUpload} className="w-full sm:w-auto min-w-[120px]">
-                    {isJupyter || isQuiz ? 'Save Content' : 'Start Upload'}
+                    {isJupyter || isQuiz || isCodePractice ? 'Save Content' : 'Start Upload'}
                 </Button>
             </div>
           )}
@@ -622,7 +774,7 @@ const StructureTab: React.FC<{
             case 'video': return { title: 'Video Content', icon: <Video size={28} /> };
             case 'reading': return { title: 'Reading Material', icon: <FileText size={28} /> };
             case 'podcast': return { title: 'Podcast/Audio', icon: <Mic size={28} /> };
-            case 'jupyter': return { title: 'Jupyter Notebook', icon: <Terminal size={28} /> };
+            case 'jupyter': return { title: 'Jupyter Notebook', icon: <Terminal size={28} /> }; // 'Code Practice' handled implicitly via generic 'jupyter' lesson type logic or add explicit type if needed
             case 'quiz': return { title: 'Quiz/Assessment', icon: <ClipboardList size={28} /> };
             default: return { title: 'Video Content', icon: <Video size={28} /> };
         }
@@ -678,7 +830,7 @@ const StructureTab: React.FC<{
                                                 <option value="video">Video</option>
                                                 <option value="reading">Reading</option>
                                                 <option value="quiz">Quiz</option>
-                                                <option value="jupyter">Jupyter</option>
+                                                <option value="jupyter">Jupyter / Code</option>
                                                 <option value="podcast">Podcast</option>
                                             </select>
                                         </div>
@@ -763,10 +915,11 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
              { title: 'Video Content', icon: <Video size={28} />, color: 'text-blue-500 bg-blue-50' },
              { title: 'Reading Material', icon: <FileText size={28} />, color: 'text-green-500 bg-green-50' },
              { title: 'Podcast/Audio', icon: <Mic size={28} />, color: 'text-purple-500 bg-purple-50' },
+             { title: 'Code Practice', icon: <Code size={28} />, color: 'text-indigo-500 bg-indigo-50' },
              { title: 'Jupyter Notebook', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50' },
              { title: 'Quiz/Assessment', icon: <ClipboardList size={28} />, color: 'text-red-500 bg-red-50' },
            ].map((item, i) => (
-             <div key={i} onClick={() => setActiveUploadType(item)} className="p-6 rounded-2xl border bg-white hover:shadow-xl transition-all cursor-pointer flex flex-col items-center">
+             <div key={i} onClick={() => setActiveUploadType(item)} className="p-6 rounded-2xl border bg-white hover:shadow-xl transition-all cursor-pointer flex flex-col items-center hover:border-primary-200">
                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${item.color}`}>{item.icon}</div>
                <h3 className="font-bold text-gray-900">{item.title}</h3>
              </div>
@@ -815,6 +968,32 @@ const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, 
        </div>
     </div>
 );
+
+const CertificateTab: React.FC<{ courseInfo: any, instructorName: string }> = ({ courseInfo, instructorName }) => {
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+       <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Certificate Preview</h2>
+            <p className="text-gray-500">This is how the certificate will look for students upon completion.</p>
+          </div>
+          <Button variant="secondary" onClick={() => window.print()}>
+             Print Preview
+          </Button>
+       </div>
+
+       <div className="border border-gray-200 shadow-xl rounded-xl overflow-hidden">
+          <CertificateTemplate 
+             studentName="[Student Name]"
+             courseTitle={courseInfo.title || "Untitled Course"}
+             instructor={instructorName || "Instructor Name"}
+             date={new Date().toLocaleDateString()}
+             verificationId="SAMPLE-ID-12345"
+          />
+       </div>
+    </div>
+  );
+}
 
 const PreviewTab: React.FC<{ courseInfo: any, modules: ModuleState[] }> = ({ courseInfo, modules }) => {
   return (
@@ -874,6 +1053,7 @@ const PreviewTab: React.FC<{ courseInfo: any, modules: ModuleState[] }> = ({ cou
 export const CourseBuilder: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const editCourseId = searchParams.get('courseId');
 
   const [activeTab, setActiveTab] = useState<Tab>('info');
@@ -885,7 +1065,7 @@ export const CourseBuilder: React.FC = () => {
   const [activeUploadType, setActiveUploadType] = useState<{title: string, icon: React.ReactNode} | null>(null);
   const [activeLessonUpload, setActiveLessonUpload] = useState<{moduleId: string, lessonId: string} | null>(null);
 
-  const [courseInfo, setCourseInfo] = useState({ id: `c${Date.now()}`, title: '', category: '', level: '', duration: '', price: '', description: '', learningOutcomes: '', prerequisites: '', thumbnail: 'https://picsum.photos/800/600' });
+  const [courseInfo, setCourseInfo] = useState({ id: `c${Date.now()}`, title: '', category: '', level: '', duration: '', price: '', description: '', learningOutcomes: '', prerequisites: '', thumbnail: 'https://picsum.photos/800/600', instructor: '' });
   const [modules, setModules] = useState<ModuleState[]>([{ id: `m${Date.now()}`, title: 'Module 1', description: '', isExpanded: true, lessons: [{ id: `l${Date.now()}`, title: 'Lesson 1', type: 'video' }] }]);
   const [settings, setSettings] = useState({ visibility: 'public', enrollmentLimit: 'Unlimited', enrollmentDeadline: '', enableDiscussion: false });
 
@@ -906,7 +1086,7 @@ export const CourseBuilder: React.FC = () => {
           setIsLoading(true);
           const data = await api.getCourseById(editCourseId);
           if (data) {
-              setCourseInfo({ id: data.id, title: data.title, category: data.category, level: data.level, duration: data.duration || '', price: data.price.toString(), description: data.description, learningOutcomes: data.learningOutcomes?.join('\n') || '', prerequisites: '', thumbnail: data.thumbnail });
+              setCourseInfo({ id: data.id, title: data.title, category: data.category, level: data.level, duration: data.duration || '', price: data.price.toString(), description: data.description, learningOutcomes: data.learningOutcomes?.join('\n') || '', prerequisites: '', thumbnail: data.thumbnail, instructor: data.instructor });
               setModules(data.modules.map(m => ({ id: m.id, title: m.title, description: m.description || '', isExpanded: false, isPodcast: m.isPodcast, lessons: m.lessons.map(l => {
                 const libraryItem = contentLibrary.find(asset => (asset.fileUrl && asset.fileUrl === l.contentUrl) || (asset.metadata?.url && asset.metadata.url === l.contentUrl));
                 return { id: l.id, title: l.title, type: l.type as any, contentId: libraryItem?.id };
@@ -929,7 +1109,9 @@ export const CourseBuilder: React.FC = () => {
   const handleSave = async (shouldPublish: boolean = false) => {
     setIsLoading(true);
     const courseData: Course = {
-        id: courseInfo.id, title: courseInfo.title || "Untitled", description: courseInfo.description || "", thumbnail: courseInfo.thumbnail, instructor: 'Admin', price: parseFloat(courseInfo.price) || 0, level: (courseInfo.level as any) || 'Beginner', category: courseInfo.category || 'Other', progress: 0, totalModules: modules.length, enrolledStudents: 0, learningOutcomes: courseInfo.learningOutcomes.split('\n').filter(s => s.trim().length > 0), published: shouldPublish, duration: courseInfo.duration,
+        id: courseInfo.id, title: courseInfo.title || "Untitled", description: courseInfo.description || "", thumbnail: courseInfo.thumbnail, 
+        instructor: courseInfo.instructor || user?.name || 'Admin', 
+        price: parseFloat(courseInfo.price) || 0, level: (courseInfo.level as any) || 'Beginner', category: courseInfo.category || 'Other', progress: 0, totalModules: modules.length, enrolledStudents: 0, learningOutcomes: courseInfo.learningOutcomes.split('\n').filter(s => s.trim().length > 0), published: shouldPublish, duration: courseInfo.duration,
         modules: modules.map(m => ({
             id: m.id, title: m.title, isPodcast: m.isPodcast,
             lessons: m.lessons.map(l => {
@@ -990,9 +1172,18 @@ export const CourseBuilder: React.FC = () => {
 
       <div className="p-8 max-w-7xl mx-auto">
          <div className="flex justify-center mb-10">
-            <div className="bg-white rounded-2xl shadow-sm border p-1.5 inline-flex">
-                {[{ id: 'info', label: 'Info', icon: <BookOpen size={18} /> }, { id: 'structure', label: 'Structure', icon: <LayoutIcon size={18} /> }, { id: 'content', label: 'Library', icon: <Upload size={18} /> }, { id: 'settings', label: 'Settings', icon: <Settings size={18} /> }, { id: 'preview', label: 'Preview', icon: <Eye size={18} /> }].map(t => (
-                    <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`flex items-center px-6 py-2 rounded-xl text-sm font-bold ${activeTab === t.id ? 'bg-primary-50 text-primary-700' : 'text-gray-500'}`}>{t.label}</button>
+            <div className="bg-white rounded-2xl shadow-sm border p-1.5 inline-flex overflow-x-auto max-w-full">
+                {[
+                    { id: 'info', label: 'Info', icon: <BookOpen size={18} /> }, 
+                    { id: 'structure', label: 'Structure', icon: <LayoutIcon size={18} /> }, 
+                    { id: 'content', label: 'Library', icon: <Upload size={18} /> }, 
+                    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> }, 
+                    { id: 'certificate', label: 'Certificate', icon: <Award size={18} /> },
+                    { id: 'preview', label: 'Preview', icon: <Eye size={18} /> }
+                ].map(t => (
+                    <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`flex items-center px-6 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${activeTab === t.id ? 'bg-primary-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <span className="mr-2">{t.icon}</span>{t.label}
+                    </button>
                 ))}
             </div>
          </div>
@@ -1001,6 +1192,7 @@ export const CourseBuilder: React.FC = () => {
          {activeTab === 'structure' && <StructureTab modules={modules} setModules={setModules} addModule={() => setModules([...modules, { id: `m${Date.now()}`, title: 'Untitled Module', description: '', isExpanded: true, lessons: [] }])} deleteModule={id => setModules(modules.filter(m => m.id !== id))} toggleModule={id => setModules(modules.map(m => m.id === id ? { ...m, isExpanded: !m.isExpanded } : m))} addLesson={mid => setModules(modules.map(m => m.id === mid ? { ...m, lessons: [...m.lessons, { id: `l${Date.now()}`, title: `Lesson ${m.lessons.length+1}`, type: 'video' }] } : m))} contentLibrary={contentLibrary} onOpenUpload={openUploadForLesson} isAudioSeries={courseInfo.category === 'Audio Series'} />}
          {activeTab === 'content' && <ContentTab contentLibrary={contentLibrary} setActiveUploadType={setActiveUploadType} handleDeleteContent={handleDeleteContent} />}
          {activeTab === 'settings' && <SettingsTab settings={settings} setSettings={setSettings} />}
+         {activeTab === 'certificate' && <CertificateTab courseInfo={courseInfo} instructorName={courseInfo.instructor || user?.name || 'Instructor Name'} />}
          {activeTab === 'preview' && <PreviewTab courseInfo={courseInfo} modules={modules} />}
 
          <AnimatePresence>

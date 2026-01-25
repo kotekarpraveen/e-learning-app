@@ -8,6 +8,7 @@ import { CourseLanding } from './pages/CourseLanding';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { CourseBuilder } from './pages/CourseBuilder';
 import { CoursePlayer } from './pages/CoursePlayer';
+import { Certificate } from './pages/Certificate';
 import { Settings } from './pages/Settings';
 import { Billing } from './pages/Billing';
 import { AdminStudents } from './pages/AdminStudents';
@@ -199,6 +200,7 @@ const App: React.FC = () => {
              <Route path="/courses" element={<BrowseCourses />} />
              <Route path="/course/:courseId/details" element={<CourseLanding />} />
              <Route path="/course/:courseId" element={<CoursePlayer />} />
+             <Route path="/certificate/:courseId" element={<Certificate />} />
              <Route path="/profile" element={<Settings />} />
           </Route>
 

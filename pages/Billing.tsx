@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -11,42 +12,45 @@ import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
 import { Transaction, PaymentRequest } from '../types';
 
-const REVENUE_STATS = [
-  { 
-    label: 'Total Revenue', 
-    value: '$124,592.00', 
-    change: '+14.2%', 
-    trend: 'up',
-    description: 'Lifetime earnings'
-  },
-  { 
-    label: 'Monthly Recurring', 
-    value: '$12,450.00', 
-    change: '+5.4%', 
-    trend: 'up',
-    description: 'Based on active subscriptions'
-  },
-  { 
-    label: 'Pending Approvals', 
-    value: '3 Items', 
-    change: 'Action Needed', 
-    trend: 'neutral',
-    description: 'Offline payments waiting'
-  },
-  { 
-    label: 'Avg. Order Value', 
-    value: '$85.00', 
-    change: '-1.2%', 
-    trend: 'down',
-    description: 'Per transaction'
-  }
-];
+// Toast Component
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
+  const MotionDiv = motion.div as any;
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <MotionDiv
+      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.9 }}
+      className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3 border ${
+        type === 'success' ? 'bg-white border-green-100' : 'bg-white border-red-100'
+      }`}
+    >
+      <div className={`p-2 rounded-full ${type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+        {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+      </div>
+      <div>
+        <h4 className={`font-bold text-sm ${type === 'success' ? 'text-gray-900' : 'text-gray-900'}`}>
+          {type === 'success' ? 'Success' : 'Error'}
+        </h4>
+        <p className="text-gray-500 text-xs">{message}</p>
+      </div>
+      <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4">
+        <X size={16} />
+      </button>
+    </MotionDiv>
+  );
+};
 
 export const Billing: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'transactions' | 'requests'>('transactions');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   
   // Create Request Modal
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -74,12 +78,19 @@ export const Billing: React.FC = () => {
       await api.createPaymentRequest(newRequest.email, parseFloat(newRequest.amount), newRequest.description);
       setShowRequestModal(false);
       setNewRequest({ email: '', amount: '', description: '' });
-      fetchData(); // Refresh
+      setToast({ message: 'Payment request created successfully.', type: 'success' });
+      fetchData(); 
   };
 
   const handleApprove = async (txId: string) => {
       await api.approveTransaction(txId);
+      setToast({ message: 'Transaction approved. Student enrolled.', type: 'success' });
       fetchData();
+  };
+
+  const handleCopyLink = (link: string) => {
+      navigator.clipboard.writeText(link);
+      setToast({ message: 'Payment link copied to clipboard.', type: 'success' });
   };
 
   const getStatusColor = (status: string) => {
@@ -96,8 +107,51 @@ export const Billing: React.FC = () => {
 
   const pendingApprovals = transactions.filter(t => t.status === 'pending_approval');
 
+  // Dynamic Stats Calculation
+  const totalRevenue = transactions
+    .filter(t => t.status === 'succeeded')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  
+  const successCount = transactions.filter(t => t.status === 'succeeded').length;
+  const avgOrder = successCount > 0 ? totalRevenue / successCount : 0;
+
+  const revenueStats = [
+    { 
+      label: 'Total Revenue', 
+      value: `$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 
+      change: '+14.2%', 
+      trend: 'up',
+      description: 'Lifetime earnings'
+    },
+    { 
+      label: 'Monthly Recurring', 
+      value: '$12,450.00', 
+      change: '+5.4%', 
+      trend: 'up',
+      description: 'Based on active subscriptions'
+    },
+    { 
+      label: 'Pending Approvals', 
+      value: `${pendingApprovals.length} Items`, 
+      change: pendingApprovals.length > 0 ? 'Action Needed' : 'All Clear', 
+      trend: pendingApprovals.length > 0 ? 'neutral' : 'up',
+      description: 'Offline payments waiting'
+    },
+    { 
+      label: 'Avg. Order Value', 
+      value: `$${avgOrder.toFixed(2)}`, 
+      change: '-1.2%', 
+      trend: 'down',
+      description: 'Per transaction'
+    }
+  ];
+
   return (
     <div className="space-y-8 pb-12">
+      <AnimatePresence>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
          <div>
@@ -116,7 +170,7 @@ export const Billing: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {REVENUE_STATS.map((stat, i) => (
+        {revenueStats.map((stat, i) => (
             <MotionDiv 
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
@@ -142,7 +196,7 @@ export const Billing: React.FC = () => {
 
       {/* Pending Approvals Section */}
       {pendingApprovals.length > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 animate-in fade-in slide-in-from-top-4">
               <h3 className="text-lg font-bold text-orange-900 mb-4 flex items-center">
                   <AlertCircle size={20} className="mr-2" /> Pending Offline Payments
               </h3>
@@ -277,7 +331,7 @@ export const Billing: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button className="text-gray-400 hover:text-primary-600 transition-colors mr-2" title="Copy Link">
+                                        <button onClick={() => handleCopyLink(req.paymentLink)} className="text-gray-400 hover:text-primary-600 transition-colors mr-2" title="Copy Link">
                                             <Copy size={18} />
                                         </button>
                                         <button className="text-gray-400 hover:text-red-500 transition-colors" title="Cancel">

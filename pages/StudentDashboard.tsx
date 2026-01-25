@@ -165,11 +165,11 @@ export const StudentDashboard: React.FC = () => {
                         <MotionDiv 
                             key={course.id}
                             whileHover={{ y: -4 }}
-                            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all cursor-pointer"
+                            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all cursor-pointer group"
                             onClick={() => navigate(`/course/${course.id}`)}
                         >
                             <div className="h-32 overflow-hidden relative">
-                            <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                            <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded">
                                 {course.category}
                             </div>
@@ -182,9 +182,16 @@ export const StudentDashboard: React.FC = () => {
                             </div>
                             <div className="flex justify-between items-center text-xs text-gray-500">
                                 <span>{course.totalModules} Modules</span>
-                                <span className={course.progress === 100 ? 'text-green-600 font-medium' : ''}>
-                                    {course.progress === 100 ? 'Completed' : `${course.progress || 0}% Done`}
-                                </span>
+                                {course.progress === 100 ? (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/certificate/${course.id}`); }}
+                                        className="flex items-center text-primary-600 font-bold hover:underline z-10 hover:text-primary-800 transition-colors"
+                                    >
+                                        <Award size={14} className="mr-1" /> Get Certificate
+                                    </button>
+                                ) : (
+                                    <span>{course.progress || 0}% Done</span>
+                                )}
                             </div>
                             </div>
                         </MotionDiv>

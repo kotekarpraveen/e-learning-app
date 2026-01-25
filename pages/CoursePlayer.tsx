@@ -167,6 +167,31 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted }: { lesson
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-2">Quiz Completed!</h3>
                     <p className="text-lg text-gray-600 mb-6">You scored {score} / {questions.length}</p>
+                    
+                    {/* Review Answers Section */}
+                    <div className="mt-8 space-y-6 text-left">
+                        <h4 className="font-bold text-gray-800 border-b pb-2 mb-4">Review Answers</h4>
+                        {questions.map((q: any, i: number) => (
+                            <div key={i} className={`p-4 rounded-lg border ${userAnswers[i] === q.correctAnswer ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                                <p className="font-bold text-gray-900 mb-2">{i + 1}. {q.question}</p>
+                                <div className="text-sm space-y-1 mb-3">
+                                    <p className={userAnswers[i] === q.correctAnswer ? 'text-green-700' : 'text-red-700'}>
+                                        Your Answer: <span className="font-semibold">{q.options[userAnswers[i]]}</span>
+                                        {userAnswers[i] === q.correctAnswer && <CheckCircle size={12} className="inline ml-1" />}
+                                        {userAnswers[i] !== q.correctAnswer && <XCircle size={12} className="inline ml-1" />}
+                                    </p>
+                                    {userAnswers[i] !== q.correctAnswer && (
+                                        <p className="text-green-700">Correct Answer: <span className="font-semibold">{q.options[q.correctAnswer]}</span></p>
+                                    )}
+                                </div>
+                                {q.explanation && (
+                                    <div className="text-xs text-gray-600 bg-white/50 p-2 rounded mt-2 border border-gray-100/50">
+                                        <span className="font-bold text-gray-700">Explanation:</span> {q.explanation}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-8">

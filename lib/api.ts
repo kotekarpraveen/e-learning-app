@@ -25,6 +25,7 @@ let MOCK_ASSETS: ContentAsset[] = [
 ];
 
 // In-memory enrollment storage for mock mode
+// We ensure this persists during the session for the demo flow
 let MOCK_ENROLLMENTS: {userId: string, courseId: string}[] = [
     { userId: 's1', courseId: 'c1' }, // Default student enrolled in React course
     { userId: '1', courseId: 'c1' }
@@ -157,9 +158,22 @@ export const api = {
 
   getEnrolledCourses: async (userId: string): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
-        const enrolledIds = MOCK_ENROLLMENTS.filter(e => e.userId === userId).map(e => e.courseId);
-        const enrolledCourses = MOCK_COURSES.filter(c => enrolledIds.includes(c.id));
-        return new Promise(resolve => setTimeout(() => resolve([...enrolledCourses]), 500));
+        // Ensure we check the current in-memory MOCK_ENROLLMENTS array
+        const enrolledIds = MOCK_ENROLLMENTS
+            .filter(e => e.userId === userId)
+            .map(e => e.courseId);
+            
+        const enrolledCourses = MOCK_COURSES
+            .filter(c => enrolledIds.includes(c.id))
+            .map(c => ({
+                ...c,
+                // Add mock progress for visual consistency
+                progress: 0, 
+                // Ensure lessons are marked unlocked visually in types if needed, 
+                // though frontend logic handles 'isEnrolled' checks separately
+            }));
+            
+        return new Promise(resolve => setTimeout(() => resolve(enrolledCourses), 500));
     }
 
     try {
@@ -336,7 +350,7 @@ export const api = {
                   student.enrolledCourses = (student.enrolledCourses || 0) + 1;
               }
           }
-          return new Promise(resolve => setTimeout(() => resolve(true), 500));
+          return new Promise(resolve => setTimeout(() => resolve(true), 800));
       }
 
       const { error } = await supabase.from('enrollments').insert({ user_id: userId, course_id: courseId });
@@ -419,7 +433,29 @@ export const api = {
   },
 
   processPayment: async (details: any) => {
-      if (!isSupabaseConfigured()) return { success: true, status: details.type === 'online' ? 'active' : 'pending' };
+      if (!isSupabaseConfigured()) {
+          // Push to mock transactions for demo
+          MOCK_TRANSACTIONS.unshift({
+              id: `tx_${Date.now()}`,
+              userId: details.userId,
+              userName: details.userName,
+              courseId: details.courseId,
+              courseTitle: details.courseTitle,
+              amount: details.amount,
+              date: new Date().toLocaleDateString(),
+              status: details.type === 'online' ? 'succeeded' : 'pending_approval',
+              method: details.method,
+              type: details.type,
+              referenceId: details.referenceId
+          });
+          
+          if (details.type === 'online') {
+              await api.enrollUser(details.courseId, details.userId);
+              return { success: true, status: 'active' };
+          }
+          return { success: true, status: 'pending' };
+      }
+      
       try {
           const { error } = await supabase.from('transactions').insert({
               user_id: details.userId, course_id: details.courseId, amount: details.amount,
@@ -435,7 +471,9 @@ export const api = {
   },
 
   checkPendingTransaction: async (courseId: string, userId: string) => {
-      if (!isSupabaseConfigured()) return false;
+      if (!isSupabaseConfigured()) {
+          return !!MOCK_TRANSACTIONS.find(t => t.courseId === courseId && t.userId === userId && t.status === 'pending_approval');
+      }
       const { data } = await supabase.from('transactions').select('id').eq('course_id', courseId).eq('user_id', userId).eq('status', 'pending_approval').single();
       return !!data;
   },
@@ -471,7 +509,18 @@ export const api = {
   },
 
   createPaymentRequest: async (studentEmail: string, amount: number, description: string) => {
-      if (!isSupabaseConfigured()) return true;
+      if (!isSupabaseConfigured()) {
+         MOCK_PAYMENT_REQUESTS.unshift({
+             id: `pr_${Date.now()}`,
+             studentEmail,
+             amount,
+             description,
+             status: 'pending',
+             createdAt: new Date().toLocaleDateString(),
+             paymentLink: `https://aelgo.com/pay/req_${Math.random().toString(36).substring(7)}`
+         });
+         return true;
+      }
       try {
           const { error } = await supabase.from('payment_requests').insert({ student_email: studentEmail, amount, description, status: 'pending', payment_link: `https://aelgo.com/pay/req_${Math.random().toString(36).substring(7)}` });
           return !error;

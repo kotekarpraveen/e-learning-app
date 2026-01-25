@@ -5,13 +5,46 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, BarChart, BookOpen, CheckCircle, 
   PlayCircle, Lock, ChevronDown, ChevronUp, Award,
-  Users, Loader2, AlertTriangle, Mic, FileText, Terminal, HelpCircle, Headphones
+  Users, Loader2, AlertTriangle, Mic, FileText, Terminal, HelpCircle, Headphones,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { Course } from '../types';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 import { PaymentModal } from '../components/PaymentModal';
+
+// Success Modal Component
+const SuccessModal = ({ onStartLearning }: { onStartLearning: () => void }) => {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/80 backdrop-blur-sm">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center relative overflow-hidden"
+            >
+                {/* Decorative background element */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-green-50 to-transparent -z-10" />
+                
+                <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                    className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"
+                >
+                    <CheckCircle className="text-green-600" size={40} strokeWidth={3} />
+                </motion.div>
+                
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Enrollment Successful!</h3>
+                <p className="text-gray-500 mb-8">You now have full access to all course materials and lessons.</p>
+                
+                <Button onClick={onStartLearning} className="w-full h-12 text-lg shadow-xl shadow-green-500/20 bg-green-600 hover:bg-green-700 border-transparent">
+                    Start Learning <ArrowRight size={20} className="ml-2" />
+                </Button>
+            </motion.div>
+        </div>
+    );
+};
 
 export const CourseLanding: React.FC = () => {
   const { courseId } = useParams();
@@ -24,6 +57,7 @@ export const CourseLanding: React.FC = () => {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState<'none' | 'pending' | 'active'>('none');
 
   useEffect(() => {
@@ -77,9 +111,9 @@ export const CourseLanding: React.FC = () => {
       setIsEnrolling(true);
       const success = await api.enrollUser(course.id, user.id);
       if (success) {
-          setIsEnrolled(true);
           setEnrollmentStatus('active');
-          navigate(`/course/${course.id}`);
+          setIsEnrolled(true);
+          setShowSuccessModal(true); // Show success instead of immediate redirect
       } else {
           alert("Enrollment failed.");
       }
@@ -98,7 +132,7 @@ export const CourseLanding: React.FC = () => {
           courseId: course.id,
           courseTitle: course.title,
           amount: course.price,
-          method: method === 'online' ? 'Credit Card' : 'Bank Transfer',
+          method: method === 'online' ? (reference?.startsWith('UPI') ? 'UPI' : 'Credit Card') : 'Bank Transfer',
           type: method,
           referenceId: reference
       });
@@ -107,7 +141,7 @@ export const CourseLanding: React.FC = () => {
           if (result.status === 'active') {
               setIsEnrolled(true);
               setEnrollmentStatus('active');
-              navigate(`/course/${course.id}`);
+              setShowSuccessModal(true); // Show success modal
           } else {
               setEnrollmentStatus('pending');
           }
@@ -151,7 +185,7 @@ export const CourseLanding: React.FC = () => {
 
   return (
     <div className="-m-4 lg:-m-8 relative">
-      {/* Payment Modal */}
+      {/* Modals */}
       <AnimatePresence>
         {showPaymentModal && (
             <PaymentModal 
@@ -160,6 +194,9 @@ export const CourseLanding: React.FC = () => {
                 onClose={() => setShowPaymentModal(false)}
                 onSuccess={handlePaymentSuccess}
             />
+        )}
+        {showSuccessModal && (
+            <SuccessModal onStartLearning={() => navigate(`/course/${course.id}`)} />
         )}
       </AnimatePresence>
 
@@ -204,7 +241,7 @@ export const CourseLanding: React.FC = () => {
                             isLoading={isEnrolling}
                             onClick={handleEnrollClick}
                         >
-                            {isEnrolled ? 'Go to Course' : `Enroll Now - $${course.price}`}
+                            {isEnrolled ? 'Go to Course' : (course.price > 0 ? `Enroll Now - $${course.price}` : 'Enroll for Free')}
                         </Button>
                     )}
                     
