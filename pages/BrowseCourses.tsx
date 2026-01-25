@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -5,6 +6,7 @@ import { Search, Filter, Star, Clock, User as UserIcon, Loader2 } from 'lucide-r
 import { api } from '../lib/api';
 import { Course } from '../types';
 import { Button } from '../components/ui/Button';
+import { formatPrice } from '../lib/currency';
 
 export const BrowseCourses: React.FC = () => {
   const navigate = useNavigate();
@@ -124,7 +126,7 @@ export const BrowseCourses: React.FC = () => {
 
                     <div className="pt-4 border-t border-gray-50 flex items-center justify-between mt-auto">
                         <span className="text-lg font-bold text-primary-600">
-                            {course.price === 0 ? 'Free' : `$${course.price}`}
+                            {course.price === 0 ? 'Free' : formatPrice(course.price)}
                         </span>
                         <Button 
                             size="sm" 

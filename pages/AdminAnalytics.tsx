@@ -8,18 +8,20 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { formatPrice } from '../lib/currency';
 
 // --- Mock Data ---
 
 const METRICS = [
   { 
     label: 'Total Revenue', 
-    value: '$124,592', 
+    value: 124592, // Changed to number for formatting
     change: '+12.5%', 
     trend: 'up', 
     period: 'vs last month',
     icon: <DollarSign size={22} className="text-primary-700" />,
-    bg: 'bg-primary-100'
+    bg: 'bg-primary-100',
+    isCurrency: true
   },
   { 
     label: 'Active Students', 
@@ -54,11 +56,11 @@ const REVENUE_DATA = [4500, 5200, 4800, 6100, 5900, 7200, 8500, 8100, 9500, 1020
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const TOP_COURSES = [
-  { name: 'Fullstack React Mastery', revenue: '$45,200', students: 854, rating: 4.9, retention: '92%' },
-  { name: 'Data Science with Python', revenue: '$32,150', students: 620, rating: 4.8, retention: '88%' },
-  { name: 'UI/UX Design Fundamentals', revenue: '$18,400', students: 940, rating: 4.7, retention: '85%' },
-  { name: 'Advanced Node.js Patterns', revenue: '$12,800', students: 310, rating: 4.9, retention: '95%' },
-  { name: 'Digital Marketing 101', revenue: '$8,500', students: 450, rating: 4.5, retention: '78%' },
+  { name: 'Fullstack React Mastery', revenue: 45200, students: 854, rating: 4.9, retention: '92%' },
+  { name: 'Data Science with Python', revenue: 32150, students: 620, rating: 4.8, retention: '88%' },
+  { name: 'UI/UX Design Fundamentals', revenue: 18400, students: 940, rating: 4.7, retention: '85%' },
+  { name: 'Advanced Node.js Patterns', revenue: 12800, students: 310, rating: 4.9, retention: '95%' },
+  { name: 'Digital Marketing 101', revenue: 8500, students: 450, rating: 4.5, retention: '78%' },
 ];
 
 const DEVICE_STATS = [
@@ -139,7 +141,7 @@ const AreaChart = () => {
                <circle cx={x} cy={y} r="6" fill="#fff" stroke="#d1a845" strokeWidth="2" className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
                <rect x={x - 40} y={y - 45} width="80" height="35" rx="6" fill="#1f2937" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                <text x={x} y={y - 22} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="bold" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
-                 ${val}
+                 {formatPrice(val)}
                </text>
              </g>
            )
@@ -206,7 +208,9 @@ export const AdminAnalytics: React.FC = () => {
                  </span>
                )}
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{metric.value}</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                {metric.isCurrency ? formatPrice(metric.value as number) : metric.value}
+            </h3>
             <p className="text-sm text-gray-400 font-medium capitalize">{metric.label} <span className="text-gray-300 font-normal ml-1">({metric.period})</span></p>
           </motion.div>
         ))}
@@ -295,7 +299,7 @@ export const AdminAnalytics: React.FC = () => {
                      {TOP_COURSES.map((course, i) => (
                         <tr key={i} className="hover:bg-gray-50 transition-colors">
                            <td className="px-6 py-4 font-medium text-gray-900">{course.name}</td>
-                           <td className="px-6 py-4 text-gray-600">{course.revenue}</td>
+                           <td className="px-6 py-4 text-gray-600">{formatPrice(course.revenue)}</td>
                            <td className="px-6 py-4 text-gray-600">{course.students}</td>
                            <td className="px-6 py-4">
                               <span className="flex items-center text-gray-800 font-bold">

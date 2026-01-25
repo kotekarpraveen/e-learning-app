@@ -4,15 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Lock, Bell, CreditCard, Camera, Save, 
   Check, Shield, Mail, AlertCircle, X, Palette, RefreshCw, Type, Monitor,
-  Plus, Upload, Globe, Link as LinkIcon, Trash2
+  Plus, Upload, Globe, Link as LinkIcon, Trash2, Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../App';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { applyTheme, loadTheme, resetTheme, DEFAULT_THEME, CustomFont } from '../lib/theme';
+import { CURRENCIES, getCurrency, setCurrency } from '../lib/currency';
 
-type Tab = 'profile' | 'security' | 'notifications' | 'billing' | 'appearance';
+type Tab = 'profile' | 'security' | 'notifications' | 'billing' | 'appearance' | 'platform';
 
 // --- Toast Component (Local) ---
 const Toast = ({ message, onClose }: { message: string, onClose: () => void }) => {
@@ -239,8 +240,9 @@ export const Settings: React.FC = () => {
     newPassword: '',
   });
 
-  // Theme State
+  // Theme & Currency State
   const [themeData, setThemeData] = useState(DEFAULT_THEME);
+  const [selectedCurrency, setSelectedCurrency] = useState(getCurrency().code);
 
   const MotionDiv = motion.div as any;
 
@@ -265,10 +267,15 @@ export const Settings: React.FC = () => {
                 }));
 
                 // Load preferences if available
-                if (data.preferences && data.preferences.theme) {
-                    const remoteTheme = { ...DEFAULT_THEME, ...data.preferences.theme };
-                    setThemeData(remoteTheme);
-                    applyTheme(remoteTheme);
+                if (data.preferences) {
+                    if (data.preferences.theme) {
+                        const remoteTheme = { ...DEFAULT_THEME, ...data.preferences.theme };
+                        setThemeData(remoteTheme);
+                        applyTheme(remoteTheme);
+                    }
+                    if (data.preferences.currency) {
+                        setSelectedCurrency(data.preferences.currency);
+                    }
                 }
             }
         } catch (e) {
@@ -276,9 +283,10 @@ export const Settings: React.FC = () => {
         }
     };
     
-    // Load current theme from storage first (instant load), then DB will override if needed
+    // Load current theme from storage first
     const currentTheme = loadTheme();
     setThemeData(currentTheme);
+    setSelectedCurrency(getCurrency().code);
 
     loadProfile();
   }, [user]);
@@ -305,7 +313,6 @@ export const Settings: React.FC = () => {
 
   const handleDeleteCustomFont = (id: string) => {
       const newFonts = themeData.customFonts.filter(f => f.id !== id);
-      // Revert to Inter if deleted font was active
       const activeFontDeleted = themeData.customFonts.find(f => f.id === id)?.name === themeData.fontFamily;
       const newTheme = { 
           ...themeData, 
@@ -316,17 +323,32 @@ export const Settings: React.FC = () => {
       applyTheme(newTheme);
   };
 
+  const updatePreferences = async (updates: any) => {
+      if (!isSupabaseConfigured() || !user) return;
+      const { data } = await supabase.from('profiles').select('preferences').eq('id', user.id).single();
+      const current = data?.preferences || {};
+      await supabase.from('profiles').update({
+          preferences: { ...current, ...updates }
+      }).eq('id', user.id);
+  };
+
   const handleSave = async () => {
     setIsLoading(true);
     
     try {
+        if (activeTab === 'platform') {
+            setCurrency(selectedCurrency);
+            // Save currency to DB
+            if (isSupabaseConfigured() && user) {
+                await updatePreferences({ currency: selectedCurrency });
+            }
+        }
+
         if (activeTab === 'appearance') {
             applyTheme(themeData);
-            // Sync to Supabase
+            // Save theme to DB
             if (isSupabaseConfigured() && user) {
-                await supabase.from('profiles').update({
-                    preferences: { theme: themeData }
-                }).eq('id', user.id);
+                await updatePreferences({ theme: themeData });
             }
         }
         
@@ -364,6 +386,7 @@ export const Settings: React.FC = () => {
     { id: 'security', label: 'Security', icon: <Lock size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
     ...(user?.role.includes('admin') ? [
+        { id: 'platform', label: 'Platform', icon: <SettingsIcon size={18} /> },
         { id: 'appearance', label: 'Appearance', icon: <Palette size={18} /> },
         { id: 'billing', label: 'Billing', icon: <CreditCard size={18} /> }
     ] : [])
@@ -471,7 +494,6 @@ export const Settings: React.FC = () => {
                 </div>
               )}
 
-              {/* ... (Security and Notification tabs remain same, omitted for brevity) ... */}
               {activeTab === 'security' && (
                 <div className="space-y-8">
                    <div>
@@ -511,6 +533,47 @@ export const Settings: React.FC = () => {
                     <Button onClick={handleSave} isLoading={isLoading} icon={<Save size={16} />}>Save Preferences</Button>
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'platform' && (
+                  <div className="space-y-8">
+                      <div>
+                          <h3 className="text-lg font-bold text-gray-900 mb-1">General Platform Settings</h3>
+                          <p className="text-sm text-gray-500">Configure global settings for the application.</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                          <div className="flex items-start gap-4">
+                              <div className="p-3 bg-white rounded-lg shadow-sm text-green-600">
+                                  <Globe size={24} />
+                              </div>
+                              <div className="flex-1">
+                                  <label className="block text-sm font-bold text-gray-900 mb-2">Display Currency</label>
+                                  <p className="text-xs text-gray-500 mb-4">
+                                      Select the currency used for course pricing and revenue reporting throughout the application. 
+                                      Prices are stored in USD and converted based on the selected rate.
+                                  </p>
+                                  <select 
+                                      className="w-full max-w-sm px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 bg-white"
+                                      value={selectedCurrency}
+                                      onChange={(e) => setSelectedCurrency(e.target.value)}
+                                  >
+                                      {CURRENCIES.map(c => (
+                                          <option key={c.code} value={c.code}>
+                                              {c.name} ({c.symbol}) - Rate: {c.rate}
+                                          </option>
+                                      ))}
+                                  </select>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="pt-4 flex justify-end">
+                          <Button onClick={handleSave} isLoading={isLoading} icon={<Save size={16} />}>
+                              Save Platform Settings
+                          </Button>
+                      </div>
+                  </div>
               )}
 
               {activeTab === 'appearance' && (

@@ -11,6 +11,9 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
 import { Transaction, PaymentRequest } from '../types';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { formatPrice } from '../lib/currency';
 
 // Toast Component
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
@@ -93,6 +96,161 @@ export const Billing: React.FC = () => {
       setToast({ message: 'Payment link copied to clipboard.', type: 'success' });
   };
 
+  const handleExport = () => {
+    if (transactions.length === 0) {
+      setToast({ message: 'No transactions to export.', type: 'error' });
+      return;
+    }
+
+    // CSV Headers
+    const headers = ['Transaction ID', 'Student', 'Course', 'Date', 'Amount', 'Method', 'Status', 'Type', 'Reference ID'];
+    
+    // CSV Rows
+    const rows = transactions.map(tx => [
+      tx.id,
+      `"${tx.userName}"`, // Quote strings with potential commas
+      `"${tx.courseTitle}"`,
+      tx.date,
+      formatPrice(tx.amount).replace(/[^0-9.,]/g, ''), // Export raw number in formatted locale for CSV but typically CSV likes numbers
+      tx.method,
+      tx.status,
+      tx.type,
+      tx.referenceId || ''
+    ]);
+
+    // Combine
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    // Create Blob and Link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setToast({ message: 'Report exported successfully.', type: 'success' });
+  };
+
+  const handleDownloadInvoice = (tx: Transaction) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Brand Color: #88d8b0 (RGB: 136, 216, 176)
+      const primaryColor = '#88d8b0'; 
+      // Secondary Color: #2c3e50 (RGB: 44, 62, 80)
+      const secondaryColor = '#2c3e50';
+
+      const formattedAmount = formatPrice(tx.amount);
+
+      // --- HEADER ---
+      // Logo Placeholder (Circle)
+      doc.setFillColor(secondaryColor);
+      doc.circle(20, 20, 6, 'F');
+      doc.setTextColor(primaryColor);
+      doc.setFontSize(10);
+      doc.text('A', 18.5, 21.5); // A for Aelgo inside the circle
+
+      doc.setFontSize(22);
+      doc.setTextColor(secondaryColor);
+      doc.text('INVOICE', 14, 40);
+
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`#${tx.id}`, 14, 46);
+
+      // Company Info (Right Aligned)
+      doc.setFontSize(10);
+      doc.setTextColor(50);
+      doc.text('Aelgo World Inc.', pageWidth - 14, 20, { align: 'right' });
+      doc.text('123 Learning Lane', pageWidth - 14, 25, { align: 'right' });
+      doc.text('EdTech City, CA 94000', pageWidth - 14, 30, { align: 'right' });
+      doc.text('billing@aelgo.com', pageWidth - 14, 35, { align: 'right' });
+
+      // Line Separator
+      doc.setDrawColor(230);
+      doc.line(14, 55, pageWidth - 14, 55);
+
+      // --- BILLING INFO ---
+      // Left Side: Bill To
+      doc.setFontSize(11);
+      doc.setTextColor(secondaryColor);
+      doc.text('Bill To:', 14, 70);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.text(tx.userName, 14, 76);
+      doc.setTextColor(100);
+      doc.text(`User ID: ${tx.userId}`, 14, 81);
+
+      // Right Side: Payment Details
+      const rightColX = pageWidth / 2 + 10;
+      doc.setFontSize(11);
+      doc.setTextColor(secondaryColor);
+      doc.text('Payment Details:', rightColX, 70);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Date: ${tx.date}`, rightColX, 76);
+      doc.text(`Method: ${tx.method} (${tx.type})`, rightColX, 81);
+      doc.text(`Status: ${tx.status.toUpperCase()}`, rightColX, 86);
+      if(tx.referenceId) doc.text(`Ref ID: ${tx.referenceId}`, rightColX, 91);
+
+      // --- TABLE ---
+      autoTable(doc, {
+        startY: 105,
+        head: [['Description', 'Amount']],
+        body: [
+          [tx.courseTitle, formattedAmount],
+          ['Lifetime Access & Updates', 'Included'],
+        ],
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [44, 62, 80], // secondaryColor
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10, 
+          cellPadding: 6,
+          textColor: [50, 50, 50]
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { cellWidth: 40, halign: 'right' },
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250]
+        }
+      });
+
+      // --- TOTAL ---
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text(`Total Paid: ${formattedAmount}`, pageWidth - 14, finalY, { align: 'right' });
+
+      // --- FOOTER ---
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text('Thank you for choosing Aelgo World. Keep learning!', pageWidth / 2, pageHeight - 20, { align: 'center' });
+      doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+
+      doc.save(`Invoice_${tx.id}.pdf`);
+      setToast({ message: 'Invoice PDF downloaded successfully.', type: 'success' });
+    } catch (err) {
+      console.error("PDF Generation Error", err);
+      setToast({ message: 'Failed to generate PDF.', type: 'error' });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'succeeded': case 'paid': return 'bg-green-100 text-green-700';
@@ -118,14 +276,14 @@ export const Billing: React.FC = () => {
   const revenueStats = [
     { 
       label: 'Total Revenue', 
-      value: `$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 
+      value: formatPrice(totalRevenue), 
       change: '+14.2%', 
       trend: 'up',
       description: 'Lifetime earnings'
     },
     { 
       label: 'Monthly Recurring', 
-      value: '$12,450.00', 
+      value: formatPrice(12450), 
       change: '+5.4%', 
       trend: 'up',
       description: 'Based on active subscriptions'
@@ -139,7 +297,7 @@ export const Billing: React.FC = () => {
     },
     { 
       label: 'Avg. Order Value', 
-      value: `$${avgOrder.toFixed(2)}`, 
+      value: formatPrice(avgOrder), 
       change: '-1.2%', 
       trend: 'down',
       description: 'Per transaction'
@@ -159,7 +317,7 @@ export const Billing: React.FC = () => {
             <p className="text-gray-500">Manage earnings, payouts, and payment requests.</p>
          </div>
          <div className="flex gap-3">
-             <Button variant="secondary" icon={<Download size={18} />}>
+             <Button variant="secondary" icon={<Download size={18} />} onClick={handleExport}>
                 Export Report
              </Button>
              <Button variant="primary" icon={<Plus size={18} />} onClick={() => setShowRequestModal(true)}>
@@ -281,7 +439,7 @@ export const Billing: React.FC = () => {
                                     <td className="px-6 py-4 font-medium text-gray-900">{tx.userName}</td>
                                     <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{tx.courseTitle}</td>
                                     <td className="px-6 py-4 text-gray-500">{tx.date}</td>
-                                    <td className="px-6 py-4 font-medium text-gray-900">${tx.amount.toFixed(2)}</td>
+                                    <td className="px-6 py-4 font-medium text-gray-900">{formatPrice(tx.amount)}</td>
                                     <td className="px-6 py-4 text-gray-500 text-xs">
                                         <div className="flex items-center">
                                             {tx.type === 'online' ? <CreditCard size={14} className="mr-1.5" /> : <DollarSign size={14} className="mr-1.5" />}
@@ -294,7 +452,11 @@ export const Billing: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button className="text-gray-400 hover:text-primary-600 transition-colors">
+                                        <button 
+                                            onClick={() => handleDownloadInvoice(tx)}
+                                            className="text-gray-400 hover:text-primary-600 transition-colors"
+                                            title="Download Invoice"
+                                        >
                                             <Download size={18} />
                                         </button>
                                     </td>
@@ -323,7 +485,7 @@ export const Billing: React.FC = () => {
                                 <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-gray-900">{req.studentEmail}</td>
                                     <td className="px-6 py-4 text-gray-600">{req.description}</td>
-                                    <td className="px-6 py-4 font-bold text-gray-900">${req.amount}</td>
+                                    <td className="px-6 py-4 font-bold text-gray-900">{formatPrice(req.amount)}</td>
                                     <td className="px-6 py-4 text-gray-500">{req.createdAt}</td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(req.status)}`}>

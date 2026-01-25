@@ -16,6 +16,7 @@ import { api } from '../lib/api';
 import { Course, Category, ContentAsset } from '../types';
 import { CertificateTemplate } from '../components/CertificateTemplate';
 import { useAuth } from '../App';
+import { formatPrice, getCurrency } from '../lib/currency';
 
 type Tab = 'info' | 'structure' | 'content' | 'settings' | 'certificate' | 'preview';
 
@@ -625,6 +626,13 @@ const InfoTab: React.FC<{
     const [newCatName, setNewCatName] = useState('');
     const [isCreatingCat, setIsCreatingCat] = useState(false);
     const [isUploadingThumb, setIsUploadingThumb] = useState(false);
+    const currency = getCurrency();
+
+    // Local state to handle editing price in selected currency
+    const [localPrice, setLocalPrice] = useState(() => {
+        const p = parseFloat(courseInfo.price);
+        return isNaN(p) ? '' : (p * currency.rate).toFixed(2);
+    });
 
     const handleCreate = async () => {
         if (!newCatName.trim()) return;
@@ -648,6 +656,19 @@ const InfoTab: React.FC<{
             if (result) setCourseInfo({ ...courseInfo, thumbnail: result.url });
         } catch (error) { alert("Failed to upload thumbnail"); } 
         finally { setIsUploadingThumb(false); }
+    };
+
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setLocalPrice(val);
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+            // Convert to USD for storage
+            const usd = (num / currency.rate).toFixed(2);
+            setCourseInfo({ ...courseInfo, price: usd });
+        } else {
+            setCourseInfo({ ...courseInfo, price: '' });
+        }
     };
 
     return (
@@ -712,7 +733,13 @@ const InfoTab: React.FC<{
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Duration (hours)" value={courseInfo.duration} onChange={e => setCourseInfo({...courseInfo, duration: e.target.value})} />
-                <Input label="Price (USD)" value={courseInfo.price} onChange={e => setCourseInfo({...courseInfo, price: e.target.value})} />
+                <Input 
+                    label={`Price (${currency.code})`} 
+                    type="number" 
+                    value={localPrice} 
+                    onChange={handlePriceChange} 
+                    step="0.01" 
+                />
             </div>
             <textarea className="w-full px-4 py-2 rounded-lg border border-gray-300 min-h-[150px]" placeholder="Course Description..." value={courseInfo.description} onChange={e => setCourseInfo({...courseInfo, description: e.target.value})} />
             <textarea className="w-full px-4 py-2 rounded-lg border border-gray-300 min-h-[120px]" placeholder="What You'll Learn..." value={courseInfo.learningOutcomes} onChange={e => setCourseInfo({...courseInfo, learningOutcomes: e.target.value})} />
@@ -1037,7 +1064,7 @@ const PreviewTab: React.FC<{ courseInfo: any, modules: ModuleState[] }> = ({ cou
             
             <div className="space-y-6">
                 <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">${courseInfo.price || '0.00'}</div>
+                    <div className="text-2xl font-bold text-gray-900 mb-1">{formatPrice(courseInfo.price)}</div>
                     <Button className="w-full mt-4">Enroll Now</Button>
                     <div className="mt-4 text-xs text-gray-500 space-y-2">
                         <div className="flex justify-between"><span>Level</span> <span className="font-bold">{courseInfo.level}</span></div>

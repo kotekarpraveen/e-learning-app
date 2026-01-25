@@ -13,6 +13,7 @@ import { Course } from '../types';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 import { PaymentModal } from '../components/PaymentModal';
+import { formatPrice } from '../lib/currency';
 
 // Success Modal Component
 const SuccessModal = ({ onStartLearning }: { onStartLearning: () => void }) => {
@@ -241,7 +242,7 @@ export const CourseLanding: React.FC = () => {
                             isLoading={isEnrolling}
                             onClick={handleEnrollClick}
                         >
-                            {isEnrolled ? 'Go to Course' : (course.price > 0 ? `Enroll Now - $${course.price}` : 'Enroll for Free')}
+                            {isEnrolled ? 'Go to Course' : (course.price > 0 ? `Enroll Now - ${formatPrice(course.price)}` : 'Enroll for Free')}
                         </Button>
                     )}
                     

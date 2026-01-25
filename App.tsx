@@ -25,6 +25,7 @@ import { MOCK_USER_STUDENT, MOCK_USER_ADMIN } from './constants';
 import { User, UserRole } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { loadTheme, applyTheme } from './lib/theme';
+import { setCurrency } from './lib/currency';
 
 // --- Auth Context ---
 interface AuthContextType {
@@ -67,15 +68,22 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     };
   };
 
-  // Helper to sync theme from DB
-  const syncUserTheme = async (userId: string) => {
+  // Helper to sync preferences from DB (Theme & Currency)
+  const syncUserPreferences = async (userId: string) => {
       try {
           const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
-          if (data?.preferences?.theme) {
-              applyTheme(data.preferences.theme);
+          if (data?.preferences) {
+              // Sync Theme
+              if (data.preferences.theme) {
+                  applyTheme(data.preferences.theme);
+              }
+              // Sync Currency
+              if (data.preferences.currency) {
+                  setCurrency(data.preferences.currency);
+              }
           }
       } catch (e) {
-          console.error("Failed to sync theme", e);
+          console.error("Failed to sync preferences", e);
       }
   };
 
@@ -96,7 +104,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(mapSupabaseUser(session.user));
-          syncUserTheme(session.user.id);
+          syncUserPreferences(session.user.id);
         }
       } catch (error) {
         console.error("Auth check failed", error);
@@ -110,7 +118,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
           setUser(mapSupabaseUser(session.user));
-          syncUserTheme(session.user.id);
+          syncUserPreferences(session.user.id);
       } else {
         setUser(null);
       }
@@ -182,9 +190,21 @@ const App: React.FC = () => {
   const adminRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin'];
   const instructorRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin', 'instructor'];
   
+  // State to force re-render on currency change
+  const [currencyTick, setCurrencyTick] = useState(0);
+
+  useEffect(() => {
+    const handleCurrencyChange = () => {
+        setCurrencyTick(prev => prev + 1);
+    };
+    window.addEventListener('currency-change', handleCurrencyChange);
+    return () => window.removeEventListener('currency-change', handleCurrencyChange);
+  }, []);
+  
   return (
     <AuthProvider>
-      <Router>
+      {/* Key on Router forces remount of routes, ensuring all components re-render and call formatPrice again */}
+      <Router key={currencyTick}>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />

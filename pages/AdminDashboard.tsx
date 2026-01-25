@@ -12,6 +12,7 @@ import { api } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { Course } from '../types';
 import { useAuth } from '../App';
+import { formatPrice } from '../lib/currency';
 
 const MotionDiv = motion.div as any;
 
@@ -72,7 +73,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         
         <div className="flex items-center text-xs text-gray-500 mb-4 space-x-4">
            <span className="flex items-center"><Users size={14} className="mr-1 text-primary-500" /> {course.enrolledStudents || 0} enrolled</span>
-           <span className="flex items-center font-bold text-green-600">${course.price}</span>
+           <span className="flex items-center font-bold text-green-600">{formatPrice(course.price)}</span>
         </div>
 
         <div className="flex gap-2">
@@ -131,7 +132,7 @@ export const AdminDashboard: React.FC = () => {
             },
             { 
                 label: 'Total Revenue', 
-                value: `$${dashStats.totalRevenue.toLocaleString()}`, 
+                value: formatPrice(dashStats.totalRevenue), 
                 icon: <TrendingUp className="text-primary-500" size={24} />, 
                 bg: 'bg-primary-50'
             },
@@ -149,7 +150,7 @@ export const AdminDashboard: React.FC = () => {
 
         // 3. Fetch Platform Stats
         setPlatformStats([
-            { label: 'Total Revenue', value: `$${dashStats.totalRevenue.toLocaleString()}` },
+            { label: 'Total Revenue', value: formatPrice(dashStats.totalRevenue) },
             { label: 'Total Students', value: dashStats.totalStudents.toLocaleString() },
             { label: 'Total Courses', value: dashStats.totalCourses.toString() },
         ]);
