@@ -25,11 +25,13 @@ let MOCK_ASSETS: ContentAsset[] = [
 ];
 
 // In-memory enrollment storage for mock mode
-// We ensure this persists during the session for the demo flow
 let MOCK_ENROLLMENTS: {userId: string, courseId: string}[] = [
-    { userId: 's1', courseId: 'c1' }, // Default student enrolled in React course
+    { userId: 's1', courseId: 'c1' }, 
     { userId: '1', courseId: 'c1' }
 ];
+
+// Local Course State for Mock Mode
+let LOCAL_COURSES: Course[] = [...MOCK_COURSES];
 
 export const api = {
   /**
@@ -38,7 +40,7 @@ export const api = {
   getCourses: async (): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
       return new Promise((resolve) => {
-        setTimeout(() => resolve([...MOCK_COURSES]), 600);
+        setTimeout(() => resolve([...LOCAL_COURSES]), 600);
       });
     }
 
@@ -55,7 +57,7 @@ export const api = {
 
       if (error) {
         console.warn("Supabase fetch error:", error);
-        return MOCK_COURSES;
+        return LOCAL_COURSES;
       }
       
       if (!data || data.length === 0) return []; 
@@ -94,14 +96,14 @@ export const api = {
 
     } catch (err) {
       console.error("API Error", err);
-      return MOCK_COURSES;
+      return LOCAL_COURSES;
     }
   },
 
   getCourseById: async (id: string): Promise<Course | undefined> => {
     if (!isSupabaseConfigured()) {
        return new Promise((resolve) => {
-         setTimeout(() => resolve(MOCK_COURSES.find(c => c.id === id)), 400);
+         setTimeout(() => resolve(LOCAL_COURSES.find(c => c.id === id)), 400);
        });
     }
 
@@ -118,7 +120,7 @@ export const api = {
         .eq('id', id)
         .single();
 
-      if (error || !data) return MOCK_COURSES.find(c => c.id === id);
+      if (error || !data) return LOCAL_COURSES.find(c => c.id === id);
 
       return {
         id: data.id,
@@ -152,25 +154,21 @@ export const api = {
         })) || []
       } as Course;
     } catch (err) {
-      return MOCK_COURSES.find(c => c.id === id);
+      return LOCAL_COURSES.find(c => c.id === id);
     }
   },
 
   getEnrolledCourses: async (userId: string): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
-        // Ensure we check the current in-memory MOCK_ENROLLMENTS array
         const enrolledIds = MOCK_ENROLLMENTS
             .filter(e => e.userId === userId)
             .map(e => e.courseId);
             
-        const enrolledCourses = MOCK_COURSES
+        const enrolledCourses = LOCAL_COURSES
             .filter(c => enrolledIds.includes(c.id))
             .map(c => ({
                 ...c,
-                // Add mock progress for visual consistency
                 progress: 0, 
-                // Ensure lessons are marked unlocked visually in types if needed, 
-                // though frontend logic handles 'isEnrolled' checks separately
             }));
             
         return new Promise(resolve => setTimeout(() => resolve(enrolledCourses), 500));
@@ -280,7 +278,7 @@ export const api = {
 
   getAdminDashboardStats: async () => {
     if (!isSupabaseConfigured()) {
-      return { totalCourses: 24, totalStudents: 1847, totalRevenue: 47892, avgEngagement: 4.2 };
+      return { totalCourses: LOCAL_COURSES.length, totalStudents: 1847, totalRevenue: 47892, avgEngagement: 4.2 };
     }
     try {
       const [courses, students, transactions] = await Promise.all([
@@ -341,7 +339,7 @@ export const api = {
           const exists = MOCK_ENROLLMENTS.find(e => e.userId === userId && e.courseId === courseId);
           if (!exists) {
               MOCK_ENROLLMENTS.push({ userId, courseId });
-              const course = MOCK_COURSES.find(c => c.id === courseId);
+              const course = LOCAL_COURSES.find(c => c.id === courseId);
               if (course) {
                   course.enrolledStudents = (course.enrolledStudents || 0) + 1;
               }
@@ -563,7 +561,13 @@ export const api = {
   },
 
   saveCourse: async (course: Course): Promise<{ success: boolean; message: string }> => {
-    if (!isSupabaseConfigured()) return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Saved to Mock DB' }), 1000));
+    if (!isSupabaseConfigured()) {
+        const idx = LOCAL_COURSES.findIndex(c => c.id === course.id);
+        if (idx >= 0) LOCAL_COURSES[idx] = course;
+        else LOCAL_COURSES.push(course);
+        return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Course Saved to Local State' }), 800));
+    }
+    
     try {
         const { error: courseError } = await supabase.from('courses').upsert({ 
             id: course.id, 
@@ -613,6 +617,23 @@ export const api = {
         }
         return { success: true, message: 'Course saved successfully' };
     } catch (error: any) { return { success: false, message: error.message }; }
+  },
+
+  deleteCourse: async (id: string): Promise<{ success: boolean; message: string }> => {
+    if (!isSupabaseConfigured()) {
+        const prevLen = LOCAL_COURSES.length;
+        LOCAL_COURSES = LOCAL_COURSES.filter(c => c.id !== id);
+        if (LOCAL_COURSES.length === prevLen) return { success: false, message: 'Course not found' };
+        return { success: true, message: 'Course deleted locally' };
+    }
+
+    try {
+        const { error } = await supabase.from('courses').delete().eq('id', id);
+        if (error) throw error;
+        return { success: true, message: 'Course deleted successfully' };
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
   },
   
   seedDatabase: async (): Promise<{ success: boolean; message: string }> => {

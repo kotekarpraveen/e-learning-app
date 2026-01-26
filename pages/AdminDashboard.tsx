@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Users, BookOpen, TrendingUp, Clock, Plus, Search, 
   MoreVertical, Filter, BarChart2, Upload, 
-  Settings, ChevronDown, RefreshCw, FileText, CheckCircle, Database, Loader2
+  Settings, ChevronDown, RefreshCw, FileText, CheckCircle, Database, Loader2, Trash2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
@@ -53,7 +53,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
   </div>
 );
 
-const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
+const CourseCard: React.FC<{ course: Course; onDelete: (id: string) => void }> = ({ course, onDelete }) => {
   const navigate = useNavigate();
   return (
     <MotionDiv 
@@ -88,6 +88,15 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
            <Button variant="secondary" size="sm" className="flex-1 text-xs border-gray-200">
               <BarChart2 size={14} className="mr-1" /> Analytics
            </Button>
+           <Button 
+             variant="danger" 
+             size="sm" 
+             className="px-3" 
+             onClick={() => onDelete(course.id)}
+             title="Delete Course"
+           >
+              <Trash2 size={16} />
+           </Button>
         </div>
       </div>
     </MotionDiv>
@@ -111,8 +120,7 @@ export const AdminDashboard: React.FC = () => {
   const [platformStats, setPlatformStats] = useState<any[]>([]);
   const [enrollmentTrends, setEnrollmentTrends] = useState<{label: string, value: number}[]>([]);
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
+  const loadDashboardData = async () => {
         setIsLoading(true);
         
         // 1. Fetch Aggregated Stats
@@ -170,6 +178,8 @@ export const AdminDashboard: React.FC = () => {
 
         setIsLoading(false);
     };
+
+  useEffect(() => {
     loadDashboardData();
   }, [user]);
 
@@ -185,6 +195,21 @@ export const AdminDashboard: React.FC = () => {
           window.location.reload(); 
       } else {
           alert(`Error: ${result.message}`);
+      }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+      if(confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+          setIsLoading(true);
+          const result = await api.deleteCourse(id);
+          if (result.success) {
+              setCourses(prev => prev.filter(c => c.id !== id));
+              // Refresh full data to update stats
+              loadDashboardData();
+          } else {
+              alert("Failed to delete course: " + result.message);
+              setIsLoading(false);
+          }
       }
   };
 
@@ -275,7 +300,7 @@ export const AdminDashboard: React.FC = () => {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard key={course.id} course={course} onDelete={handleDeleteCourse} />
             ))}
             {filteredCourses.length === 0 && (
                 <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
