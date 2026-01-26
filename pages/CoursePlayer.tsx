@@ -228,19 +228,19 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
     );
 
     return (
-        <div className="w-full max-w-5xl mx-auto py-4 px-2 h-full flex flex-col">
+        <div className="w-full max-w-5xl mx-auto py-2 md:py-4 px-2 h-full flex flex-col">
             {/* Main Card Container */}
             <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-200 p-6 md:p-12 flex-1 flex flex-col relative overflow-hidden">
                 
                 {/* 1. Header: Timer & Submit */}
-                <div className="flex justify-between items-start mb-10 border-b border-gray-50 pb-6">
-                    <div className="flex items-start gap-4">
+                <div className="flex justify-between items-start mb-6 md:mb-10 border-b border-gray-50 pb-6">
+                    <div className="flex items-start gap-3 md:gap-4">
                         <div className="mt-1">
-                            <Clock className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
+                            <Clock className="w-5 h-5 md:w-6 md:h-6 text-gray-900" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Time remaining</p>
-                            <p className="text-2xl font-mono font-bold text-gray-900 tracking-wider">
+                            <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Time remaining</p>
+                            <p className="text-xl md:text-2xl font-mono font-bold text-gray-900 tracking-wider">
                                 {formatTimeFull(timeLeft)}
                             </p>
                         </div>
@@ -249,7 +249,7 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                     <Button 
                         onClick={handleSubmit} 
                         disabled={isSubmitted}
-                        className="bg-gray-900 text-white hover:bg-gray-800 rounded-xl px-8 py-3 font-bold text-sm shadow-lg shadow-gray-900/20"
+                        className="bg-gray-900 text-white hover:bg-gray-800 rounded-xl px-6 md:px-8 py-2 md:py-3 font-bold text-sm shadow-lg shadow-gray-900/20"
                     >
                         Submit
                     </Button>
@@ -278,15 +278,20 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                         )}
                     </div>
                 ) : (
-                    <div className="flex flex-col md:flex-row gap-12 flex-1">
+                    <div className="flex flex-col md:flex-row gap-8 md:gap-12 flex-1">
                         
                         {/* Left: Questions */}
                         <div className="flex-1 flex flex-col">
-                            <div className="mb-8">
+                            <div className="mb-6 md:mb-8">
                                 <p className="text-sm font-bold text-gray-500 mb-4">Question {currentQuestionIndex + 1} of {questions.length}</p>
-                                <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed">
+                                <h2 className="text-lg md:text-2xl font-bold text-gray-900 leading-relaxed">
                                     {currentQ.question}
                                 </h2>
+                            </div>
+
+                            {/* Mobile Progress - Inserted between Question and Options */}
+                            <div className="md:hidden flex justify-center mb-8">
+                                 <CircularProgress />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto mb-8">
@@ -298,7 +303,7 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                                             key={oIdx} 
                                             onClick={() => handleOptionSelect(currentQuestionIndex, oIdx)}
                                             className={`
-                                                flex items-center p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 group relative
+                                                flex items-center p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 group relative
                                                 ${isSelected 
                                                     ? 'border-green-500 bg-green-50 shadow-md shadow-green-100/50' 
                                                     : 'border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm'
@@ -317,30 +322,26 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                         <div className="hidden md:flex flex-col items-center justify-center w-48 shrink-0 border-l border-gray-50 pl-8">
                             <CircularProgress />
                         </div>
-                        {/* Mobile Progress */}
-                        <div className="md:hidden flex justify-center mb-6">
-                             <CircularProgress />
-                        </div>
                     </div>
                 )}
 
                 {/* 3. Footer: Pagination */}
                 {!isSubmitted && (
-                    <div className="mt-8 pt-8 border-t border-gray-100 flex items-center justify-between flex-wrap gap-4">
+                    <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between gap-3">
                         <button 
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                             disabled={currentQuestionIndex === 0}
-                            className="px-6 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors bg-white min-w-[100px]"
+                            className="px-4 md:px-6 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors bg-white min-w-[80px] md:min-w-[100px]"
                         >
                             Prev
                         </button>
                         
-                        <div className="flex flex-wrap gap-2 justify-center flex-1">
+                        <div className="flex overflow-x-auto gap-2 justify-start md:justify-center flex-1 px-2 scrollbar-hide mask-linear-fade">
                             {questions.map((_: any, idx: number) => (
                                 <button
                                     key={idx}
                                     onClick={() => setCurrentQuestionIndex(idx)}
-                                    className={`w-10 h-10 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                                    className={`w-10 h-10 flex-shrink-0 rounded-lg text-sm font-bold transition-all shadow-sm ${
                                         currentQuestionIndex === idx 
                                         ? 'bg-gray-900 text-white shadow-gray-900/20 scale-110' 
                                         : userAnswers[idx] !== undefined 
@@ -356,7 +357,7 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                         <button 
                             onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
                             disabled={currentQuestionIndex === questions.length - 1}
-                            className="px-6 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors bg-white min-w-[100px]"
+                            className="px-4 md:px-6 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors bg-white min-w-[80px] md:min-w-[100px]"
                         >
                             Next
                         </button>
