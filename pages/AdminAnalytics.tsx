@@ -1,85 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, Users, DollarSign, Clock, Calendar, 
   ArrowUpRight, ArrowDownRight, Download, Filter, 
-  MoreHorizontal, MapPin, Smartphone, Monitor, Tablet,
-  ChevronDown
+  Monitor, Smartphone, Tablet, ChevronDown, ArrowLeft, Star, BookOpen
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../lib/currency';
-
-// --- Mock Data ---
-
-const METRICS = [
-  { 
-    label: 'Total Revenue', 
-    value: 124592, // Changed to number for formatting
-    change: '+12.5%', 
-    trend: 'up', 
-    period: 'vs last month',
-    icon: <DollarSign size={22} className="text-primary-700" />,
-    bg: 'bg-primary-100',
-    isCurrency: true
-  },
-  { 
-    label: 'Active Students', 
-    value: '2,845', 
-    change: '+18.2%', 
-    trend: 'up', 
-    period: 'vs last month',
-    icon: <Users size={22} className="text-gray-800" />,
-    bg: 'bg-gray-200'
-  },
-  { 
-    label: 'Course Completion', 
-    value: '68.4%', 
-    change: '-2.1%', 
-    trend: 'down', 
-    period: 'vs last month',
-    icon: <TrendingUp size={22} className="text-primary-600" />,
-    bg: 'bg-primary-50'
-  },
-  { 
-    label: 'Avg. Session', 
-    value: '42m 15s', 
-    change: '+5.3%', 
-    trend: 'up', 
-    period: 'vs last month',
-    icon: <Clock size={22} className="text-gray-700" />,
-    bg: 'bg-gray-100'
-  },
-];
-
-const REVENUE_DATA = [4500, 5200, 4800, 6100, 5900, 7200, 8500, 8100, 9500, 10200, 9800, 11500];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const TOP_COURSES = [
-  { name: 'Fullstack React Mastery', revenue: 45200, students: 854, rating: 4.9, retention: '92%' },
-  { name: 'Data Science with Python', revenue: 32150, students: 620, rating: 4.8, retention: '88%' },
-  { name: 'UI/UX Design Fundamentals', revenue: 18400, students: 940, rating: 4.7, retention: '85%' },
-  { name: 'Advanced Node.js Patterns', revenue: 12800, students: 310, rating: 4.9, retention: '95%' },
-  { name: 'Digital Marketing 101', revenue: 8500, students: 450, rating: 4.5, retention: '78%' },
-];
-
-const DEVICE_STATS = [
-  { device: 'Desktop', percentage: 58, icon: <Monitor size={16} />, color: 'bg-primary-600' },
-  { device: 'Mobile', percentage: 32, icon: <Smartphone size={16} />, color: 'bg-primary-400' },
-  { device: 'Tablet', percentage: 10, icon: <Tablet size={16} />, color: 'bg-gray-400' },
-];
+import { api } from '../lib/api';
+import { Course } from '../types';
 
 // --- Components ---
 
-const AreaChart = () => {
-  // Simple SVG Area Chart generation
-  const max = Math.max(...REVENUE_DATA);
+const AreaChart = ({ data }: { data: number[] }) => {
+  const max = Math.max(...data);
   const min = 0;
   const height = 200;
-  const width = 1000; // viewbox units
+  const width = 1000; 
   
-  const points = REVENUE_DATA.map((val, i) => {
-    const x = (i / (REVENUE_DATA.length - 1)) * width;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
     const y = height - ((val - min) / (max - min)) * height;
     return `${x},${y}`;
   }).join(' ');
@@ -89,90 +31,103 @@ const AreaChart = () => {
   return (
     <div className="w-full h-[250px] relative">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
-        {/* Gradient Definition */}
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#d1a845" stopOpacity="0.2" />
             <stop offset="100%" stopColor="#d1a845" stopOpacity="0" />
           </linearGradient>
         </defs>
-        
-        {/* Grid Lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-          <line 
-            key={i} 
-            x1="0" 
-            y1={p * height} 
-            x2={width} 
-            y2={p * height} 
-            stroke="#e5e7eb" 
-            strokeWidth="1" 
-          />
+          <line key={i} x1="0" y1={p * height} x2={width} y2={p * height} stroke="#e5e7eb" strokeWidth="1" />
         ))}
-
-        {/* The Area */}
-        <motion.path
-          d={areaPath}
-          fill="url(#chartGradient)"
-          initial={{ opacity: 0, pathLength: 0 }}
-          animate={{ opacity: 1, pathLength: 1 }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-        />
-
-        {/* The Line */}
-        <motion.polyline
-          fill="none"
-          stroke="#d1a845"
-          strokeWidth="3"
-          points={points}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-        />
-        
-        {/* Hover Points (Interactive) */}
-        {REVENUE_DATA.map((val, i) => {
-           const x = (i / (REVENUE_DATA.length - 1)) * width;
-           const y = height - ((val - min) / (max - min)) * height;
-           return (
-             <g key={i} className="group">
-               <circle cx={x} cy={y} r="6" fill="#fff" stroke="#d1a845" strokeWidth="2" className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
-               <rect x={x - 40} y={y - 45} width="80" height="35" rx="6" fill="#1f2937" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-               <text x={x} y={y - 22} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="bold" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
-                 {formatPrice(val)}
-               </text>
-             </g>
-           )
-        })}
+        <motion.path d={areaPath} fill="url(#chartGradient)" initial={{ opacity: 0, pathLength: 0 }} animate={{ opacity: 1, pathLength: 1 }} transition={{ duration: 1.5, ease: "easeOut" }} />
+        <motion.polyline fill="none" stroke="#d1a845" strokeWidth="3" points={points} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeOut" }} />
       </svg>
-      
-      {/* X Axis Labels */}
-      <div className="flex justify-between mt-4 text-xs text-gray-400 font-medium px-2">
-        {MONTHS.map(m => <span key={m}>{m}</span>)}
-      </div>
     </div>
   );
 };
 
 export const AdminAnalytics: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const courseId = searchParams.get('courseId');
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [dateRange, setDateRange] = useState('Last 12 Months');
+  
+  // Default Data
+  const [metrics, setMetrics] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<number[]>([4500, 5200, 4800, 6100, 5900, 7200, 8500, 8100, 9500, 10200, 9800, 11500]);
+  const [topCourses, setTopCourses] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+        // 1. Load Global Platform Data first (Mocked for speed here, usually API)
+        const globalMetrics = [
+            { label: 'Total Revenue', value: 124592, change: '+12.5%', trend: 'up', icon: <DollarSign size={22} className="text-primary-700" />, bg: 'bg-primary-100', isCurrency: true },
+            { label: 'Active Students', value: '2,845', change: '+18.2%', trend: 'up', icon: <Users size={22} className="text-gray-800" />, bg: 'bg-gray-200' },
+            { label: 'Course Completion', value: '68.4%', change: '-2.1%', trend: 'down', icon: <TrendingUp size={22} className="text-primary-600" />, bg: 'bg-primary-50' },
+            { label: 'Avg. Session', value: '42m', change: '+5.3%', trend: 'up', icon: <Clock size={22} className="text-gray-700" />, bg: 'bg-gray-100' },
+        ];
+        
+        // 2. If Course ID exists, fetch and override
+        if (courseId) {
+            const course = await api.getCourseById(courseId);
+            if (course) {
+                setSelectedCourse(course);
+                const revenue = (course.price || 0) * (course.enrolledStudents || 0);
+                
+                // Override metrics for specific course
+                setMetrics([
+                    { label: 'Course Revenue', value: revenue, change: '+5.4%', trend: 'up', icon: <DollarSign size={22} className="text-primary-700" />, bg: 'bg-primary-100', isCurrency: true },
+                    { label: 'Total Students', value: course.enrolledStudents?.toLocaleString() || '0', change: '+12%', trend: 'up', icon: <Users size={22} className="text-gray-800" />, bg: 'bg-gray-200' },
+                    { label: 'Average Rating', value: course.averageRating?.toFixed(1) || '0.0', change: '+0.1', trend: 'up', icon: <Star size={22} className="text-yellow-600" />, bg: 'bg-yellow-50' },
+                    { label: 'Modules', value: course.totalModules || 0, change: '0', trend: 'neutral', icon: <BookOpen size={22} className="text-gray-700" />, bg: 'bg-gray-100' },
+                ]);
+                
+                // Generate pseudo-random chart data seeded by course price
+                setChartData(Array.from({length: 12}, () => Math.floor(Math.random() * (course.price * 10 || 1000) + 1000)));
+                setTopCourses([]); // Hide top courses table in detail view
+                return;
+            }
+        } 
+        
+        // Fallback to Global
+        setSelectedCourse(null);
+        setMetrics(globalMetrics);
+        setChartData([4500, 5200, 4800, 6100, 5900, 7200, 8500, 8100, 9500, 10200, 9800, 11500]);
+        setTopCourses([
+            { name: 'Fullstack React Mastery', revenue: 45200, students: 854, rating: 4.9, retention: '92%' },
+            { name: 'Data Science with Python', revenue: 32150, students: 620, rating: 4.8, retention: '88%' },
+            { name: 'UI/UX Design Fundamentals', revenue: 18400, students: 940, rating: 4.7, retention: '85%' },
+        ]);
+    };
+    
+    loadData();
+  }, [courseId]);
 
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Analytics Overview</h1>
-          <p className="text-gray-600">Monitor your platform's performance and growth metrics.</p>
+          <div className="flex items-center gap-3">
+              {selectedCourse && (
+                  <button onClick={() => navigate('/admin/analytics')} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                      <ArrowLeft size={24} />
+                  </button>
+              )}
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                  {selectedCourse ? selectedCourse.title : 'Analytics Overview'}
+              </h1>
+          </div>
+          <p className="text-gray-600 mt-1 ml-1">
+              {selectedCourse ? `Performance metrics for ${selectedCourse.category} course` : "Monitor your platform's performance and growth metrics."}
+          </p>
         </div>
         
         <div className="flex gap-3 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
            <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-50">
-             <Calendar size={16} className="mr-2" />
-             {dateRange}
-             <ChevronDown size={14} className="ml-2 opacity-50" />
+             <Calendar size={16} className="mr-2" /> {dateRange} <ChevronDown size={14} className="ml-2 opacity-50" />
            </Button>
            <div className="w-px bg-gray-200 my-1"></div>
            <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-50">
@@ -186,7 +141,7 @@ export const AdminAnalytics: React.FC = () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {METRICS.map((metric, i) => (
+        {metrics.map((metric, i) => (
           <motion.div 
             key={i}
             initial={{ opacity: 0, y: 20 }}
@@ -209,9 +164,9 @@ export const AdminAnalytics: React.FC = () => {
                )}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {metric.isCurrency ? formatPrice(metric.value as number) : metric.value}
+                {metric.isCurrency ? formatPrice(metric.value) : metric.value}
             </h3>
-            <p className="text-sm text-gray-400 font-medium capitalize">{metric.label} <span className="text-gray-300 font-normal ml-1">({metric.period})</span></p>
+            <p className="text-sm text-gray-400 font-medium capitalize">{metric.label}</p>
           </motion.div>
         ))}
       </div>
@@ -221,42 +176,34 @@ export const AdminAnalytics: React.FC = () => {
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
           <div className="flex justify-between items-center mb-8">
              <div>
-               <h3 className="text-lg font-bold text-gray-900">Revenue Growth</h3>
-               <p className="text-sm text-gray-500">Monthly income from subscriptions and course sales</p>
-             </div>
-             <div className="flex items-center gap-2">
-                <span className="flex items-center text-xs font-medium text-gray-500">
-                   <span className="w-2 h-2 rounded-full bg-primary-500 mr-2"></span> Current Period
-                </span>
-                <span className="flex items-center text-xs font-medium text-gray-500 ml-4">
-                   <span className="w-2 h-2 rounded-full bg-gray-300 mr-2"></span> Previous Period
-                </span>
+               <h3 className="text-lg font-bold text-gray-900">{selectedCourse ? 'Course Engagement & Sales' : 'Revenue Growth'}</h3>
+               <p className="text-sm text-gray-500">Trends over the selected period</p>
              </div>
           </div>
-          <AreaChart />
+          <AreaChart data={chartData} />
         </div>
 
-        {/* Device & Demographics */}
+        {/* Device Breakdown (Only show on Global View) */}
+        {!selectedCourse && (
         <div className="space-y-6">
-           {/* Device Breakdown */}
            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 h-full">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Device Breakdown</h3>
               <div className="relative w-48 h-48 mx-auto mb-8">
-                 {/* CSS Conic Gradient Pie Chart approximation */}
                  <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(#d1a845 0% 58%, #eab308 58% 90%, #9ca3af 90% 100%)` }}></div>
                  <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
                     <span className="text-3xl font-bold text-gray-900">58%</span>
                     <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Desktop</span>
                  </div>
               </div>
-              
               <div className="space-y-4">
-                 {DEVICE_STATS.map((d, i) => (
+                 {[
+                     { device: 'Desktop', percentage: 58, icon: <Monitor size={16} />, color: 'bg-primary-600' },
+                     { device: 'Mobile', percentage: 32, icon: <Smartphone size={16} />, color: 'bg-primary-400' },
+                     { device: 'Tablet', percentage: 10, icon: <Tablet size={16} />, color: 'bg-gray-400' },
+                 ].map((d, i) => (
                     <div key={i} className="flex items-center justify-between">
                        <div className="flex items-center text-sm text-gray-600 font-medium">
-                          <div className={`p-1.5 rounded-md ${d.color} bg-opacity-10 mr-3 text-gray-700`}>
-                             {d.icon}
-                          </div>
+                          <div className={`p-1.5 rounded-md ${d.color} bg-opacity-10 mr-3 text-gray-700`}>{d.icon}</div>
                           {d.device}
                        </div>
                        <div className="flex items-center gap-3 w-1/2">
@@ -270,18 +217,55 @@ export const AdminAnalytics: React.FC = () => {
               </div>
            </div>
         </div>
+        )}
+
+        {/* Student Progress (Show only on Course View) */}
+        {selectedCourse && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Student Progress</h3>
+                <div className="space-y-6">
+                    <div>
+                        <div className="flex justify-between text-sm mb-2">
+                            <span>Completed</span>
+                            <span className="font-bold">12%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-green-500 w-[12%]"></div></div>
+                    </div>
+                    <div>
+                        <div className="flex justify-between text-sm mb-2">
+                            <span>In Progress (>50%)</span>
+                            <span className="font-bold">45%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 w-[45%]"></div></div>
+                    </div>
+                    <div>
+                        <div className="flex justify-between text-sm mb-2">
+                            <span>Just Started</span>
+                            <span className="font-bold">33%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 w-[33%]"></div></div>
+                    </div>
+                    <div>
+                        <div className="flex justify-between text-sm mb-2">
+                            <span>Inactive</span>
+                            <span className="font-bold">10%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-400 w-[10%]"></div></div>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
-      {/* Top Courses & Geography Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-         {/* Top Performing Courses */}
+      {/* Top Courses List (Only on Global View) */}
+      {!selectedCourse && (
          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                <div>
                   <h3 className="text-lg font-bold text-gray-900">Top Performing Courses</h3>
                   <p className="text-sm text-gray-500">Based on revenue and student retention</p>
                </div>
-               <Button variant="ghost" size="sm" className="text-primary-600 hover:text-primary-700">View All</Button>
+               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/courses')}>View All</Button>
             </div>
             
             <div className="overflow-x-auto">
@@ -296,7 +280,7 @@ export const AdminAnalytics: React.FC = () => {
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                     {TOP_COURSES.map((course, i) => (
+                     {topCourses.map((course, i) => (
                         <tr key={i} className="hover:bg-gray-50 transition-colors">
                            <td className="px-6 py-4 font-medium text-gray-900">{course.name}</td>
                            <td className="px-6 py-4 text-gray-600">{formatPrice(course.revenue)}</td>
@@ -320,35 +304,7 @@ export const AdminAnalytics: React.FC = () => {
                </table>
             </div>
          </div>
-
-         {/* Geography Placeholder */}
-         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">User Geography</h3>
-            <div className="space-y-6">
-                {[
-                  { country: 'United States', users: '45%', flag: '🇺🇸' },
-                  { country: 'India', users: '22%', flag: '🇮🇳' },
-                  { country: 'United Kingdom', users: '12%', flag: '🇬🇧' },
-                  { country: 'Germany', users: '8%', flag: '🇩🇪' },
-                  { country: 'Canada', users: '6%', flag: '🇨🇦' },
-                  { country: 'Others', users: '7%', flag: '🌍' },
-                ].map((c, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                     <div className="flex items-center">
-                        <span className="text-xl mr-3">{c.flag}</span>
-                        <span className="text-sm font-medium text-gray-700">{c.country}</span>
-                     </div>
-                     <span className="text-sm font-bold text-gray-900">{c.users}</span>
-                  </div>
-                ))}
-            </div>
-            
-            <div className="mt-8 bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-               <MapPin className="mx-auto text-primary-500 mb-2" size={24} />
-               <p className="text-xs text-gray-500">Interactive map data is loading...</p>
-            </div>
-         </div>
-      </div>
+      )}
     </div>
   );
 };

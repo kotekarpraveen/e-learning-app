@@ -6,7 +6,7 @@ import {
   Clock, BarChart, BookOpen, CheckCircle, 
   PlayCircle, Lock, ChevronDown, ChevronUp, Award,
   Users, Loader2, AlertTriangle, Mic, FileText, Terminal, HelpCircle, Headphones,
-  ArrowRight
+  ArrowRight, Star, Plus, Minus
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { Course } from '../types';
@@ -60,6 +60,15 @@ export const CourseLanding: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState<'none' | 'pending' | 'active'>('none');
+  
+  // FAQ State
+  const [openFAQ, setOpenFAQ] = useState<string | null>(null);
+
+  // Review State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [ratingInput, setRatingInput] = useState(5);
+  const [reviewInput, setReviewInput] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
       const loadCourse = async () => {
@@ -152,6 +161,22 @@ export const CourseLanding: React.FC = () => {
       setIsEnrolling(false);
   };
 
+  const handleSubmitReview = async () => {
+      if(!courseId || !reviewInput.trim()) return;
+      setIsSubmittingReview(true);
+      const success = await api.addReview(courseId, ratingInput, reviewInput);
+      if(success) {
+          // Refresh course data to show new review
+          const data = await api.getCourseById(courseId);
+          setCourse(data);
+          setShowReviewForm(false);
+          setReviewInput('');
+      } else {
+          alert("Failed to submit review.");
+      }
+      setIsSubmittingReview(false);
+  };
+
   const getLessonIcon = (type: string) => {
     switch (type) {
         case 'video': return <PlayCircle size={16} className="mr-3 text-gray-400" />;
@@ -221,9 +246,13 @@ export const CourseLanding: React.FC = () => {
                 <p className="text-lg text-gray-300 max-w-2xl">{course.description}</p>
                 
                 <div className="flex flex-wrap gap-6 text-sm text-gray-400 pt-2">
+                    <div className="flex items-center text-white font-bold">
+                        <Star size={18} className="mr-2 text-yellow-400 fill-yellow-400" />
+                        {course.averageRating ? course.averageRating.toFixed(1) : 'New'} 
+                        <span className="text-gray-400 font-normal ml-1">({course.totalReviews || 0} reviews)</span>
+                    </div>
                     <div className="flex items-center"><Users size={18} className="mr-2 text-white" /> {course.enrolledStudents?.toLocaleString()} Students</div>
                     <div className="flex items-center"><Clock size={18} className="mr-2 text-white" /> {course.totalModules * 2.5} Hours Content</div>
-                    <div className="flex items-center"><Award size={18} className="mr-2 text-white" /> Certificate of Completion</div>
                 </div>
 
                 <div className="pt-6">
@@ -336,6 +365,113 @@ export const CourseLanding: React.FC = () => {
                         ) : (
                             <div className="p-8 text-center text-gray-500">
                                 No curriculum content available yet.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* FAQ Section */}
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
+                    <div className="space-y-4">
+                        {course.faqs && course.faqs.length > 0 ? (
+                            course.faqs.map(faq => (
+                                <div key={faq.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
+                                    <button 
+                                        className="flex items-center justify-between w-full text-left font-semibold text-gray-800 hover:text-primary-600 transition-colors py-2"
+                                        onClick={() => setOpenFAQ(openFAQ === faq.id ? null : faq.id)}
+                                    >
+                                        {faq.question}
+                                        {openFAQ === faq.id ? <Minus size={18} /> : <Plus size={18} />}
+                                    </button>
+                                    <AnimatePresence>
+                                        {openFAQ === faq.id && (
+                                            <motion.div 
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <p className="text-gray-600 text-sm mt-2 leading-relaxed">{faq.answer}</p>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-gray-500 italic">No FAQs available for this course.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Ratings & Reviews */}
+                <div>
+                    <div className="flex justify-between items-end mb-6">
+                        <h2 className="text-2xl font-bold text-gray-900">Student Reviews</h2>
+                        {isEnrolled && !showReviewForm && (
+                            <Button size="sm" variant="secondary" onClick={() => setShowReviewForm(true)}>Write a Review</Button>
+                        )}
+                    </div>
+
+                    {showReviewForm && (
+                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 animate-in fade-in slide-in-from-top-4">
+                            <h4 className="font-bold text-gray-900 mb-4">Leave your feedback</h4>
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-sm font-medium text-gray-700 mr-2">Rating:</span>
+                                {[1,2,3,4,5].map(star => (
+                                    <button 
+                                        key={star}
+                                        type="button" 
+                                        onClick={() => setRatingInput(star)}
+                                        className={`${star <= ratingInput ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} transition-colors`}
+                                    >
+                                        <Star size={24} />
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea 
+                                className="w-full p-4 rounded-lg border border-gray-300 mb-4 focus:ring-2 focus:ring-primary-500 outline-none"
+                                rows={4}
+                                placeholder="Tell us what you liked or what could be improved..."
+                                value={reviewInput}
+                                onChange={e => setReviewInput(e.target.value)}
+                            />
+                            <div className="flex justify-end gap-3">
+                                <Button variant="ghost" size="sm" onClick={() => setShowReviewForm(false)}>Cancel</Button>
+                                <Button size="sm" onClick={handleSubmitReview} isLoading={isSubmittingReview}>Submit Review</Button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-6">
+                        {course.reviews && course.reviews.length > 0 ? (
+                            course.reviews.map(review => (
+                                <div key={review.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <img 
+                                                src={review.userAvatar || `https://ui-avatars.com/api/?name=${review.userName}&background=random`} 
+                                                alt={review.userName} 
+                                                className="w-10 h-10 rounded-full object-cover"
+                                            />
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 text-sm">{review.userName}</h4>
+                                                <p className="text-xs text-gray-500">{review.date}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-0.5 text-yellow-400">
+                                            {[...Array(5)].map((_, i) => (
+                                                <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} className={i >= review.rating ? "text-gray-200" : ""} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-600 text-sm leading-relaxed">{review.review}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-12 bg-gray-50 rounded-xl border-dashed border-2 border-gray-200">
+                                <Star className="mx-auto text-gray-300 mb-3" size={32} />
+                                <p className="text-gray-500">No reviews yet. Be the first to review!</p>
                             </div>
                         )}
                     </div>

@@ -1,7 +1,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
-import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset } from '../types';
+import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset, Review, FAQ } from '../types';
 
 // Mock Data for Students (Fallback)
 let MOCK_STUDENTS: Student[] = [
@@ -31,21 +31,64 @@ let MOCK_ENROLLMENTS: {userId: string, courseId: string}[] = [
 ];
 
 // Local Course State for Mock Mode
-let LOCAL_COURSES: Course[] = [...MOCK_COURSES];
+let LOCAL_COURSES: Course[] = MOCK_COURSES.map(c => ({
+    ...c,
+    averageRating: 4.8,
+    totalReviews: 24,
+    faqs: [
+        { id: 'f1', question: 'Do I need prior experience?', answer: 'Basic knowledge of the subject is recommended but not required.' },
+        { id: 'f2', question: 'Is there a certificate?', answer: 'Yes, you receive a signed certificate upon completion.' }
+    ],
+    reviews: [
+        { id: 'r1', userId: '2', userName: 'Sarah Connor', rating: 5, review: 'Absolutely fantastic course! The instructor explains everything clearly.', date: '2023-11-01', userAvatar: 'https://i.pravatar.cc/150?u=2' },
+        { id: 'r2', userId: '3', userName: 'Michael Chen', rating: 4, review: 'Great content, though the audio quality could be slightly better in module 2.', date: '2023-10-28', userAvatar: 'https://i.pravatar.cc/150?u=3' }
+    ]
+}));
+
+interface GetCoursesOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+}
 
 export const api = {
   /**
-   * Fetch all available courses.
+   * Fetch courses with optional pagination, search, and filtering.
+   * If options are omitted, returns all courses (useful for admin dashboards).
    */
-  getCourses: async (): Promise<Course[]> => {
+  getCourses: async (options?: GetCoursesOptions): Promise<Course[]> => {
     if (!isSupabaseConfigured()) {
       return new Promise((resolve) => {
-        setTimeout(() => resolve([...LOCAL_COURSES]), 600);
+        setTimeout(() => {
+            let filtered = [...LOCAL_COURSES];
+
+            // 1. Filter by Category
+            if (options?.category && options.category !== 'All') {
+                filtered = filtered.filter(c => c.category === options.category);
+            }
+
+            // 2. Filter by Search Term
+            if (options?.search) {
+                const term = options.search.toLowerCase();
+                filtered = filtered.filter(c => c.title.toLowerCase().includes(term));
+            }
+
+            // 3. Pagination
+            if (options?.page && options?.limit) {
+                const start = (options.page - 1) * options.limit;
+                const end = start + options.limit;
+                resolve(filtered.slice(start, end));
+            } else {
+                // If no pagination, return all (backward compatibility)
+                resolve(filtered);
+            }
+        }, 600);
       });
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('courses')
         .select(`
           *,
@@ -54,6 +97,26 @@ export const api = {
             lessons (*)
           )
         `);
+
+      // 1. Filter by Category
+      if (options?.category && options.category !== 'All') {
+          query = query.eq('category', options.category);
+      }
+
+      // 2. Filter by Search Term
+      if (options?.search) {
+          query = query.ilike('title', `%${options.search}%`);
+      }
+
+      // 3. Pagination
+      // Note: If page/limit aren't provided, we fetch everything (default behavior)
+      if (options?.page && options?.limit) {
+          const start = (options.page - 1) * options.limit;
+          const end = start + options.limit - 1;
+          query = query.range(start, end);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.warn("Supabase fetch error:", error);
@@ -77,6 +140,8 @@ export const api = {
         totalModules: d.modules?.length || 0,
         published: d.published,
         duration: d.duration,
+        averageRating: Number(d.average_rating) || 0,
+        totalReviews: d.total_reviews || 0,
         modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
@@ -108,7 +173,8 @@ export const api = {
     }
 
     try {
-      const { data, error } = await supabase
+      // 1. Get Course Details
+      const { data: courseData, error } = await supabase
         .from('courses')
         .select(`
           *,
@@ -120,24 +186,50 @@ export const api = {
         .eq('id', id)
         .single();
 
-      if (error || !data) return LOCAL_COURSES.find(c => c.id === id);
+      if (error || !courseData) return LOCAL_COURSES.find(c => c.id === id);
+
+      // 2. Get FAQs
+      const { data: faqData } = await supabase
+        .from('course_faqs')
+        .select('*')
+        .eq('course_id', id)
+        .order('order', { ascending: true });
+
+      // 3. Get Reviews
+      const { data: reviewData } = await supabase
+        .from('course_reviews')
+        .select(`*, profiles(full_name, avatar)`)
+        .eq('course_id', id)
+        .order('created_at', { ascending: false });
 
       return {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        thumbnail: data.thumbnail,
-        instructor: data.instructor,
-        price: data.price,
-        level: data.level,
-        category: data.category,
+        id: courseData.id,
+        title: courseData.title,
+        description: courseData.description,
+        thumbnail: courseData.thumbnail,
+        instructor: courseData.instructor,
+        price: courseData.price,
+        level: courseData.level,
+        category: courseData.category,
         progress: 0,
-        enrolledStudents: data.enrolled_students || 0,
-        learningOutcomes: data.learning_outcomes || [],
-        totalModules: data.modules?.length || 0,
-        published: data.published,
-        duration: data.duration,
-        modules: data.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
+        enrolledStudents: courseData.enrolled_students || 0,
+        learningOutcomes: courseData.learning_outcomes || [],
+        totalModules: courseData.modules?.length || 0,
+        published: courseData.published,
+        duration: courseData.duration,
+        averageRating: Number(courseData.average_rating) || 0,
+        totalReviews: courseData.total_reviews || 0,
+        faqs: faqData || [],
+        reviews: reviewData?.map((r: any) => ({
+            id: r.id,
+            userId: r.user_id,
+            rating: r.rating,
+            review: r.review,
+            date: new Date(r.created_at).toLocaleDateString(),
+            userName: r.profiles?.full_name || 'User',
+            userAvatar: r.profiles?.avatar
+        })) || [],
+        modules: courseData.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
             id: m.id,
             title: m.title,
             description: m.description,
@@ -156,6 +248,60 @@ export const api = {
     } catch (err) {
       return LOCAL_COURSES.find(c => c.id === id);
     }
+  },
+
+  addReview: async (courseId: string, rating: number, review: string): Promise<boolean> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!isSupabaseConfigured()) {
+          // Mock Add
+          const course = LOCAL_COURSES.find(c => c.id === courseId);
+          if (course) {
+              const newReview = {
+                  id: `r_${Date.now()}`,
+                  userId: 'mock_user',
+                  userName: 'Current User',
+                  rating,
+                  review,
+                  date: new Date().toLocaleDateString(),
+                  userAvatar: 'https://i.pravatar.cc/150?u=current'
+              };
+              course.reviews = [newReview, ...(course.reviews || [])];
+              // Recalculate average
+              const total = course.reviews.reduce((acc, r) => acc + r.rating, 0);
+              course.averageRating = parseFloat((total / course.reviews.length).toFixed(1));
+              course.totalReviews = course.reviews.length;
+          }
+          return new Promise(resolve => setTimeout(() => resolve(true), 600));
+      }
+
+      try {
+          if (!user) return false;
+          // Insert Review
+          const { error } = await supabase.from('course_reviews').insert({
+              course_id: courseId,
+              user_id: user.id,
+              rating,
+              review
+          });
+          if (error) throw error;
+
+          // Update Course Aggregate (Simple approach, trigger preferred in prod)
+          const { data: reviews } = await supabase.from('course_reviews').select('rating').eq('course_id', courseId);
+          if (reviews) {
+              const total = reviews.reduce((acc, r) => acc + r.rating, 0);
+              const avg = total / reviews.length;
+              await supabase.from('courses').update({
+                  average_rating: avg,
+                  total_reviews: reviews.length
+              }).eq('id', courseId);
+          }
+
+          return true;
+      } catch (e) {
+          console.error(e);
+          return false;
+      }
   },
 
   getEnrolledCourses: async (userId: string): Promise<Course[]> => {
@@ -208,6 +354,8 @@ export const api = {
                 totalModules: d.modules?.length || 0,
                 published: d.published,
                 duration: d.duration,
+                averageRating: Number(d.average_rating) || 0,
+                totalReviews: d.total_reviews || 0,
                 modules: d.modules?.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((m: any) => ({
                     id: m.id,
                     title: m.title,
@@ -232,6 +380,7 @@ export const api = {
     }
   },
 
+  // ... (keeping existing methods for stats, students, instructors unchanged but ensuring they don't break) ...
   getStudentStats: async (userId: string) => {
     if (!isSupabaseConfigured()) {
         return { hoursSpent: 24.5, coursesCompleted: 1, certificates: 1, streak: 5, points: 1250 };
@@ -563,12 +712,13 @@ export const api = {
   saveCourse: async (course: Course): Promise<{ success: boolean; message: string }> => {
     if (!isSupabaseConfigured()) {
         const idx = LOCAL_COURSES.findIndex(c => c.id === course.id);
-        if (idx >= 0) LOCAL_COURSES[idx] = course;
+        if (idx >= 0) LOCAL_COURSES[idx] = { ...LOCAL_COURSES[idx], ...course };
         else LOCAL_COURSES.push(course);
         return new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Course Saved to Local State' }), 800));
     }
     
     try {
+        // Save Course Data
         const { error: courseError } = await supabase.from('courses').upsert({ 
             id: course.id, 
             title: course.title, 
@@ -586,6 +736,7 @@ export const api = {
         });
         if (courseError) throw courseError;
 
+        // Save Modules & Lessons
         for (let i = 0; i < course.modules.length; i++) {
             const m = course.modules[i];
             const { error: moduleError } = await supabase.from('modules').upsert({ 
@@ -615,6 +766,24 @@ export const api = {
                 }
             }
         }
+
+        // Save FAQs
+        if (course.faqs && course.faqs.length > 0) {
+            // In a real scenario, you might delete old FAQs or use an efficient upsert strategy.
+            // For simplicity, we delete existing and re-insert.
+            await supabase.from('course_faqs').delete().eq('course_id', course.id);
+            const { error: faqError } = await supabase.from('course_faqs').insert(
+                course.faqs.map((f, i) => ({
+                    id: f.id,
+                    course_id: course.id,
+                    question: f.question,
+                    answer: f.answer,
+                    "order": i
+                }))
+            );
+            if(faqError) throw faqError;
+        }
+
         return { success: true, message: 'Course saved successfully' };
     } catch (error: any) { return { success: false, message: error.message }; }
   },
@@ -623,7 +792,12 @@ export const api = {
     if (!isSupabaseConfigured()) {
         const prevLen = LOCAL_COURSES.length;
         LOCAL_COURSES = LOCAL_COURSES.filter(c => c.id !== id);
-        if (LOCAL_COURSES.length === prevLen) return { success: false, message: 'Course not found' };
+        
+        console.log(`Mock Delete: ${id}. Previous Count: ${prevLen}, New Count: ${LOCAL_COURSES.length}`);
+        
+        if (LOCAL_COURSES.length === prevLen) {
+             return { success: false, message: 'Course not found' };
+        }
         return { success: true, message: 'Course deleted locally' };
     }
 

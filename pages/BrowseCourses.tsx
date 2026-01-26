@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Star, Clock, User as UserIcon, Loader2 } from 'lucide-react';
@@ -13,30 +13,70 @@ export const BrowseCourses: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  
+  // Intersection Observer
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastCourseElementRef = useCallback((node: HTMLDivElement) => {
+    if (isFetching) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [isFetching, hasMore]);
 
   const MotionDiv = motion.div as any;
 
-  useEffect(() => {
-    const loadCourses = async () => {
-      setIsLoading(true);
-      const data = await api.getCourses();
-      setCourses(data);
-      setIsLoading(false);
-    };
-    loadCourses();
-  }, []);
-
   const categories = ['All', 'Development', 'Design', 'Data Science', 'Business'];
 
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCourses([]);
+    setPage(1);
+    setHasMore(true);
+  }, [searchTerm, selectedCategory]);
+
+  // Fetch Courses Effect
+  useEffect(() => {
+    const loadCourses = async () => {
+      setIsFetching(true);
+      const limit = 6; // Items per page
+      
+      const data = await api.getCourses({
+          page: page,
+          limit: limit,
+          search: searchTerm,
+          category: selectedCategory
+      });
+
+      setCourses(prev => {
+          // If page 1, replace. Else append.
+          return page === 1 ? data : [...prev, ...data];
+      });
+      
+      setHasMore(data.length === limit);
+      setIsFetching(false);
+    };
+
+    // Debounce search a bit if desired, but here we just run it.
+    const timer = setTimeout(() => {
+        loadCourses();
+    }, 300); // 300ms debounce for typing
+
+    return () => clearTimeout(timer);
+  }, [page, searchTerm, selectedCategory]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       {/* Header */}
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary-50 rounded-full -mr-16 -mt-16 opacity-50 blur-3xl" />
@@ -75,20 +115,19 @@ export const BrowseCourses: React.FC = () => {
         </div>
       </div>
 
-      {/* Loading State */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-20">
-            <Loader2 className="animate-spin text-primary-600" size={40} />
-        </div>
-      ) : (
-        /* Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course, index) => (
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {courses.map((course, index) => {
+            // Attach ref to the last element
+            const isLast = index === courses.length - 1;
+            
+            return (
             <MotionDiv
-                key={course.id}
+                ref={isLast ? lastCourseElementRef : null}
+                key={`${course.id}-${index}`} // Ensure unique key if items somehow duplicate
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: 0.1 }} // Reduced staggering for infinite scroll smoothness
                 className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col h-full"
             >
                 <div className="relative h-48 overflow-hidden">
@@ -137,19 +176,26 @@ export const BrowseCourses: React.FC = () => {
                     </div>
                 </div>
             </MotionDiv>
-            ))}
+            );
+        })}
+      </div>
 
-            {filteredCourses.length === 0 && (
-                <div className="col-span-full text-center py-20">
+      {/* Loading & Empty States */}
+      <div className="w-full py-8 flex justify-center">
+          {isFetching && <Loader2 className="animate-spin text-primary-600" size={32} />}
+          {!isFetching && courses.length === 0 && (
+                <div className="text-center py-10">
                     <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
                         <Search size={32} className="text-gray-400" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-900">No courses found</h3>
                     <p className="text-gray-500">Try adjusting your search terms or filters.</p>
                 </div>
-            )}
-        </div>
-      )}
+          )}
+          {!isFetching && courses.length > 0 && !hasMore && (
+              <p className="text-sm text-gray-400 italic">You've reached the end of the list.</p>
+          )}
+      </div>
     </div>
   );
 };

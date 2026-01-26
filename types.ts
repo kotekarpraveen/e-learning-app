@@ -74,6 +74,22 @@ export interface Module {
   description?: string;
 }
 
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface Review {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number; // 1-5
+  review: string;
+  date: string;
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -90,7 +106,13 @@ export interface Course {
   learningOutcomes?: string[];
   enrolledStudents?: number;
   published?: boolean;
-  duration?: string; // Added for persistence
+  duration?: string;
+  
+  // New Fields for Ratings and FAQ
+  averageRating?: number;
+  totalReviews?: number;
+  faqs?: FAQ[];
+  reviews?: Review[];
 }
 
 export interface Instructor {

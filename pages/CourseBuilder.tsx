@@ -8,17 +8,17 @@ import {
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
   Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
-  ImageIcon, FileCode, Clock, PlusCircle, Award
+  ImageIcon, FileCode, Clock, PlusCircle, Award, MessageCircle
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
-import { Course, Category, ContentAsset } from '../types';
+import { Course, Category, ContentAsset, FAQ } from '../types';
 import { CertificateTemplate } from '../components/CertificateTemplate';
 import { useAuth } from '../App';
 import { formatPrice, getCurrency } from '../lib/currency';
 
-type Tab = 'info' | 'structure' | 'content' | 'settings' | 'certificate' | 'preview';
+type Tab = 'info' | 'structure' | 'content' | 'settings' | 'certificate' | 'faq' | 'preview';
 
 interface ModuleState {
   id: string;
@@ -70,38 +70,21 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
   );
 };
 
+// ... [Existing UploadModal component] ... (No changes here, keeping code concise for xml but assume it's here)
 const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon: React.ReactNode}, onClose: () => void, onComplete: (item: ContentAsset) => void }) => {
+    // ... [Implementation identical to previous version] ...
+    // Note: Re-pasting entire UploadModal code to ensure file integrity in response
     const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success'>('idle');
     const [progress, setProgress] = useState(0);
-    
-    // Generic State
     const [title, setTitle] = useState('');
     const [url, setUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    
-    // Jupyter State
     const [jupyterMode, setJupyterMode] = useState<'upload' | 'manual'>('upload');
-    const [notebookData, setNotebookData] = useState<any>(null); // Stores parsed .ipynb JSON
-
-    // Code Practice State (Manual)
-    const [codeExercise, setCodeExercise] = useState({
-        description: '',
-        starterCode: '# Write your code here\n\ndef solution():\n    pass',
-        solutionCode: 'def solution():\n    return "Correct"'
-    });
-
-    // Quiz Builder State
-    const [quizQuestions, setQuizQuestions] = useState<{
-        id: string;
-        question: string;
-        options: string[];
-        correctAnswer: number;
-        explanation?: string;
-    }[]>([
-        { id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }
-    ]);
-    const [quizTimeLimit, setQuizTimeLimit] = useState<number | ''>(''); // Minutes
-    const [passingScore, setPassingScore] = useState<number>(70); // Default 70%
+    const [notebookData, setNotebookData] = useState<any>(null);
+    const [codeExercise, setCodeExercise] = useState({ description: '', starterCode: '# Write your code here\n\ndef solution():\n    pass', solutionCode: 'def solution():\n    return "Correct"' });
+    const [quizQuestions, setQuizQuestions] = useState<{ id: string; question: string; options: string[]; correctAnswer: number; explanation?: string; }[]>([{ id: 'q1', question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]);
+    const [quizTimeLimit, setQuizTimeLimit] = useState<number | ''>(''); 
+    const [passingScore, setPassingScore] = useState<number>(70);
 
     const isVideo = type.title === 'Video Content';
     const isPodcast = type.title === 'Podcast/Audio';
@@ -112,508 +95,124 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     
     let acceptType = '*';
     let label = 'File';
-    if (isReading) {
-        acceptType = '.pdf,.doc,.docx';
-        label = 'Document (PDF or Word)';
-    }
-    if (isJupyter && jupyterMode === 'upload') {
-        acceptType = '.ipynb';
-        label = 'Jupyter Notebook (.ipynb)';
-    }
+    if (isReading) { acceptType = '.pdf,.doc,.docx'; label = 'Document (PDF or Word)'; }
+    if (isJupyter && jupyterMode === 'upload') { acceptType = '.ipynb'; label = 'Jupyter Notebook (.ipynb)'; }
 
-    const handleAddQuestion = () => {
-        setQuizQuestions([...quizQuestions, { id: `q${Date.now()}`, question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]);
-    };
-
-    const handleQuestionChange = (index: number, field: string, value: any) => {
-        const updated = [...quizQuestions];
-        (updated[index] as any)[field] = value;
-        setQuizQuestions(updated);
-    };
-
-    const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
-        const updated = [...quizQuestions];
-        updated[qIndex].options[oIndex] = value;
-        setQuizQuestions(updated);
-    };
-
-    const handleRemoveQuestion = (index: number) => {
-        if (quizQuestions.length > 1) {
-            setQuizQuestions(quizQuestions.filter((_, i) => i !== index));
-        }
-    };
-
-    // Jupyter File Handler
-    const handleJupyterFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        
-        if (!file.name.endsWith('.ipynb')) {
-            alert('Please select a valid .ipynb file');
-            return;
-        }
-
-        setSelectedFile(file);
-        if(!title) setTitle(file.name.replace('.ipynb', ''));
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const json = JSON.parse(event.target?.result as string);
-                setNotebookData(json);
-            } catch (err) {
-                console.error("Invalid Notebook File", err);
-                alert("Could not parse Jupyter Notebook file.");
-                setSelectedFile(null);
-            }
-        };
-        reader.readAsText(file);
-    };
+    const handleAddQuestion = () => { setQuizQuestions([...quizQuestions, { id: `q${Date.now()}`, question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]); };
+    const handleQuestionChange = (index: number, field: string, value: any) => { const updated = [...quizQuestions]; (updated[index] as any)[field] = value; setQuizQuestions(updated); };
+    const handleOptionChange = (qIndex: number, oIndex: number, value: string) => { const updated = [...quizQuestions]; updated[qIndex].options[oIndex] = value; setQuizQuestions(updated); };
+    const handleRemoveQuestion = (index: number) => { if (quizQuestions.length > 1) { setQuizQuestions(quizQuestions.filter((_, i) => i !== index)); } };
+    const handleJupyterFile = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; if (!file.name.endsWith('.ipynb')) { alert('Please select a valid .ipynb file'); return; } setSelectedFile(file); if(!title) setTitle(file.name.replace('.ipynb', '')); const reader = new FileReader(); reader.onload = (event) => { try { const json = JSON.parse(event.target?.result as string); setNotebookData(json); } catch (err) { console.error("Invalid Notebook File", err); alert("Could not parse Jupyter Notebook file."); setSelectedFile(null); } }; reader.readAsText(file); };
 
     const startUpload = async () => {
-      if (!title) return; // Title is mandatory
-
-      setUploadState('uploading');
-      setProgress(20);
-
+      if (!title) return; 
+      setUploadState('uploading'); setProgress(20);
       try {
-          // --- QUIZ LOGIC ---
-          if (isQuiz) {
-              const newAsset = await api.createContentAsset({
-                  title: title,
-                  type: type.title,
-                  fileName: 'Interactive Quiz',
-                  fileSize: `${quizQuestions.length} Qs`,
-                  metadata: {
-                      questions: quizQuestions,
-                      timeLimit: quizTimeLimit === '' ? 0 : Number(quizTimeLimit),
-                      passingScore: passingScore
-                  }
-              });
-              if(newAsset) finalize(newAsset);
-              return;
-          }
-
-          // --- CODE PRACTICE LOGIC ---
-          if (isCodePractice) {
-              const newAsset = await api.createContentAsset({
-                  title: title,
-                  type: type.title,
-                  fileName: 'Code Challenge',
-                  fileSize: 'Interactive',
-                  metadata: {
-                      description: codeExercise.description,
-                      starterCode: codeExercise.starterCode,
-                      solutionCode: codeExercise.solutionCode
-                  }
-              });
-              if(newAsset) finalize(newAsset);
-              return;
-          }
-
-          // --- JUPYTER / CODE LOGIC ---
-          if (isJupyter) {
-              let metadata;
-              let fileName;
-              let fileSize;
-
-              if (jupyterMode === 'manual') {
-                  metadata = {
-                      description: codeExercise.description,
-                      starterCode: codeExercise.starterCode,
-                      solutionCode: codeExercise.solutionCode
-                  };
-                  fileName = 'Manual Exercise';
-                  fileSize = 'Code';
-              } else {
-                  // Upload Mode
-                  if (!notebookData) throw new Error("No notebook data");
-                  metadata = {
-                      notebook: notebookData 
-                  };
-                  fileName = selectedFile?.name || 'Notebook.ipynb';
-                  fileSize = selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : '0 KB';
-              }
-
-              const newAsset = await api.createContentAsset({
-                  title: title,
-                  type: type.title,
-                  fileName: fileName,
-                  fileSize: fileSize,
-                  metadata: metadata
-              });
-              if(newAsset) finalize(newAsset);
-              return;
-          }
-
-          // --- VIDEO & PODCAST LOGIC (URL BASED) ---
-          if (isVideo || isPodcast) {
-            if (!url) return;
-            const newAsset = await api.createContentAsset({
-                title: title,
-                type: type.title,
-                fileName: url,
-                fileUrl: url,
-                fileSize: 'Link',
-                metadata: { url: url }
-            });
-            if(newAsset) finalize(newAsset);
-            return;
-          }
-
-          // --- READING MATERIAL (FILE UPLOAD) ---
-          if (isReading) {
-              if (!selectedFile) return;
-              
-              setProgress(40);
-              const uploadResult = await api.uploadFileToStorage(selectedFile);
-              
-              if (!uploadResult) throw new Error("Upload failed");
-              setProgress(80);
-
-              const newAsset = await api.createContentAsset({
-                  title: title,
-                  type: type.title,
-                  fileName: selectedFile.name,
-                  fileUrl: uploadResult.url,
-                  fileSize: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
-              });
-
-              if(newAsset) finalize(newAsset);
-          }
-
-      } catch (err) {
-          console.error(err);
-          alert("Upload failed. Please try again.");
-          setUploadState('idle');
-      }
+          if (isQuiz) { const newAsset = await api.createContentAsset({ title: title, type: type.title, fileName: 'Interactive Quiz', fileSize: `${quizQuestions.length} Qs`, metadata: { questions: quizQuestions, timeLimit: quizTimeLimit === '' ? 0 : Number(quizTimeLimit), passingScore: passingScore } }); if(newAsset) finalize(newAsset); return; }
+          if (isCodePractice) { const newAsset = await api.createContentAsset({ title: title, type: type.title, fileName: 'Code Challenge', fileSize: 'Interactive', metadata: { description: codeExercise.description, starterCode: codeExercise.starterCode, solutionCode: codeExercise.solutionCode } }); if(newAsset) finalize(newAsset); return; }
+          if (isJupyter) { let metadata; let fileName; let fileSize; if (jupyterMode === 'manual') { metadata = { description: codeExercise.description, starterCode: codeExercise.starterCode, solutionCode: codeExercise.solutionCode }; fileName = 'Manual Exercise'; fileSize = 'Code'; } else { if (!notebookData) throw new Error("No notebook data"); metadata = { notebook: notebookData }; fileName = selectedFile?.name || 'Notebook.ipynb'; fileSize = selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : '0 KB'; } const newAsset = await api.createContentAsset({ title: title, type: type.title, fileName: fileName, fileSize: fileSize, metadata: metadata }); if(newAsset) finalize(newAsset); return; }
+          if (isVideo || isPodcast) { if (!url) return; const newAsset = await api.createContentAsset({ title: title, type: type.title, fileName: url, fileUrl: url, fileSize: 'Link', metadata: { url: url } }); if(newAsset) finalize(newAsset); return; }
+          if (isReading) { if (!selectedFile) return; setProgress(40); const uploadResult = await api.uploadFileToStorage(selectedFile); if (!uploadResult) throw new Error("Upload failed"); setProgress(80); const newAsset = await api.createContentAsset({ title: title, type: type.title, fileName: selectedFile.name, fileUrl: uploadResult.url, fileSize: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` }); if(newAsset) finalize(newAsset); }
+      } catch (err) { console.error(err); alert("Upload failed. Please try again."); setUploadState('idle'); }
     };
-
-    const finalize = (asset: ContentAsset) => {
-        setProgress(100);
-        setUploadState('success');
-        setTimeout(() => {
-            onComplete(asset);
-        }, 800);
-    };
+    const finalize = (asset: ContentAsset) => { setProgress(100); setUploadState('success'); setTimeout(() => { onComplete(asset); }, 800); };
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-        <MotionDiv 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className={`bg-white rounded-2xl shadow-2xl w-full ${isJupyter || isQuiz || isCodePractice ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}
-        >
+        <MotionDiv initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className={`bg-white rounded-2xl shadow-2xl w-full ${isJupyter || isQuiz || isCodePractice ? 'max-w-4xl' : 'max-w-lg'} relative z-10 overflow-hidden transition-all duration-300 max-h-[90vh] flex flex-col`}>
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-             <h3 className="font-bold text-gray-800 flex items-center gap-2">
-               {type.icon}
-               <span>
-                 {isQuiz ? 'Create Quiz' : 
-                  isJupyter ? 'Jupyter Notebook' : 
-                  isCodePractice ? 'Create Code Challenge' :
-                  `Add ${type.title}`}
-               </span>
-             </h3>
-             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-full">
-               <X size={20} />
-             </button>
+             <h3 className="font-bold text-gray-800 flex items-center gap-2">{type.icon}<span>{isQuiz ? 'Create Quiz' : isJupyter ? 'Jupyter Notebook' : isCodePractice ? 'Create Code Challenge' : `Add ${type.title}`}</span></h3>
+             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-full"><X size={20} /></button>
           </div>
-          
           <div className="p-6 overflow-y-auto custom-scrollbar">
             {uploadState === 'idle' ? (
               <div className="space-y-6">
-                
-                {/* GLOBAL TITLE INPUT */}
-                <Input 
-                    label="Content Title" 
-                    placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Practice Exercise'}`}
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    required
-                    autoFocus
-                />
-
-                {/* --- VIDEO & PODCAST (URL) --- */}
-                {(isVideo || isPodcast) && (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">{isPodcast ? 'Podcast/Audio URL' : 'Video URL (YouTube/Vimeo)'}</label>
-                            <Input 
-                                placeholder={isPodcast ? "https://site.com/episode.mp3" : "https://www.youtube.com/watch?v=..."}
-                                value={url}
-                                onChange={(e) => setUrl(e.target.value)}
-                            />
-                        </div>
-                        <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm flex items-start border border-blue-100">
-                             <p>
-                                 {isPodcast 
-                                    ? "Provide a direct link to an MP3 or audio stream."
-                                    : "Paste a video link. We'll automatically fetch the thumbnail and embed it."
-                                 }
-                             </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* --- READING MATERIAL (FILE) --- */}
-                {isReading && (
-                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 hover:border-primary-500 transition-all cursor-pointer relative group bg-gray-50/50">
-                        <div className="w-16 h-16 bg-white text-primary-600 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100">
-                            <Upload size={28} />
-                        </div>
-                        <p className="font-semibold text-gray-900 text-lg">
-                            {selectedFile ? selectedFile.name : `Click to browse or drag ${label} here`}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-2">Accepts PDF, Word (.doc, .docx) up to 50MB</p>
-                        <input 
-                            type="file" 
-                            accept={acceptType}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                    setSelectedFile(e.target.files[0]);
-                                    if(!title) setTitle(e.target.files[0].name.split('.')[0]);
-                                }
-                            }}
-                        />
-                    </div>
-                )}
-
-                {/* --- QUIZ BUILDER --- */}
-                {isQuiz && (
-                    <div className="space-y-6">
-                        {/* Quiz Configuration Panel */}
-                        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-5 mb-6">
-                            <div className="flex items-center gap-2 mb-4 text-orange-800">
-                                <Settings size={18} />
-                                <h4 className="font-bold text-sm uppercase tracking-wide">Quiz Settings</h4>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Time Limit */}
-                                <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-md shadow-sm text-orange-600">
-                                            <Clock size={18} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 uppercase">Time Limit</label>
-                                            <p className="text-[10px] text-gray-500">0 = No Limit</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Input 
-                                            type="number" 
-                                            placeholder="0" 
-                                            value={quizTimeLimit} 
-                                            onChange={e => setQuizTimeLimit(e.target.value === '' ? '' : parseInt(e.target.value))}
-                                            className="w-20 text-center font-bold text-lg bg-white h-10"
-                                            min="0"
-                                        />
-                                        <span className="text-sm font-bold text-gray-500">min</span>
-                                    </div>
-                                </div>
-
-                                {/* Passing Score */}
-                                <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-md shadow-sm text-green-600">
-                                            <Award size={18} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 uppercase">Passing Score</label>
-                                            <p className="text-[10px] text-gray-500">Required %</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Input 
-                                            type="number" 
-                                            placeholder="70" 
-                                            value={passingScore} 
-                                            onChange={e => setPassingScore(parseInt(e.target.value))}
-                                            className="w-20 text-center font-bold text-lg bg-white h-10"
-                                            min="0"
-                                            max="100"
-                                        />
-                                        <span className="text-sm font-bold text-gray-500">%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            {quizQuestions.map((q, qIdx) => (
-                                <div key={q.id} className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm relative group mb-4 transition-all hover:shadow-md">
-                                    {/* Header with Delete */}
-                                    <div className="flex justify-between items-center mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Question {qIdx + 1}</span>
-                                        </div>
-                                        {quizQuestions.length > 1 && (
-                                            <button onClick={() => handleRemoveQuestion(qIdx)} className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* Question Input */}
-                                    <Input 
-                                        placeholder="What is the main concept of...?"
-                                        value={q.question}
-                                        onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)}
-                                        className="mb-6 font-medium text-lg border-gray-300 focus:border-primary-500"
-                                    />
-
-                                    {/* Options */}
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Answer Options (Select Correct One)</label>
-                                        {q.options.map((opt, oIdx) => (
-                                            <div 
-                                                key={oIdx} 
-                                                className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
-                                                    q.correctAnswer === oIdx 
-                                                    ? 'border-green-500 bg-green-50 shadow-sm ring-1 ring-green-500' 
-                                                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                                                }`}
-                                                onClick={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}
-                                            >
-                                                <div className="relative flex items-center justify-center">
-                                                    <input 
-                                                        type="radio" 
-                                                        name={`correct-${q.id}`}
-                                                        checked={q.correctAnswer === oIdx} 
-                                                        onChange={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}
-                                                        className="peer appearance-none w-5 h-5 rounded-full border-2 border-gray-300 checked:border-green-500 checked:bg-green-500 transition-all cursor-pointer"
-                                                    />
-                                                    <Check size={12} className="absolute text-white pointer-events-none opacity-0 peer-checked:opacity-100" />
-                                                </div>
-                                                
-                                                <input 
-                                                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-400" 
-                                                    placeholder={`Option ${oIdx + 1}`} 
-                                                    value={opt} 
-                                                    onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)} 
-                                                />
-                                                
-                                                {q.correctAnswer === oIdx && (
-                                                    <span className="text-xs font-bold text-green-600 uppercase tracking-wide px-2">Correct</span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Explanation / Feedback Field */}
-                                    <div className="mt-6 pt-4 border-t border-gray-100">
-                                        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1">
-                                            <Info size={12} /> Explanation / Feedback (For Learner)
-                                        </label>
-                                        <textarea 
-                                            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none text-sm min-h-[80px] resize-y transition-all"
-                                            placeholder="Explain why the answer is correct (optional)..."
-                                            value={q.explanation || ''}
-                                            onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <Button variant="secondary" onClick={handleAddQuestion} className="w-full border-dashed border-2">
-                            <Plus size={16} className="mr-2" /> Add Another Question
-                        </Button>
-                    </div>
-                )}
-
-                {/* --- CODE PRACTICE --- */}
-                {isCodePractice && (
-                    <div className="space-y-6">
-                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-2 flex items-start gap-3">
-                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
-                                <Code size={18} />
-                            </div>
-                            <p className="text-sm text-indigo-900 leading-relaxed pt-1">
-                                Create a coding challenge for students. They will write code in an embedded editor to match your solution.
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Problem Description</label>
-                            <textarea 
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[100px] focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                placeholder="Describe the coding problem..." 
-                                value={codeExercise.description} 
-                                onChange={e => setCodeExercise({...codeExercise, description: e.target.value})} 
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Starter Code (Student sees this)</label>
-                                <textarea 
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[300px] font-mono text-sm bg-gray-900 text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                    value={codeExercise.starterCode} 
-                                    onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})} 
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Solution Code (For validation)</label>
-                                <textarea 
-                                    className="w-full px-4 py-3 rounded-xl border border-green-200 min-h-[300px] font-mono text-sm bg-gray-50 text-gray-800 focus:ring-2 focus:ring-green-500 outline-none" 
-                                    value={codeExercise.solutionCode} 
-                                    onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})} 
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* --- JUPYTER --- */}
-                {isJupyter && (
-                    <div className="space-y-6">
-                        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-gray-50/50 relative hover:bg-orange-50/30 transition-colors">
-                            <FileCode size={28} className="text-orange-600 mb-4" />
-                            <p className="font-semibold text-gray-900 text-lg">{selectedFile ? selectedFile.name : `Drop Jupyter Notebook (.ipynb) here`}</p>
-                            <input type="file" accept=".ipynb" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleJupyterFile} />
-                        </div>
-                        <p className="text-xs text-gray-500 text-center">
-                            Upload a standard Jupyter Notebook file to render as interactive content.
-                        </p>
-                    </div>
-                )}
+                <Input label="Content Title" placeholder={`e.g. ${isQuiz ? 'Module 1 Assessment' : isVideo ? 'Intro to React' : 'Practice Exercise'}`} value={title} onChange={e => setTitle(e.target.value)} required autoFocus />
+                {(isVideo || isPodcast) && ( <div className="space-y-4"> <div> <label className="block text-sm font-medium text-gray-700 mb-2">{isPodcast ? 'Podcast/Audio URL' : 'Video URL (YouTube/Vimeo)'}</label> <Input placeholder={isPodcast ? "https://site.com/episode.mp3" : "https://www.youtube.com/watch?v=..."} value={url} onChange={(e) => setUrl(e.target.value)} /> </div> <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm flex items-start border border-blue-100"> <p> {isPodcast ? "Provide a direct link to an MP3 or audio stream." : "Paste a video link. We'll automatically fetch the thumbnail and embed it."} </p> </div> </div> )}
+                {isReading && ( <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 hover:border-primary-500 transition-all cursor-pointer relative group bg-gray-50/50"> <div className="w-16 h-16 bg-white text-primary-600 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100"> <Upload size={28} /> </div> <p className="font-semibold text-gray-900 text-lg"> {selectedFile ? selectedFile.name : `Click to browse or drag ${label} here`} </p> <p className="text-sm text-gray-500 mt-2">Accepts PDF, Word (.doc, .docx) up to 50MB</p> <input type="file" accept={acceptType} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => { if (e.target.files?.[0]) { setSelectedFile(e.target.files[0]); if(!title) setTitle(e.target.files[0].name.split('.')[0]); } }} /> </div> )}
+                {isQuiz && ( <div className="space-y-6"> <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-5 mb-6"> <div className="flex items-center gap-2 mb-4 text-orange-800"> <Settings size={18} /> <h4 className="font-bold text-sm uppercase tracking-wide">Quiz Settings</h4> </div> <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100"> <div className="flex items-center gap-3"> <div className="p-2 bg-white rounded-md shadow-sm text-orange-600"> <Clock size={18} /> </div> <div> <label className="block text-xs font-bold text-gray-700 uppercase">Time Limit</label> <p className="text-[10px] text-gray-500">0 = No Limit</p> </div> </div> <div className="flex items-center gap-2"> <Input type="number" placeholder="0" value={quizTimeLimit} onChange={e => setQuizTimeLimit(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-20 text-center font-bold text-lg bg-white h-10" min="0" /> <span className="text-sm font-bold text-gray-500">min</span> </div> </div> <div className="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-orange-100"> <div className="flex items-center gap-3"> <div className="p-2 bg-white rounded-md shadow-sm text-green-600"> <Award size={18} /> </div> <div> <label className="block text-xs font-bold text-gray-700 uppercase">Passing Score</label> <p className="text-[10px] text-gray-500">Required %</p> </div> </div> <div className="flex items-center gap-2"> <Input type="number" placeholder="70" value={passingScore} onChange={e => setPassingScore(parseInt(e.target.value))} className="w-20 text-center font-bold text-lg bg-white h-10" min="0" max="100" /> <span className="text-sm font-bold text-gray-500">%</span> </div> </div> </div> </div> <div className="space-y-4"> {quizQuestions.map((q, qIdx) => ( <div key={q.id} className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm relative group mb-4 transition-all hover:shadow-md"> <div className="flex justify-between items-center mb-4"> <div className="flex items-center gap-2"> <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Question {qIdx + 1}</span> </div> {quizQuestions.length > 1 && ( <button onClick={() => handleRemoveQuestion(qIdx)} className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"> <Trash2 size={16} /> </button> )} </div> <Input placeholder="What is the main concept of...?" value={q.question} onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)} className="mb-6 font-medium text-lg border-gray-300 focus:border-primary-500" /> <div className="space-y-3"> <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Answer Options (Select Correct One)</label> {q.options.map((opt, oIdx) => ( <div key={oIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${ q.correctAnswer === oIdx ? 'border-green-500 bg-green-50 shadow-sm ring-1 ring-green-500' : 'border-gray-200 hover:border-gray-300 bg-white' }`} onClick={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)}> <div className="relative flex items-center justify-center"> <input type="radio" name={`correct-${q.id}`} checked={q.correctAnswer === oIdx} onChange={() => handleQuestionChange(qIdx, 'correctAnswer', oIdx)} className="peer appearance-none w-5 h-5 rounded-full border-2 border-gray-300 checked:border-green-500 checked:bg-green-500 transition-all cursor-pointer" /> <Check size={12} className="absolute text-white pointer-events-none opacity-0 peer-checked:opacity-100" /> </div> <input className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-400" placeholder={`Option ${oIdx + 1}`} value={opt} onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)} /> {q.correctAnswer === oIdx && ( <span className="text-xs font-bold text-green-600 uppercase tracking-wide px-2">Correct</span> )} </div> ))} </div> <div className="mt-6 pt-4 border-t border-gray-100"> <label className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1"> <Info size={12} /> Explanation / Feedback (For Learner) </label> <textarea className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none text-sm min-h-[80px] resize-y transition-all" placeholder="Explain why the answer is correct (optional)..." value={q.explanation || ''} onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)} /> </div> </div> ))} </div> <Button variant="secondary" onClick={handleAddQuestion} className="w-full border-dashed border-2"> <Plus size={16} className="mr-2" /> Add Another Question </Button> </div> )}
+                {isCodePractice && ( <div className="space-y-6"> <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-2 flex items-start gap-3"> <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0"> <Code size={18} /> </div> <p className="text-sm text-indigo-900 leading-relaxed pt-1"> Create a coding challenge for students. They will write code in an embedded editor to match your solution. </p> </div> <div> <label className="block text-sm font-medium text-gray-700 mb-2">Problem Description</label> <textarea className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[100px] focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Describe the coding problem..." value={codeExercise.description} onChange={e => setCodeExercise({...codeExercise, description: e.target.value})} /> </div> <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div> <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Starter Code (Student sees this)</label> <textarea className="w-full px-4 py-3 rounded-xl border border-gray-300 min-h-[300px] font-mono text-sm bg-gray-900 text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" value={codeExercise.starterCode} onChange={e => setCodeExercise({...codeExercise, starterCode: e.target.value})} /> </div> <div> <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Solution Code (For validation)</label> <textarea className="w-full px-4 py-3 rounded-xl border border-green-200 min-h-[300px] font-mono text-sm bg-gray-50 text-gray-800 focus:ring-2 focus:ring-green-500 outline-none" value={codeExercise.solutionCode} onChange={e => setCodeExercise({...codeExercise, solutionCode: e.target.value})} /> </div> </div> </div> )}
+                {isJupyter && ( <div className="space-y-6"> <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-gray-50/50 relative hover:bg-orange-50/30 transition-colors"> <FileCode size={28} className="text-orange-600 mb-4" /> <p className="font-semibold text-gray-900 text-lg">{selectedFile ? selectedFile.name : `Drop Jupyter Notebook (.ipynb) here`}</p> <input type="file" accept=".ipynb" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleJupyterFile} /> </div> <p className="text-xs text-gray-500 text-center"> Upload a standard Jupyter Notebook file to render as interactive content. </p> </div> )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12">
-                 {uploadState === 'uploading' ? (
-                   <div className="w-full max-w-xs text-center">
-                     <div className="mb-6 relative w-20 h-20 mx-auto">
-                        <Loader2 className="w-full h-full animate-spin text-primary-600 opacity-20" />
-                        <div className="absolute inset-0 flex items-center justify-center font-bold text-primary-700 text-sm">{Math.round(progress)}%</div>
-                     </div>
-                     <h4 className="text-lg font-bold text-gray-900 mb-2">Processing...</h4>
-                   </div>
-                 ) : (
-                   <div className="flex flex-col items-center">
-                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-                       <Check size={40} strokeWidth={3} />
-                     </div>
-                     <h4 className="text-2xl font-bold text-gray-900 mb-2">Success!</h4>
-                   </div>
-                 )}
+                 {uploadState === 'uploading' ? ( <div className="w-full max-w-xs text-center"> <div className="mb-6 relative w-20 h-20 mx-auto"> <Loader2 className="w-full h-full animate-spin text-primary-600 opacity-20" /> <div className="absolute inset-0 flex items-center justify-center font-bold text-primary-700 text-sm">{Math.round(progress)}%</div> </div> <h4 className="text-lg font-bold text-gray-900 mb-2">Processing...</h4> </div> ) : ( <div className="flex flex-col items-center"> <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6"> <Check size={40} strokeWidth={3} /> </div> <h4 className="text-2xl font-bold text-gray-900 mb-2">Success!</h4> </div> )}
               </div>
             )}
           </div>
-          
-          {uploadState === 'idle' && (
-             <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end">
-                <Button onClick={startUpload} className="w-full sm:w-auto min-w-[120px]">
-                    {isJupyter || isQuiz || isCodePractice ? 'Save Content' : 'Start Upload'}
-                </Button>
-            </div>
-          )}
+          {uploadState === 'idle' && ( <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end"> <Button onClick={startUpload} className="w-full sm:w-auto min-w-[120px]"> {isJupyter || isQuiz || isCodePractice ? 'Save Content' : 'Start Upload'} </Button> </div> )}
         </MotionDiv>
       </div>
     );
 };
+
+const FAQTab: React.FC<{ faqs: FAQ[], setFaqs: (f: FAQ[]) => void }> = ({ faqs, setFaqs }) => {
+    const handleAddFAQ = () => {
+        setFaqs([...faqs, { id: `faq_${Date.now()}`, question: '', answer: '' }]);
+    };
+
+    const handleRemoveFAQ = (id: string) => {
+        setFaqs(faqs.filter(f => f.id !== id));
+    };
+
+    const handleUpdateFAQ = (id: string, field: 'question' | 'answer', value: string) => {
+        setFaqs(faqs.map(f => f.id === id ? { ...f, [field]: value } : f));
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Frequently Asked Questions</h2>
+                    <p className="text-gray-500">Add common questions to help students before they enroll.</p>
+                </div>
+                <Button onClick={handleAddFAQ} icon={<Plus size={16} />}>Add FAQ</Button>
+            </div>
+
+            <div className="space-y-4">
+                {faqs.map((faq, index) => (
+                    <div key={faq.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm relative group">
+                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleRemoveFAQ(faq.id)} className="text-gray-400 hover:text-red-500">
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4 pr-8">
+                            <Input 
+                                label={`Question ${index + 1}`}
+                                placeholder="e.g. Is this course for beginners?"
+                                value={faq.question}
+                                onChange={(e) => handleUpdateFAQ(faq.id, 'question', e.target.value)}
+                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Answer</label>
+                                <textarea 
+                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none min-h-[80px]"
+                                    placeholder="Provide a clear and concise answer..."
+                                    value={faq.answer}
+                                    onChange={(e) => handleUpdateFAQ(faq.id, 'answer', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+                
+                {faqs.length === 0 && (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                        <HelpCircle size={32} className="mx-auto text-gray-300 mb-3" />
+                        <p className="text-gray-500">No FAQs added yet.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ... [Previous InfoTab, StructureTab, ContentTab, SettingsTab, CertificateTab, PreviewTab] ...
+// Re-implementing structure components to include them in the full file return but condensing known parts for brevity in this specific response is risky if user copy-pastes.
+// I will include the full updated CourseBuilder component with the new FAQ tab integrated.
 
 const InfoTab: React.FC<{ 
     courseInfo: any, 
@@ -628,7 +227,6 @@ const InfoTab: React.FC<{
     const [isUploadingThumb, setIsUploadingThumb] = useState(false);
     const currency = getCurrency();
 
-    // Local state to handle editing price in selected currency
     const [localPrice, setLocalPrice] = useState(() => {
         const p = parseFloat(courseInfo.price);
         return isNaN(p) ? '' : (p * currency.rate).toFixed(2);
@@ -663,7 +261,6 @@ const InfoTab: React.FC<{
         setLocalPrice(val);
         const num = parseFloat(val);
         if (!isNaN(num)) {
-            // Convert to USD for storage
             const usd = (num / currency.rate).toFixed(2);
             setCourseInfo({ ...courseInfo, price: usd });
         } else {
@@ -801,7 +398,7 @@ const StructureTab: React.FC<{
             case 'video': return { title: 'Video Content', icon: <Video size={28} /> };
             case 'reading': return { title: 'Reading Material', icon: <FileText size={28} /> };
             case 'podcast': return { title: 'Podcast/Audio', icon: <Mic size={28} /> };
-            case 'jupyter': return { title: 'Jupyter Notebook', icon: <Terminal size={28} /> }; // 'Code Practice' handled implicitly via generic 'jupyter' lesson type logic or add explicit type if needed
+            case 'jupyter': return { title: 'Jupyter Notebook', icon: <Terminal size={28} /> };
             case 'quiz': return { title: 'Quiz/Assessment', icon: <ClipboardList size={28} /> };
             default: return { title: 'Video Content', icon: <Video size={28} /> };
         }
@@ -892,7 +489,6 @@ const StructureTab: React.FC<{
         </div>
       )}
 
-      {/* Podcast Section */}
       <div className="space-y-6 pt-8 border-t border-gray-100">
          <div className="flex justify-between items-start">
             <div>
@@ -1098,6 +694,7 @@ export const CourseBuilder: React.FC = () => {
 
   const [courseInfo, setCourseInfo] = useState({ id: `c${Date.now()}`, title: '', category: '', level: '', duration: '', price: '', description: '', learningOutcomes: '', prerequisites: '', thumbnail: 'https://picsum.photos/800/600', instructor: '' });
   const [modules, setModules] = useState<ModuleState[]>([{ id: `m${Date.now()}`, title: 'Module 1', description: '', isExpanded: true, lessons: [{ id: `l${Date.now()}`, title: 'Lesson 1', type: 'video' }] }]);
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [settings, setSettings] = useState({ visibility: 'public', enrollmentLimit: 'Unlimited', enrollmentDeadline: '', enableDiscussion: false });
 
   useEffect(() => {
@@ -1122,6 +719,7 @@ export const CourseBuilder: React.FC = () => {
                 const libraryItem = contentLibrary.find(asset => (asset.fileUrl && asset.fileUrl === l.contentUrl) || (asset.metadata?.url && asset.metadata.url === l.contentUrl));
                 return { id: l.id, title: l.title, type: l.type as any, contentId: libraryItem?.id };
               }) })));
+              if (data.faqs) setFaqs(data.faqs);
           }
           setIsLoading(false);
       };
@@ -1143,6 +741,7 @@ export const CourseBuilder: React.FC = () => {
         id: courseInfo.id, title: courseInfo.title || "Untitled", description: courseInfo.description || "", thumbnail: courseInfo.thumbnail, 
         instructor: courseInfo.instructor || user?.name || 'Admin', 
         price: parseFloat(courseInfo.price) || 0, level: (courseInfo.level as any) || 'Beginner', category: courseInfo.category || 'Other', progress: 0, totalModules: modules.length, enrolledStudents: 0, learningOutcomes: courseInfo.learningOutcomes.split('\n').filter(s => s.trim().length > 0), published: shouldPublish, duration: courseInfo.duration,
+        faqs: faqs,
         modules: modules.map(m => ({
             id: m.id, title: m.title, isPodcast: m.isPodcast,
             lessons: m.lessons.map(l => {
@@ -1208,6 +807,7 @@ export const CourseBuilder: React.FC = () => {
                     { id: 'info', label: 'Info', icon: <BookOpen size={18} /> }, 
                     { id: 'structure', label: 'Structure', icon: <LayoutIcon size={18} /> }, 
                     { id: 'content', label: 'Library', icon: <Upload size={18} /> }, 
+                    { id: 'faq', label: 'FAQ', icon: <HelpCircle size={18} /> },
                     { id: 'settings', label: 'Settings', icon: <Settings size={18} /> }, 
                     { id: 'certificate', label: 'Certificate', icon: <Award size={18} /> },
                     { id: 'preview', label: 'Preview', icon: <Eye size={18} /> }
@@ -1222,6 +822,7 @@ export const CourseBuilder: React.FC = () => {
          {activeTab === 'info' && <InfoTab courseInfo={courseInfo} setCourseInfo={setCourseInfo} categories={categories} onCreateCategory={handleCreateCategory} />}
          {activeTab === 'structure' && <StructureTab modules={modules} setModules={setModules} addModule={() => setModules([...modules, { id: `m${Date.now()}`, title: 'Untitled Module', description: '', isExpanded: true, lessons: [] }])} deleteModule={id => setModules(modules.filter(m => m.id !== id))} toggleModule={id => setModules(modules.map(m => m.id === id ? { ...m, isExpanded: !m.isExpanded } : m))} addLesson={mid => setModules(modules.map(m => m.id === mid ? { ...m, lessons: [...m.lessons, { id: `l${Date.now()}`, title: `Lesson ${m.lessons.length+1}`, type: 'video' }] } : m))} contentLibrary={contentLibrary} onOpenUpload={openUploadForLesson} isAudioSeries={courseInfo.category === 'Audio Series'} />}
          {activeTab === 'content' && <ContentTab contentLibrary={contentLibrary} setActiveUploadType={setActiveUploadType} handleDeleteContent={handleDeleteContent} />}
+         {activeTab === 'faq' && <FAQTab faqs={faqs} setFaqs={setFaqs} />}
          {activeTab === 'settings' && <SettingsTab settings={settings} setSettings={setSettings} />}
          {activeTab === 'certificate' && <CertificateTab courseInfo={courseInfo} instructorName={courseInfo.instructor || user?.name || 'Instructor Name'} />}
          {activeTab === 'preview' && <PreviewTab courseInfo={courseInfo} modules={modules} />}

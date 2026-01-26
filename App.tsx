@@ -6,6 +6,7 @@ import { StudentDashboard } from './pages/StudentDashboard';
 import { BrowseCourses } from './pages/BrowseCourses';
 import { CourseLanding } from './pages/CourseLanding';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminCourses } from './pages/AdminCourses';
 import { CourseBuilder } from './pages/CourseBuilder';
 import { CoursePlayer } from './pages/CoursePlayer';
 import { Certificate } from './pages/Certificate';
@@ -227,7 +228,7 @@ const App: React.FC = () => {
           {/* Instructor & Admin Shared Routes */}
           <Route element={<ProtectedRoute allowedRoles={instructorRoles} />}>
              <Route path="/admin" element={<AdminDashboard />} />
-             <Route path="/admin/courses" element={<AdminDashboard />} />
+             <Route path="/admin/courses" element={<AdminCourses />} />
              <Route path="/admin/course-builder" element={<CourseBuilder />} />
              <Route path="/admin/settings" element={<Settings />} />
           </Route>

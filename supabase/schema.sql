@@ -51,6 +51,8 @@ create table if not exists public.courses (
   learning_outcomes text[],
   total_modules integer default 0,
   duration text,
+  average_rating numeric default 0,
+  total_reviews integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -74,6 +76,24 @@ create table if not exists public.lessons (
   content_data jsonb,
   duration text,
   "order" integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create table if not exists public.course_faqs (
+  id uuid default uuid_generate_v4() primary key,
+  course_id text references public.courses(id) on delete cascade,
+  question text not null,
+  answer text not null,
+  "order" integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create table if not exists public.course_reviews (
+  id uuid default uuid_generate_v4() primary key,
+  course_id text references public.courses(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  rating integer check (rating >= 1 and rating <= 5),
+  review text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
@@ -188,6 +208,8 @@ alter table public.user_progress enable row level security;
 alter table public.transactions enable row level security;
 alter table public.payment_requests enable row level security;
 alter table public.content_assets enable row level security;
+alter table public.course_faqs enable row level security;
+alter table public.course_reviews enable row level security;
 
 -- Helper macro for safe policy creation
 do $$
@@ -233,6 +255,20 @@ begin
     create policy "Admins can manage lessons" on public.lessons for all using (public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin']));
   end if;
 
+  -- FAQS & REVIEWS
+  if not exists (select from pg_policies where policyname = 'Public can view FAQs') then
+    create policy "Public can view FAQs" on public.course_faqs for select using (true);
+  end if;
+  if not exists (select from pg_policies where policyname = 'Admins can manage FAQs') then
+    create policy "Admins can manage FAQs" on public.course_faqs for all using (public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin']));
+  end if;
+  if not exists (select from pg_policies where policyname = 'Public can view Reviews') then
+    create policy "Public can view Reviews" on public.course_reviews for select using (true);
+  end if;
+  if not exists (select from pg_policies where policyname = 'Authenticated users can post reviews') then
+    create policy "Authenticated users can post reviews" on public.course_reviews for insert with check (auth.uid() = user_id);
+  end if;
+
   -- ENROLLMENTS
   if not exists (select from pg_policies where policyname = 'Users can view own enrollments') then
     create policy "Users can view own enrollments" on public.enrollments for select using (auth.uid() = user_id);
@@ -240,7 +276,6 @@ begin
   if not exists (select from pg_policies where policyname = 'Users can enroll themselves') then
     create policy "Users can enroll themselves" on public.enrollments for insert with check (auth.uid() = user_id);
   end if;
-  -- Fix: Admin Enrollment
   if not exists (select from pg_policies where policyname = 'Admins can view all enrollments') then
     create policy "Admins can view all enrollments" on public.enrollments for select using (public.check_user_role(ARRAY['admin', 'super_admin', 'instructor', 'sub_admin']));
   end if;
