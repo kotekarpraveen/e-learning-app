@@ -18,14 +18,14 @@ export const AdminCourseCard: React.FC<{ course: Course; onDelete: (id: string) 
     >
       <div className="h-40 overflow-hidden relative">
         <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute top-3 right-3">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full shadow-sm ${course.published ? 'bg-primary-500 text-white' : 'bg-gray-500 text-white'}`}>
-            {course.published ? 'Published' : 'Draft'}
-          </span>
-        </div>
       </div>
       <div className="p-5">
-        <h3 className="font-bold text-gray-900 text-lg mb-1 line-clamp-1" title={course.title}>{course.title}</h3>
+        <div className="flex items-start justify-between gap-3 mb-1">
+            <h3 className="font-bold text-gray-900 text-lg line-clamp-1 leading-tight" title={course.title}>{course.title}</h3>
+            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border ${course.published ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                {course.published ? 'Published' : 'Draft'}
+            </span>
+        </div>
         
         <div className="flex items-center text-xs text-gray-500 mb-4 space-x-3">
            <span className="flex items-center"><Users size={14} className="mr-1 text-primary-500" /> {course.enrolledStudents || 0}</span>

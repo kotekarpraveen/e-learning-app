@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { Lesson, Course } from '../types';
 import { 
   Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
-  ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
   BookOpen, Headphones, Clock, XCircle, Award, PanelLeftClose, PanelLeftOpen, Menu,
   ExternalLink, Maximize2, File, MessageSquare, Check, ArrowLeft, User, RotateCcw, X
 } from 'lucide-react';
@@ -419,6 +419,7 @@ export const CoursePlayer: React.FC = () => {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [activeMobileTab, setActiveMobileTab] = useState<'content' | 'discussion'>('content');
+  const [mobileMenuExpanded, setMobileMenuExpanded] = useState(true);
   
   const mediaRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -433,6 +434,13 @@ export const CoursePlayer: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-expand menu on mobile if in list view (no lesson selected)
+  useEffect(() => {
+    if (!currentLesson && isMobile) {
+        setMobileMenuExpanded(true);
+    }
+  }, [currentLesson, isMobile]);
 
   useEffect(() => {
     const fetchCourseAndProgress = async () => {
@@ -655,24 +663,37 @@ export const CoursePlayer: React.FC = () => {
         animate={!isMobile ? { width: sidebarExpanded ? 340 : 0 } : {}}
         className={`
             bg-white border-r border-gray-200 relative z-40 flex flex-col
-            ${isMobile ? 'order-2 w-full flex-1 border-t border-gray-200 min-h-0' : 'order-1 h-full overflow-hidden border-r'}
+            ${isMobile 
+                ? `order-2 w-full border-t border-gray-200 transition-all duration-300 ease-in-out ${mobileMenuExpanded ? 'flex-1 min-h-0' : 'h-14 flex-none'}`
+                : 'order-1 h-full overflow-hidden border-r'
+            }
             ${!isMobile && !sidebarExpanded ? 'border-none' : ''}
         `}
       >
-        {/* Mobile Tabs */}
-        <div className="lg:hidden flex border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10">
-            <button 
-                onClick={() => setActiveMobileTab('content')}
-                className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'content' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
-            >
-                Course Content
-            </button>
-            <button 
-                onClick={() => setActiveMobileTab('discussion')}
-                className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'discussion' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
-            >
-                Discussion
-            </button>
+        {/* Mobile Tabs & Toggle */}
+        <div className="lg:hidden flex items-center border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10 h-14">
+            <div className="flex flex-1">
+                <button 
+                    onClick={() => { setActiveMobileTab('content'); setMobileMenuExpanded(true); }}
+                    className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'content' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
+                >
+                    Content
+                </button>
+                <button 
+                    onClick={() => { setActiveMobileTab('discussion'); setMobileMenuExpanded(true); }}
+                    className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'discussion' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
+                >
+                    Discussion
+                </button>
+            </div>
+            {currentLesson && (
+                <button 
+                    onClick={() => setMobileMenuExpanded(!mobileMenuExpanded)}
+                    className="p-3 text-gray-500 hover:text-gray-900 border-l border-gray-100"
+                >
+                    {mobileMenuExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                </button>
+            )}
         </div>
 
         {/* Content List */}
@@ -738,7 +759,11 @@ export const CoursePlayer: React.FC = () => {
       <div className={`
           flex flex-col bg-gray-50 relative 
           ${isMobile 
-            ? 'order-1 w-full ' + (currentLesson ? ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') : 'hidden')
+            ? 'order-1 w-full ' + (
+                !currentLesson ? 'hidden' : 
+                !mobileMenuExpanded ? 'flex-1 h-full' : // Collapsed menu => Player full height
+                ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') // Expanded menu => Player constrained
+              )
             : 'order-2 flex-1 h-full overflow-hidden'
           }
           ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
