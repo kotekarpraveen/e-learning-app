@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -338,11 +339,15 @@ export const CoursePlayer: React.FC = () => {
       case 'video':
         const videoId = getYoutubeId(currentLesson.contentUrl);
         return (
-          <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg w-full">
+          <div className={`bg-black overflow-hidden shadow-lg w-full relative ${isMobile ? 'aspect-video rounded-none' : 'aspect-video rounded-xl'}`}>
              <iframe 
                 width="100%" height="100%" 
-                src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0`} 
-                title="Video player" frameBorder="0" allowFullScreen
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0&playsinline=1&showinfo=0&controls=1&origin=${window.location.origin}`} 
+                title="Video player" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowFullScreen
+                className="absolute inset-0"
              ></iframe>
           </div>
         );
@@ -354,7 +359,7 @@ export const CoursePlayer: React.FC = () => {
         const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
 
         return (
-          <div className={`space-y-4 max-w-5xl mx-auto h-full flex flex-col ${isMobile ? 'h-[50vh]' : ''}`}>
+          <div className={`space-y-4 max-w-5xl mx-auto h-full flex flex-col ${isMobile ? 'h-auto min-h-[50vh]' : ''}`}>
              <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
                 <div className="flex items-center gap-3">
                    <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
@@ -404,7 +409,7 @@ export const CoursePlayer: React.FC = () => {
         return <QuizPlayer lessonId={currentLesson.id} contentData={currentLesson.contentData} onComplete={toggleComplete} isCompleted={completedLessonIds.has(currentLesson.id)} />;
       case 'podcast':
         return (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto w-full">
              {/* Use video tag to support both audio and video formats as source, but hide visual */}
              <video 
                 ref={mediaRef} 
@@ -536,8 +541,11 @@ export const CoursePlayer: React.FC = () => {
 
       {/* 2. MAIN PLAYER AREA (Desktop: Right, Mobile: Top via Flex Order) */}
       <div className={`
-          flex-1 flex flex-col h-full overflow-hidden bg-gray-50 relative 
-          ${isMobile ? 'order-1 shrink-0' : 'order-2'}
+          flex flex-col bg-gray-50 relative 
+          ${isMobile 
+            ? 'order-1 w-full ' + ((currentLesson?.type === 'video' || currentLesson?.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]')
+            : 'order-2 flex-1 h-full overflow-hidden'
+          }
       `}>
         <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
            <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
@@ -562,7 +570,7 @@ export const CoursePlayer: React.FC = () => {
         </header>
         
         {/* Content Container */}
-        <main className={`flex-1 overflow-y-auto custom-scrollbar ${isMobile ? 'p-0 bg-black' : 'p-4 lg:p-10'}`}>
+        <main className={`overflow-y-auto custom-scrollbar ${isMobile ? 'p-0 bg-black flex-1' : 'p-4 lg:p-10 flex-1'}`}>
            <div className="max-w-5xl mx-auto h-full">
               <AnimatePresence mode="wait">
                 <MotionDiv 
