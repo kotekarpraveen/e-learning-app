@@ -233,7 +233,7 @@ export const AdminAnalytics: React.FC = () => {
                     </div>
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span>In Progress (>50%)</span>
+                            <span>In Progress (&gt;50%)</span>
                             <span className="font-bold">45%</span>
                         </div>
                         <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 w-[45%]"></div></div>
