@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, BookOpen, TrendingUp, Clock, Plus,
-  BarChart2, ChevronDown, RefreshCw, Database, Loader2
+  BarChart2, ChevronDown, RefreshCw, Database, Loader2, Mic
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
@@ -204,6 +204,11 @@ export const AdminDashboard: React.FC = () => {
                      <Plus className="mb-3 text-primary-600 group-hover:scale-110 transition-transform" size={24} />
                      <span className="font-bold text-gray-800 text-sm block">Create New Course</span>
                      <span className="text-[10px] text-gray-500">Start building...</span>
+                  </button>
+                  <button onClick={() => navigate('/admin/course-builder?category=Audio Series')} className="bg-white p-4 rounded-xl border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all text-left group">
+                     <Mic className="mb-3 text-purple-600 group-hover:scale-110 transition-transform" size={24} />
+                     <span className="font-bold text-gray-800 text-sm block">Create Audio Series</span>
+                     <span className="text-[10px] text-gray-500">Add podcast content...</span>
                   </button>
                   <button onClick={() => navigate('/admin/courses')} className="bg-white p-4 rounded-xl border border-gray-200 hover:border-primary-500 hover:shadow-md transition-all text-left group">
                      <BookOpen className="mb-3 text-primary-600 group-hover:scale-110 transition-transform" size={24} />

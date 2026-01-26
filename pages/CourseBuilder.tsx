@@ -6,9 +6,9 @@ import {
   Save, Upload, Layout as LayoutIcon, Settings, Eye, ChevronLeft, Plus, 
   Video, FileText, Mic, Terminal, ClipboardList, Trash2, 
   GripVertical, ChevronDown, ChevronUp, Calendar,
-  HelpCircle, Play, BookOpen, X, Loader2, Check, File,
+  HelpCircle, Play, PlayCircle, BookOpen, X, Loader2, Check, File,
   Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
-  ImageIcon, FileCode, Clock, PlusCircle, Award, MessageCircle
+  ImageIcon, FileCode, Clock, PlusCircle, Award, MessageCircle, Users
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -428,7 +428,7 @@ const StructureTab: React.FC<{
         if (!podcastModule) {
             setModules([...modules, {
                 id: 'podcast-module',
-                title: 'Audio Companion & Podcast',
+                title: isAudioSeries ? 'Series Episodes' : 'Audio Companion & Podcast',
                 description: 'Audio-only content',
                 isExpanded: true,
                 isPodcast: true,
@@ -551,16 +551,18 @@ const StructureTab: React.FC<{
         </div>
       )}
 
-      <div className="space-y-6 pt-8 border-t border-gray-100">
+      <div className={`space-y-6 ${!isAudioSeries ? 'pt-8 border-t border-gray-100' : ''}`}>
          <div className="flex justify-between items-start">
             <div>
-               <h2 className="text-2xl font-bold text-gray-900">Audio Companion</h2>
+               <h2 className="text-2xl font-bold text-gray-900">{isAudioSeries ? 'Podcast Series Content' : 'Audio Companion'}</h2>
+               {isAudioSeries && <p className="text-gray-500 mt-1">Manage your podcast episodes here. This content will appear in the audio player.</p>}
             </div>
             {!podcastModule && !isAudioSeries && (
                 <Button onClick={handleAddPodcastEpisode} variant="secondary">Enable Podcast Section</Button>
             )}
          </div>
 
+         {/* If we are in Audio Series mode but no module exists, show the empty state with Add button */}
          {(podcastModule || isAudioSeries) && (
              <div className="bg-white rounded-xl border border-purple-100 overflow-hidden">
                 <div className="p-4 bg-purple-50 flex items-center justify-between">
@@ -568,7 +570,7 @@ const StructureTab: React.FC<{
                     <Button size="sm" onClick={handleAddPodcastEpisode}><Plus size={14} /> Add Episode</Button>
                 </div>
                 <div className="p-4 space-y-3">
-                    {podcastModule?.lessons.map((lesson) => (
+                    {podcastModule ? podcastModule.lessons.map((lesson) => (
                         <div key={lesson.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-100">
                             <Mic size={18} className="text-purple-600" />
                             <input className="flex-1 font-semibold focus:outline-none" value={lesson.title} onChange={e => setModules(modules.map(m => m.id === 'podcast-module' ? { ...m, lessons: m.lessons.map(l => l.id === lesson.id ? { ...l, title: e.target.value } : l) } : m))} />
@@ -579,7 +581,12 @@ const StructureTab: React.FC<{
                             <Button size="sm" variant="ghost" onClick={() => onOpenUpload(getAssetTypeObject('podcast'), lesson.id, 'podcast-module')}><PlusCircle size={16} /></Button>
                             <button onClick={() => setModules(modules.map(m => m.id === 'podcast-module' ? { ...m, lessons: m.lessons.filter(l => l.id !== lesson.id) } : m))}><Trash2 size={16} /></button>
                         </div>
-                    ))}
+                    )) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <p className="mb-4">No episodes added yet.</p>
+                            <Button onClick={handleAddPodcastEpisode}>Create First Episode</Button>
+                        </div>
+                    )}
                 </div>
              </div>
          )}
@@ -588,155 +595,233 @@ const StructureTab: React.FC<{
     );
 };
 
-const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType: any, handleDeleteContent: any }> = ({ 
-    contentLibrary, setActiveUploadType, handleDeleteContent 
-}) => {
+const ContentTab: React.FC<{
+    contentLibrary: ContentAsset[],
+    setActiveUploadType: (type: any) => void,
+    handleDeleteContent: (id: string, fileUrl?: string) => void
+}> = ({ contentLibrary, setActiveUploadType, handleDeleteContent }) => {
+    const uploadTypes = [
+        { title: 'Video Content', icon: <Video size={20} />, color: 'bg-blue-50 text-blue-600' },
+        { title: 'Reading Material', icon: <FileText size={20} />, color: 'bg-green-50 text-green-600' },
+        { title: 'Podcast/Audio', icon: <Mic size={20} />, color: 'bg-purple-50 text-purple-600' },
+        { title: 'Quiz/Assessment', icon: <HelpCircle size={20} />, color: 'bg-orange-50 text-orange-600' },
+        { title: 'Jupyter Notebook', icon: <Terminal size={20} />, color: 'bg-gray-100 text-gray-700' },
+        { title: 'Code Practice', icon: <Code size={20} />, color: 'bg-indigo-50 text-indigo-600' },
+    ];
+
     return (
-    <div className="max-w-6xl mx-auto space-y-10">
-       <div>
-         <h2 className="text-2xl font-bold text-gray-900">Content Library</h2>
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-           {[
-             { title: 'Video Content', icon: <Video size={28} />, color: 'text-blue-500 bg-blue-50' },
-             { title: 'Reading Material', icon: <FileText size={28} />, color: 'text-green-500 bg-green-50' },
-             { title: 'Podcast/Audio', icon: <Mic size={28} />, color: 'text-purple-500 bg-purple-50' },
-             { title: 'Code Practice', icon: <Code size={28} />, color: 'text-indigo-500 bg-indigo-50' },
-             { title: 'Jupyter Notebook', icon: <Terminal size={28} />, color: 'text-orange-500 bg-orange-50' },
-             { title: 'Quiz/Assessment', icon: <ClipboardList size={28} />, color: 'text-red-500 bg-red-50' },
-           ].map((item, i) => (
-             <div key={i} onClick={() => setActiveUploadType(item)} className="p-6 rounded-2xl border bg-white hover:shadow-xl transition-all cursor-pointer flex flex-col items-center hover:border-primary-200">
-               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${item.color}`}>{item.icon}</div>
-               <h3 className="font-bold text-gray-900">{item.title}</h3>
-             </div>
-           ))}
-         </div>
-       </div>
-
-       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 border-b">
-                <tr><th className="px-8 py-4">Name</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Size/Link</th><th className="px-6 py-4 text-right">Actions</th></tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {contentLibrary.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-8 py-4 font-medium text-gray-900 flex items-center">
-                      <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center mr-3">
-                        {item.type === 'Video Content' ? <Link2 size={16} /> : 
-                         (item.fileName?.toLowerCase().endsWith('.pdf') ? <FileText size={16} className="text-red-500" /> : 
-                          (item.fileName?.toLowerCase().match(/\.docx?$/) ? <FileText size={16} className="text-blue-500" /> : <File size={16} />))}
-                      </div>
-                      {item.title}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{item.type}</td>
-                    <td className="px-6 py-4 text-gray-500 font-mono text-xs max-w-[150px] truncate">{item.fileSize || item.fileUrl}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDeleteContent(item.id, item.fileUrl)} className="text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-       </div>
-    </div>
-    );
-};
-
-const SettingsTab: React.FC<{ settings: any, setSettings: any }> = ({ settings, setSettings }) => (
-    <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-       <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Settings</h2>
-       <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-         <label className="block text-sm font-bold text-gray-800 mb-2">Visibility</label>
-         <select className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white" value={settings.visibility} onChange={e => setSettings({...settings, visibility: e.target.value})}>
-           <option value="public">Public</option>
-           <option value="private">Private</option>
-           <option value="unlisted">Unlisted</option>
-         </select>
-       </div>
-    </div>
-);
-
-const CertificateTab: React.FC<{ courseInfo: any, instructorName: string }> = ({ courseInfo, instructorName }) => {
-  return (
-    <div className="max-w-5xl mx-auto space-y-8">
-       <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Certificate Preview</h2>
-            <p className="text-gray-500">This is how the certificate will look for students upon completion.</p>
-          </div>
-          <Button variant="secondary" onClick={() => window.print()}>
-             Print Preview
-          </Button>
-       </div>
-
-       <div className="border border-gray-200 shadow-xl rounded-xl overflow-hidden">
-          <CertificateTemplate 
-             studentName="[Student Name]"
-             courseTitle={courseInfo.title || "Untitled Course"}
-             instructor={instructorName || "Instructor Name"}
-             date={new Date().toLocaleDateString()}
-             verificationId="SAMPLE-ID-12345"
-          />
-       </div>
-    </div>
-  );
-}
-
-const PreviewTab: React.FC<{ courseInfo: any, modules: ModuleState[] }> = ({ courseInfo, modules }) => {
-  return (
-    <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Mock Landing Page Header */}
-        <div className="relative h-64 bg-gray-900">
-            <img src={courseInfo.thumbnail} className="w-full h-full object-cover opacity-50" alt="Preview" />
-            <div className="absolute inset-0 flex items-end p-8">
-                <div className="text-white">
-                    <span className="bg-primary-600 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">{courseInfo.category || 'Category'}</span>
-                    <h1 className="text-3xl font-bold mb-2">{courseInfo.title || 'Untitled Course'}</h1>
-                    <p className="max-w-2xl opacity-90 line-clamp-2">{courseInfo.description || 'No description provided.'}</p>
-                </div>
+        <div className="max-w-5xl mx-auto space-y-8">
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Content Library</h2>
+                <p className="text-gray-500">Upload and manage reusable content assets for your courses.</p>
             </div>
-        </div>
-        
-        <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-                <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Course Content</h3>
-                    <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
-                        {modules.map(m => (
-                            <div key={m.id} className="bg-gray-50">
-                                <div className="px-6 py-4 flex justify-between items-center">
-                                    <h4 className="font-bold text-gray-800">{m.title}</h4>
-                                    <span className="text-xs text-gray-500">{m.lessons.length} lessons</span>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {uploadTypes.map((type, i) => (
+                    <button
+                        key={i}
+                        onClick={() => setActiveUploadType(type)}
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border border-gray-200 hover:border-primary-500 hover:shadow-md transition-all group bg-white`}
+                    >
+                        <div className={`p-3 rounded-full mb-3 group-hover:scale-110 transition-transform ${type.color}`}>
+                            {type.icon}
+                        </div>
+                        <span className="text-xs font-bold text-gray-700 text-center">{type.title}</span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800">Library Assets ({contentLibrary.length})</h3>
+                    <div className="flex gap-2">
+                        <Input placeholder="Search assets..." className="h-9 text-sm w-48" />
+                    </div>
+                </div>
+                {contentLibrary.length > 0 ? (
+                    <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+                        {contentLibrary.map(asset => (
+                            <div key={asset.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors group">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-2 rounded-lg border bg-white ${
+                                        asset.type.includes('Video') ? 'text-blue-600 border-blue-100' :
+                                        asset.type.includes('Audio') ? 'text-purple-600 border-purple-100' :
+                                        asset.type.includes('Notebook') ? 'text-gray-700 border-gray-200' :
+                                        'text-green-600 border-green-100'
+                                    }`}>
+                                        {asset.type.includes('Video') ? <Video size={18} /> :
+                                         asset.type.includes('Audio') ? <Mic size={18} /> :
+                                         asset.type.includes('Notebook') ? <Terminal size={18} /> :
+                                         <FileText size={18} />}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-gray-900">{asset.title}</h4>
+                                        <p className="text-xs text-gray-500">{asset.type} • {asset.fileSize} • {asset.date}</p>
+                                    </div>
                                 </div>
-                                <div className="bg-white px-6 py-2 space-y-2 pb-4">
-                                    {m.lessons.map(l => (
-                                        <div key={l.id} className="flex items-center text-sm text-gray-600">
-                                            {l.type === 'video' ? <Video size={14} className="mr-2" /> : <FileText size={14} className="mr-2" />}
-                                            {l.title}
-                                        </div>
-                                    ))}
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {asset.fileUrl && (
+                                        <a href={asset.fileUrl} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-primary-600 hover:bg-white rounded-lg">
+                                            <Link2 size={16} />
+                                        </a>
+                                    )}
+                                    <button onClick={() => handleDeleteContent(asset.id, asset.fileUrl)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
-            </div>
-            
-            <div className="space-y-6">
-                <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">{formatPrice(courseInfo.price)}</div>
-                    <Button className="w-full mt-4">Enroll Now</Button>
-                    <div className="mt-4 text-xs text-gray-500 space-y-2">
-                        <div className="flex justify-between"><span>Level</span> <span className="font-bold">{courseInfo.level}</span></div>
-                        <div className="flex justify-between"><span>Duration</span> <span className="font-bold">{courseInfo.duration}h</span></div>
+                ) : (
+                    <div className="p-12 text-center text-gray-500">
+                        <Upload size={32} className="mx-auto mb-3 opacity-20" />
+                        <p>No assets in library.</p>
                     </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const SettingsTab: React.FC<{ settings: any, setSettings: (s: any) => void }> = ({ settings, setSettings }) => {
+    return (
+        <div className="max-w-2xl mx-auto space-y-8">
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Course Settings</h2>
+                <p className="text-gray-500">Configure visibility, access, and enrollment rules.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-gray-200 space-y-6 shadow-sm">
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Visibility</label>
+                    <div className="flex gap-4">
+                        {['public', 'private', 'unlisted'].map(v => (
+                            <button
+                                key={v}
+                                onClick={() => setSettings({...settings, visibility: v})}
+                                className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize ${
+                                    settings.visibility === v 
+                                    ? 'bg-primary-50 border-primary-500 text-primary-700' 
+                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input 
+                        label="Enrollment Limit" 
+                        placeholder="Unlimited" 
+                        value={settings.enrollmentLimit} 
+                        onChange={e => setSettings({...settings, enrollmentLimit: e.target.value})}
+                    />
+                    <Input 
+                        label="Enrollment Deadline" 
+                        type="date"
+                        value={settings.enrollmentDeadline} 
+                        onChange={e => setSettings({...settings, enrollmentDeadline: e.target.value})}
+                    />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div>
+                        <h4 className="font-bold text-sm text-gray-900">Enable Discussion Forum</h4>
+                        <p className="text-xs text-gray-500">Allow students to post questions and comments.</p>
+                    </div>
+                    <button
+                        onClick={() => setSettings({...settings, enableDiscussion: !settings.enableDiscussion})}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            settings.enableDiscussion ? 'bg-primary-600' : 'bg-gray-200'
+                        }`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            settings.enableDiscussion ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
-  );
+    );
+};
+
+const CertificateTab: React.FC<{ courseInfo: any, instructorName: string }> = ({ courseInfo, instructorName }) => {
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Completion Certificate</h2>
+                    <p className="text-gray-500">Preview the certificate students receive upon completion.</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="secondary" size="sm">Upload Custom Template</Button>
+                </div>
+            </div>
+
+            <div className="bg-gray-100 p-8 rounded-xl border border-gray-200 overflow-hidden relative">
+                <div className="scale-75 origin-top-left w-[133%] h-[133%] transform">
+                    <CertificateTemplate 
+                        studentName="Student Name"
+                        courseTitle={courseInfo.title || "Course Title"}
+                        instructor={instructorName}
+                        date={new Date().toLocaleDateString()}
+                        verificationId="PREVIEW-123"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PreviewTab: React.FC<{ courseInfo: any, modules: ModuleState[] }> = ({ courseInfo, modules }) => {
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
+                    <div className="w-full md:w-64 h-40 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={courseInfo.thumbnail} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                        <span className="text-xs font-bold text-primary-600 uppercase tracking-wide bg-primary-50 px-2 py-1 rounded">{courseInfo.category || 'Category'}</span>
+                        <h1 className="text-3xl font-bold text-gray-900 mt-2 mb-2">{courseInfo.title || 'Untitled Course'}</h1>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{courseInfo.description || 'No description provided.'}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500 font-medium">
+                            <span className="flex items-center"><Users size={14} className="mr-1" /> 0 Enrolled</span>
+                            <span className="flex items-center"><Clock size={14} className="mr-1" /> {courseInfo.duration || '0'}h</span>
+                            <span className="flex items-center"><Award size={14} className="mr-1 text-yellow-500" /> New</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2">Curriculum Preview</h3>
+                    {modules.map((m, i) => (
+                        <div key={i} className="border border-gray-100 rounded-lg overflow-hidden">
+                            <div className="px-4 py-3 bg-gray-50 flex justify-between items-center">
+                                <span className="font-bold text-gray-700 text-sm">{m.title}</span>
+                                <span className="text-xs text-gray-500">{m.lessons.length} lessons</span>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {m.lessons.map((l, j) => (
+                                    <div key={j} className="px-4 py-3 bg-white flex items-center gap-3 text-sm text-gray-600">
+                                        {l.type === 'video' ? <PlayCircle size={16} /> : 
+                                         l.type === 'podcast' ? <Mic size={16} /> :
+                                         l.type === 'quiz' ? <HelpCircle size={16} /> :
+                                         l.type === 'jupyter' ? <Terminal size={16} /> :
+                                         <FileText size={16} />}
+                                        {l.title}
+                                    </div>
+                                ))}
+                                {m.lessons.length === 0 && <div className="p-4 text-xs text-gray-400 italic">No lessons</div>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export const CourseBuilder: React.FC = () => {
@@ -744,6 +829,7 @@ export const CourseBuilder: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const editCourseId = searchParams.get('courseId');
+  const initialCategory = searchParams.get('category');
 
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [isLoading, setIsLoading] = useState(false);
@@ -769,6 +855,13 @@ export const CourseBuilder: React.FC = () => {
       };
       loadData();
   }, []);
+
+  // Pre-fill category if provided in URL (e.g. from Admin Dashboard 'Create Audio Series')
+  useEffect(() => {
+      if (initialCategory) {
+          setCourseInfo(prev => ({ ...prev, category: initialCategory }));
+      }
+  }, [initialCategory]);
 
   useEffect(() => {
       if (!editCourseId) return;

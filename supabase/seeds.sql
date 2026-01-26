@@ -121,11 +121,8 @@ select public.create_user_seed('kotekarpraveen23@gmail.com', 'password', 'studen
 
 
 -- ==============================================================================
--- 3. SEED COURSE DATA
+-- 3. SEED COURSE DATA (SAFE INSERT)
 -- ==============================================================================
-
--- Clear existing public data to avoid duplicates (optional, strictly safe due to ON CONFLICT usually)
-truncate table public.enrollments, public.lessons, public.modules, public.courses, public.categories cascade;
 
 -- CATEGORIES
 insert into public.categories (id, name, slug, description, count) values
@@ -133,40 +130,48 @@ insert into public.categories (id, name, slug, description, count) values
 ('cat_2', 'Design', 'design', 'UI/UX, Graphic Design, and Art.', 8),
 ('cat_3', 'Data Science', 'data-science', 'AI, Machine Learning, and Statistics.', 4),
 ('cat_4', 'Business', 'business', 'Entrepreneurship, Strategy, and Sales.', 5),
-('cat_5', 'Audio Series', 'audio-series', 'Podcast-style learning tracks.', 1);
+('cat_5', 'Audio Series', 'audio-series', 'Podcast-style learning tracks.', 1)
+on conflict (id) do nothing;
 
 -- COURSES
 insert into public.courses (id, title, description, thumbnail, instructor, price, level, category, enrolled_students, published, learning_outcomes) values
 ('c1', 'Fullstack React Mastery', 'Learn to build scalable web applications from scratch using modern technologies. Master Hooks, Redux, Express, and MongoDB.', 'https://picsum.photos/id/1/800/600', 'Rashmi P Kotekar', 89.99, 'Intermediate', 'Development', 1205, true, ARRAY['Build production-ready React applications', 'Master State Management', 'Create RESTful APIs', 'Deploy to Cloud']),
 ('c2', 'Data Science with Python', 'Master data analysis, visualization, and machine learning algorithms using real-world datasets.', 'https://picsum.photos/id/20/800/600', 'Andrew Ng', 129.00, 'Advanced', 'Data Science', 850, true, ARRAY['Analyze complex datasets', 'Visualize data with Matplotlib', 'Build ML models']),
 ('c3', 'UI/UX Design Fundamentals', 'Create stunning user interfaces and experiences. Learn Figma, prototyping, and design theory.', 'https://picsum.photos/id/3/800/600', 'Gary Simon', 49.99, 'Beginner', 'Design', 3200, true, ARRAY['Master Figma', 'Understand Color Theory', 'Interactive Prototyping']),
-('c_audio_1', 'Tech Talk Daily', 'Daily dose of tech news and insights for busy developers.', 'https://images.unsplash.com/photo-1478737270239-2f02b77ac6d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', 'Aelgo Team', 0, 'Beginner', 'Audio Series', 5000, true, ARRAY['Stay updated', 'Learn on the go']);
+('c_audio_1', 'Aelgo Tech Talks', 'Weekly insights into the changing world of technology, featuring industry experts and quick tips. Perfect for listening on the go.', 'https://images.unsplash.com/photo-1478737270239-2f02b77ac6d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', 'Aelgo Team', 0, 'Beginner', 'Audio Series', 5000, true, ARRAY['Stay updated with tech trends', 'Learn industry secrets', 'Mental health for developers'])
+on conflict (id) do nothing;
 
 -- MODULES (For Course c1)
 insert into public.modules (id, course_id, title, "order", is_podcast) values
 ('m1', 'c1', 'Introduction to React', 1, false),
 ('m2', 'c1', 'Advanced State Management', 2, false),
-('m3', 'c1', 'Audio Companion', 3, true);
+('m3', 'c1', 'Audio Companion', 3, true)
+on conflict (id) do nothing;
 
 -- MODULES (For Audio Course)
 insert into public.modules (id, course_id, title, "order", is_podcast) values
-('m_audio_main', 'c_audio_1', 'Season 1', 1, true);
+('m_audio_main', 'c_audio_1', 'Season 1: Future Tech', 1, true)
+on conflict (id) do nothing;
 
 -- LESSONS (For Module m1)
 insert into public.lessons (id, module_id, title, type, content_url, duration, "order") values
 ('l1', 'm1', 'Why React?', 'video', 'dQw4w9WgXcQ', '5:20', 1),
 ('l2', 'm1', 'Virtual DOM Explained', 'reading', 'content_text', '10 min', 2),
-('l3', 'm1', 'React Basics Quiz', 'quiz', null, '5 min', 3);
+('l3', 'm1', 'React Basics Quiz', 'quiz', null, '5 min', 3)
+on conflict (id) do nothing;
 
 -- LESSONS (For Podcast Module m3)
 insert into public.lessons (id, module_id, title, type, content_url, duration, "order") values
 ('l_audio_1', 'm3', 'React Ecosystem Overview', 'podcast', 'audio_url', '15:00', 1),
-('l_audio_2', 'm3', 'Developer Career Tips', 'podcast', 'audio_url', '22:00', 2);
+('l_audio_2', 'm3', 'Developer Career Tips', 'podcast', 'audio_url', '22:00', 2)
+on conflict (id) do nothing;
 
 -- LESSONS (For Audio Course)
 insert into public.lessons (id, module_id, title, type, content_url, duration, "order") values
-('l_pd_1', 'm_audio_main', 'The Future of AI', 'podcast', 'url', '12:30', 1),
-('l_pd_2', 'm_audio_main', 'Web3 Demystified', 'podcast', 'url', '18:45', 2);
+('l_pd_1', 'm_audio_main', 'The Future of AI Agents', 'podcast', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', '12:30', 1),
+('l_pd_2', 'm_audio_main', 'Breaking into Web3', 'podcast', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', '18:45', 2),
+('l_pd_3', 'm_audio_main', 'Mental Health for Devs', 'podcast', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', '15:00', 3)
+on conflict (id) do nothing;
 
 -- Cleanup
 drop function public.create_user_seed;
