@@ -7,7 +7,8 @@ import { Lesson, Course } from '../types';
 import { 
   Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
   ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
-  BookOpen, Headphones, Clock, XCircle, Award, PanelLeftClose, PanelLeftOpen, Menu
+  BookOpen, Headphones, Clock, XCircle, Award, PanelLeftClose, PanelLeftOpen, Menu,
+  ExternalLink, Maximize2, File, MessageSquare
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -237,6 +238,8 @@ export const CoursePlayer: React.FC = () => {
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [activeMobileTab, setActiveMobileTab] = useState<'content' | 'discussion'>('content');
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -245,6 +248,12 @@ export const CoursePlayer: React.FC = () => {
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   
   const MotionDiv = motion.div as any;
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchCourseAndProgress = async () => {
@@ -330,7 +339,7 @@ export const CoursePlayer: React.FC = () => {
       case 'video':
         const videoId = getYoutubeId(currentLesson.contentUrl);
         return (
-          <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
+          <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg w-full">
              <iframe 
                 width="100%" height="100%" 
                 src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0`} 
@@ -339,10 +348,55 @@ export const CoursePlayer: React.FC = () => {
           </div>
         );
       case 'reading':
+        const url = currentLesson.contentUrl || '';
+        const isPdf = url.toLowerCase().endsWith('.pdf') || url.includes('pdf');
+        const isWord = url.toLowerCase().endsWith('.docx') || url.toLowerCase().endsWith('.doc');
+        const isOffice = isWord || url.toLowerCase().endsWith('.pptx') || url.toLowerCase().endsWith('.xlsx');
+        const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+
         return (
-          <div className="bg-white rounded-xl border border-gray-200 p-10 shadow-sm prose prose-lg max-w-none">
-             <h1 className="text-3xl font-bold mb-6">{currentLesson.title}</h1>
-             <p className="text-gray-600 leading-relaxed">Lesson content goes here. If this was a real file URL, we would render a PDF viewer or markdown.</p>
+          <div className={`space-y-4 max-w-5xl mx-auto h-full flex flex-col ${isMobile ? 'h-[50vh]' : ''}`}>
+             <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                      <FileText size={20} />
+                   </div>
+                   <div>
+                      <h2 className="font-bold text-gray-900 leading-none truncate max-w-[150px] md:max-w-md">{currentLesson.title}</h2>
+                      <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">
+                        {isWord ? 'Word' : isPdf ? 'PDF' : 'Reading'}
+                      </p>
+                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                   {url && (
+                      <a href={url} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg" title="Open in New Tab">
+                         <ExternalLink size={18} />
+                      </a>
+                   )}
+                </div>
+             </div>
+
+             <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col relative min-h-[300px]">
+                {isPdf ? (
+                   <iframe src={`${url}#toolbar=0&navpanes=0&scrollbar=0`} className="w-full flex-1 border-none" title="PDF Content" />
+                ) : isOffice ? (
+                    <iframe src={officeViewerUrl} className="w-full flex-1 border-none" title="Word Content" frameBorder="0" />
+                ) : (
+                   <div className="p-6 md:p-10 prose prose-lg max-w-none overflow-y-auto custom-scrollbar">
+                      {currentLesson.contentData?.text ? (
+                          <div dangerouslySetInnerHTML={{ __html: currentLesson.contentData.text }} />
+                      ) : (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4"><File className="text-gray-400" size={32} /></div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">{currentLesson.title}</h3>
+                            <p className="text-gray-500 max-w-sm mb-6">{currentLesson.contentData?.description || "Content available for download."}</p>
+                            {url && <Button onClick={() => window.open(url, '_blank')} variant="secondary"><Download size={18} className="mr-2" /> Download</Button>}
+                          </div>
+                      )}
+                   </div>
+                )}
+             </div>
           </div>
         );
       case 'jupyter':
@@ -354,13 +408,13 @@ export const CoursePlayer: React.FC = () => {
           <div className="max-w-3xl mx-auto">
              <audio ref={audioRef} src={currentLesson.contentUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'} onTimeUpdate={handleTimeUpdate} onEnded={() => setIsPlaying(false)} />
              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="bg-gray-900 h-64 relative flex items-center justify-center">
+                <div className="bg-gray-900 h-48 md:h-64 relative flex items-center justify-center">
                    <div className="text-center px-6">
                       <Mic className="text-primary-400 mx-auto mb-4" size={48} />
-                      <h2 className="text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
+                      <h2 className="text-xl md:text-2xl font-bold text-white mb-1">{currentLesson.title}</h2>
                    </div>
                 </div>
-                <div className="p-8">
+                <div className="p-6 md:p-8">
                    <div className="space-y-6">
                       <input type="range" min="0" max="100" value={audioProgress} onChange={(e) => {
                           if(audioRef.current) audioRef.current.currentTime = (Number(e.target.value) / 100) * audioDuration;
@@ -386,85 +440,123 @@ export const CoursePlayer: React.FC = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary-600" size={40} /></div>;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden -m-4 lg:-m-8">
-      {/* Sidebar Overlay (Mobile) */}
-      {!sidebarExpanded && (
-        <button 
-          onClick={() => setSidebarExpanded(true)}
-          className="fixed left-4 bottom-4 z-50 p-3 bg-primary-500 text-white rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center gap-2"
-        >
-          <PanelLeftOpen size={20} />
-          <span className="text-xs font-bold mr-1">Curriculum</span>
-        </button>
-      )}
-
-      {/* Course Sidebar */}
+    <div className="flex flex-col lg:flex-row h-screen bg-gray-50 overflow-hidden">
+      
+      {/* 1. CURRICULUM SIDEBAR (Desktop: Left, Mobile: Bottom via Flex Order) */}
       <MotionDiv 
         initial={false}
-        animate={{ width: sidebarExpanded ? 340 : 0 }}
-        className="bg-white border-r border-gray-200 h-full flex flex-col relative z-40 overflow-hidden"
+        animate={!isMobile ? { width: sidebarExpanded ? 340 : 0 } : {}}
+        className={`
+            bg-white border-r border-gray-200 relative z-40 flex flex-col
+            ${isMobile ? 'order-2 w-full flex-1 border-t border-gray-200 min-h-0' : 'order-1 h-full overflow-hidden border-r'}
+            ${!isMobile && !sidebarExpanded ? 'border-none' : ''}
+        `}
       >
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between min-w-[340px]">
-           <button onClick={() => navigate('/dashboard')} className="flex items-center text-xs font-bold text-gray-500 hover:text-gray-900">
-              <ChevronLeft size={16} className="mr-1" /> BACK
-           </button>
-           <button onClick={() => setSidebarExpanded(false)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
-              <PanelLeftClose size={20} />
-           </button>
+        {/* Mobile Tabs */}
+        <div className="lg:hidden flex border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10">
+            <button 
+                onClick={() => setActiveMobileTab('content')}
+                className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'content' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
+            >
+                Course Content
+            </button>
+            <button 
+                onClick={() => setActiveMobileTab('discussion')}
+                className={`flex-1 py-3 text-sm font-bold text-center transition-colors border-b-2 ${activeMobileTab === 'discussion' ? 'text-primary-600 border-primary-600' : 'text-gray-500 border-transparent'}`}
+            >
+                Discussion
+            </button>
         </div>
-        
-        <div className="flex-1 overflow-y-auto min-w-[340px] custom-scrollbar">
-           {course?.modules.map((module, mIdx) => (
-              <div key={module.id} className="border-b border-gray-50">
-                 <div className="px-5 py-3 bg-gray-50/50 flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Module {mIdx + 1}</span>
-                 </div>
-                 <div className="p-2 space-y-1">
-                    {module.lessons.map((lesson) => (
-                       <button
-                          key={lesson.id}
-                          onClick={() => setCurrentLesson(lesson)}
-                          className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${
-                             currentLesson?.id === lesson.id ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-100 shadow-sm' : 'hover:bg-gray-50 text-gray-600'
-                          }`}
-                       >
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center ${
-                             completedLessonIds.has(lesson.id) ? 'bg-green-100 border-green-200 text-green-600' : 'bg-white border-gray-200'
-                          }`}>
-                             {completedLessonIds.has(lesson.id) ? <CheckCircle size={14} /> : getIcon(lesson.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <p className="text-sm font-bold truncate">{lesson.title}</p>
-                             <p className="text-[10px] text-gray-400 font-medium uppercase">{lesson.type} • {lesson.duration || '5:00'}</p>
-                          </div>
-                       </button>
-                    ))}
-                 </div>
-              </div>
-           ))}
+
+        {/* Content List */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+            {(!isMobile || activeMobileTab === 'content') && (
+                <>
+                    {/* Desktop Sidebar Header */}
+                    {!isMobile && (
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between min-w-[340px]">
+                            <button onClick={() => navigate('/dashboard')} className="flex items-center text-xs font-bold text-gray-500 hover:text-gray-900">
+                                <ChevronLeft size={16} className="mr-1" /> BACK
+                            </button>
+                            <button onClick={() => setSidebarExpanded(false)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                                <PanelLeftClose size={20} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Modules List */}
+                    <div className={`${!isMobile ? 'min-w-[340px]' : 'w-full'}`}>
+                        {course?.modules.map((module, mIdx) => (
+                            <div key={module.id} className="border-b border-gray-50">
+                                <div className="px-5 py-3 bg-gray-50/50 flex items-center justify-between">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Module {mIdx + 1}</span>
+                                </div>
+                                <div className="p-2 space-y-1">
+                                    {module.lessons.map((lesson) => (
+                                    <button
+                                        key={lesson.id}
+                                        onClick={() => setCurrentLesson(lesson)}
+                                        className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${
+                                            currentLesson?.id === lesson.id ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-100 shadow-sm' : 'hover:bg-gray-50 text-gray-600'
+                                        }`}
+                                    >
+                                        <div className={`flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center ${
+                                            completedLessonIds.has(lesson.id) ? 'bg-green-100 border-green-200 text-green-600' : 'bg-white border-gray-200'
+                                        }`}>
+                                            {completedLessonIds.has(lesson.id) ? <CheckCircle size={14} /> : getIcon(lesson.type)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold truncate">{lesson.title}</p>
+                                            <p className="text-[10px] text-gray-400 font-medium uppercase">{lesson.type} • {lesson.duration || '5:00'}</p>
+                                        </div>
+                                    </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {isMobile && activeMobileTab === 'discussion' && (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <MessageSquare size={32} className="mb-2 opacity-50" />
+                    <p className="text-sm">Discussion forum is coming soon.</p>
+                </div>
+            )}
         </div>
       </MotionDiv>
 
-      {/* Main Player Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 relative">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-30">
-           <div className="flex items-center gap-4">
-              {!sidebarExpanded && (
+      {/* 2. MAIN PLAYER AREA (Desktop: Right, Mobile: Top via Flex Order) */}
+      <div className={`
+          flex-1 flex flex-col h-full overflow-hidden bg-gray-50 relative 
+          ${isMobile ? 'order-1 shrink-0' : 'order-2'}
+      `}>
+        <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
+           <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
+              {/* On Desktop, show expand button. On Mobile, show Back button directly in header */}
+              {isMobile ? (
+                  <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
+                      <ChevronLeft size={24} />
+                  </button>
+              ) : !sidebarExpanded ? (
                 <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600">
                   <Menu size={20} />
                 </button>
-              )}
-              <h1 className="font-bold text-gray-900 truncate max-w-md">{course?.title}</h1>
+              ) : null}
+              
+              <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
            </div>
-           <div className="flex items-center gap-3">
-              <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')}>
-                 {completedLessonIds.has(currentLesson?.id || '') ? 'Mark Incomplete' : 'Mark as Done'}
+           <div className="flex items-center gap-3 shrink-0">
+              <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')} className="text-xs px-3">
+                 {completedLessonIds.has(currentLesson?.id || '') ? (isMobile ? 'Done' : 'Mark Incomplete') : (isMobile ? 'Complete' : 'Mark as Done')}
               </Button>
            </div>
         </header>
         
-        <main className="flex-1 overflow-y-auto p-4 lg:p-10 custom-scrollbar">
-           <div className="max-w-5xl mx-auto">
+        {/* Content Container */}
+        <main className={`flex-1 overflow-y-auto custom-scrollbar ${isMobile ? 'p-0 bg-black' : 'p-4 lg:p-10'}`}>
+           <div className="max-w-5xl mx-auto h-full">
               <AnimatePresence mode="wait">
                 <MotionDiv 
                   key={currentLesson?.id}
@@ -472,6 +564,7 @@ export const CoursePlayer: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
+                  className="h-full"
                 >
                    {renderContent()}
                 </MotionDiv>

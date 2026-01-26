@@ -8,7 +8,7 @@ import {
   GripVertical, ChevronDown, ChevronUp, Calendar,
   HelpCircle, Play, BookOpen, X, Loader2, Check, File,
   Link2, Info, Code, CheckCircle, AlertCircle, Headphones, Music, Link as LinkIcon,
-  Image as ImageIcon, FileCode, Clock, PlusCircle, Award
+  ImageIcon, FileCode, Clock, PlusCircle, Award
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -113,8 +113,8 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
     let acceptType = '*';
     let label = 'File';
     if (isReading) {
-        acceptType = '.pdf';
-        label = 'PDF';
+        acceptType = '.pdf,.doc,.docx';
+        label = 'Document (PDF or Word)';
     }
     if (isJupyter && jupyterMode === 'upload') {
         acceptType = '.ipynb';
@@ -365,7 +365,7 @@ const UploadModal = ({ type, onClose, onComplete }: { type: {title: string, icon
                         <p className="font-semibold text-gray-900 text-lg">
                             {selectedFile ? selectedFile.name : `Click to browse or drag ${label} here`}
                         </p>
-                        <p className="text-sm text-gray-500 mt-2">Accepts {acceptType} files up to 50MB</p>
+                        <p className="text-sm text-gray-500 mt-2">Accepts PDF, Word (.doc, .docx) up to 50MB</p>
                         <input 
                             type="file" 
                             accept={acceptType}
@@ -964,7 +964,11 @@ const ContentTab: React.FC<{ contentLibrary: ContentAsset[], setActiveUploadType
                 {contentLibrary.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-8 py-4 font-medium text-gray-900 flex items-center">
-                      <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center mr-3">{item.type === 'Video Content' ? <Link2 size={16} /> : <File size={16} />}</div>
+                      <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center mr-3">
+                        {item.type === 'Video Content' ? <Link2 size={16} /> : 
+                         (item.fileName?.toLowerCase().endsWith('.pdf') ? <FileText size={16} className="text-red-500" /> : 
+                          (item.fileName?.toLowerCase().match(/\.docx?$/) ? <FileText size={16} className="text-blue-500" /> : <File size={16} />))}
+                      </div>
                       {item.title}
                     </td>
                     <td className="px-6 py-4 text-gray-600">{item.type}</td>
