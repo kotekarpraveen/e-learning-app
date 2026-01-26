@@ -8,7 +8,7 @@ import {
   Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
   ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
   BookOpen, Headphones, Clock, XCircle, Award, PanelLeftClose, PanelLeftOpen, Menu,
-  ExternalLink, Maximize2, File, MessageSquare, Check, ArrowLeft, User, RotateCcw
+  ExternalLink, Maximize2, File, MessageSquare, Check, ArrowLeft, User, RotateCcw, X
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -94,8 +94,24 @@ const NotebookRenderer = ({ notebook }: { notebook: any }) => {
   );
 };
 
-// --- Exact Match Quiz Player Component ---
-const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: { lessonId: string, contentData: any, onComplete: (id: string) => void, isCompleted: boolean, onBack?: () => void }) => {
+// --- Mobile Optimized Quiz Player Component ---
+const QuizPlayer = ({ 
+    lessonId, 
+    lessonTitle,
+    contentData, 
+    onComplete, 
+    isCompleted, 
+    onBack,
+    isMobile 
+}: { 
+    lessonId: string, 
+    lessonTitle?: string,
+    contentData: any, 
+    onComplete: (id: string) => void, 
+    isCompleted: boolean, 
+    onBack?: () => void,
+    isMobile: boolean
+}) => {
     const { user } = useAuth();
     // 1. Data Safety & Initialization
     const questions = contentData?.questions || [];
@@ -196,7 +212,7 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
     const strokeDashoffset = circumference - progress * circumference;
 
     const CircularProgress = () => (
-        <div className="relative flex items-center justify-center w-40 h-40">
+        <div className="relative flex items-center justify-center w-36 h-36 md:w-40 md:h-40">
             <svg className="transform -rotate-90 w-full h-full">
                 <circle
                     cx="50%"
@@ -220,20 +236,41 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl font-bold text-gray-900">
-                    {answeredCount}<span className="text-gray-400 text-xl">/{totalQuestions}</span>
+                <span className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {answeredCount}<span className="text-gray-400 text-lg md:text-xl">/{totalQuestions}</span>
                 </span>
             </div>
         </div>
     );
 
+    // Mobile Container Logic
+    const containerClasses = isMobile 
+        ? "fixed inset-0 z-50 bg-white flex flex-col h-full w-full"
+        : "w-full max-w-5xl mx-auto py-2 md:py-4 px-2 h-full flex flex-col";
+
+    const cardClasses = isMobile
+        ? "flex-1 flex flex-col relative overflow-hidden bg-white" // No rounding on mobile full screen
+        : "bg-white rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-200 p-6 md:p-12 flex-1 flex flex-col relative overflow-hidden";
+
     return (
-        <div className="w-full max-w-5xl mx-auto py-2 md:py-4 px-2 h-full flex flex-col">
+        <div className={containerClasses}>
+            
+            {/* Mobile Header (Close Button) */}
+            {isMobile && (
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+                    <button onClick={onBack} className="text-gray-500 hover:text-gray-900 flex items-center">
+                        <ChevronLeft size={24} />
+                    </button>
+                    <h1 className="text-sm font-bold text-gray-900 truncate max-w-[200px]">{lessonTitle || "Quiz"}</h1>
+                    <Button size="sm" variant="ghost" onClick={onBack} className="text-xs">Done</Button>
+                </div>
+            )}
+
             {/* Main Card Container */}
-            <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-200 p-6 md:p-12 flex-1 flex flex-col relative overflow-hidden">
+            <div className={cardClasses}>
                 
-                {/* 1. Header: Timer & Submit */}
-                <div className="flex justify-between items-start mb-6 md:mb-10 border-b border-gray-50 pb-6">
+                {/* 1. Quiz Header: Timer & Submit (Fixed at top inside card) */}
+                <div className={`flex justify-between items-start border-b border-gray-50 shrink-0 ${isMobile ? 'p-4 pb-4' : 'mb-6 md:mb-10 pb-6'}`}>
                     <div className="flex items-start gap-3 md:gap-4">
                         <div className="mt-1">
                             <Clock className="w-5 h-5 md:w-6 md:h-6 text-gray-900" strokeWidth={2.5} />
@@ -255,79 +292,81 @@ const QuizPlayer = ({ lessonId, contentData, onComplete, isCompleted, onBack }: 
                     </Button>
                 </div>
 
-                {/* 2. Middle Content: Question & Progress Split */}
-                {isSubmitted ? (
-                    <div className="flex flex-col items-center justify-center flex-1 animate-in fade-in zoom-in duration-300">
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${score === questions.length ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                            <Award size={48} />
+                {/* 2. Middle Content: Question & Progress (Scrollable) */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {isSubmitted ? (
+                        <div className="flex flex-col items-center justify-center min-h-full py-10 animate-in fade-in zoom-in duration-300">
+                            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${score === questions.length ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                                <Award size={48} />
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-900 mb-2">Quiz Completed!</h2>
+                            <p className="text-xl text-gray-500 mb-8">
+                                Score: <span className="font-bold text-gray-900">{score}</span> / {questions.length}
+                            </p>
+                            
+                            {attempts < MAX_ATTEMPTS ? (
+                                <div className="space-y-4 text-center">
+                                    <Button onClick={handleRetry} className="bg-primary-600 hover:bg-primary-700 text-white px-8">
+                                        <RotateCcw size={16} className="mr-2" /> Retry Quiz
+                                    </Button>
+                                    <p className="text-sm text-gray-400">Attempt {attempts} of {MAX_ATTEMPTS}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-red-500 font-bold">Maximum attempts reached.</p>
+                            )}
                         </div>
-                        <h2 className="text-3xl font-bold text-gray-900 mb-2">Quiz Completed!</h2>
-                        <p className="text-xl text-gray-500 mb-8">
-                            Score: <span className="font-bold text-gray-900">{score}</span> / {questions.length}
-                        </p>
-                        
-                        {attempts < MAX_ATTEMPTS ? (
-                            <div className="space-y-4 text-center">
-                                <Button onClick={handleRetry} className="bg-primary-600 hover:bg-primary-700 text-white px-8">
-                                    <RotateCcw size={16} className="mr-2" /> Retry Quiz
-                                </Button>
-                                <p className="text-sm text-gray-400">Attempt {attempts} of {MAX_ATTEMPTS}</p>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-red-500 font-bold">Maximum attempts reached.</p>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex flex-col md:flex-row gap-8 md:gap-12 flex-1">
-                        
-                        {/* Left: Questions */}
-                        <div className="flex-1 flex flex-col">
-                            <div className="mb-6 md:mb-8">
-                                <p className="text-sm font-bold text-gray-500 mb-4">Question {currentQuestionIndex + 1} of {questions.length}</p>
-                                <h2 className="text-lg md:text-2xl font-bold text-gray-900 leading-relaxed">
-                                    {currentQ.question}
-                                </h2>
+                    ) : (
+                        <div className={`flex flex-col ${isMobile ? 'px-4 pb-4' : 'md:flex-row gap-8 md:gap-12'}`}>
+                            
+                            {/* Left: Questions */}
+                            <div className="flex-1 flex flex-col">
+                                <div className="mb-6 md:mb-8">
+                                    <p className="text-sm font-bold text-gray-500 mb-4">Question {currentQuestionIndex + 1} of {questions.length}</p>
+                                    <h2 className="text-lg md:text-2xl font-bold text-gray-900 leading-relaxed">
+                                        {currentQ.question}
+                                    </h2>
+                                </div>
+
+                                {/* Mobile Progress - Inserted between Question and Options */}
+                                <div className="md:hidden flex justify-center mb-8 shrink-0">
+                                     <CircularProgress />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    {currentQ.options.map((opt: string, oIdx: number) => {
+                                        const isSelected = userAnswers[currentQuestionIndex] === oIdx;
+                                        const labels = ['A', 'B', 'C', 'D', 'E'];
+                                        return (
+                                            <div 
+                                                key={oIdx} 
+                                                onClick={() => handleOptionSelect(currentQuestionIndex, oIdx)}
+                                                className={`
+                                                    flex items-center p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 group relative
+                                                    ${isSelected 
+                                                        ? 'border-green-500 bg-green-50 shadow-md shadow-green-100/50' 
+                                                        : 'border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm'
+                                                    }
+                                                `}
+                                            >
+                                                <span className={`text-xs font-bold mr-4 w-6 ${isSelected ? 'text-green-700' : 'text-gray-400'}`}>{labels[oIdx]}.</span>
+                                                <span className={`text-sm font-bold ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>{opt}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
 
-                            {/* Mobile Progress - Inserted between Question and Options */}
-                            <div className="md:hidden flex justify-center mb-8">
-                                 <CircularProgress />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto mb-8">
-                                {currentQ.options.map((opt: string, oIdx: number) => {
-                                    const isSelected = userAnswers[currentQuestionIndex] === oIdx;
-                                    const labels = ['A', 'B', 'C', 'D', 'E'];
-                                    return (
-                                        <div 
-                                            key={oIdx} 
-                                            onClick={() => handleOptionSelect(currentQuestionIndex, oIdx)}
-                                            className={`
-                                                flex items-center p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 group relative
-                                                ${isSelected 
-                                                    ? 'border-green-500 bg-green-50 shadow-md shadow-green-100/50' 
-                                                    : 'border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm'
-                                                }
-                                            `}
-                                        >
-                                            <span className={`text-xs font-bold mr-4 w-6 ${isSelected ? 'text-green-700' : 'text-gray-400'}`}>{labels[oIdx]}.</span>
-                                            <span className={`text-sm font-bold ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>{opt}</span>
-                                        </div>
-                                    );
-                                })}
+                            {/* Right: Progress Circle (Desktop Only placement) */}
+                            <div className="hidden md:flex flex-col items-center justify-center w-48 shrink-0 border-l border-gray-50 pl-8">
+                                <CircularProgress />
                             </div>
                         </div>
+                    )}
+                </div>
 
-                        {/* Right: Progress Circle (Desktop Only placement) */}
-                        <div className="hidden md:flex flex-col items-center justify-center w-48 shrink-0 border-l border-gray-50 pl-8">
-                            <CircularProgress />
-                        </div>
-                    </div>
-                )}
-
-                {/* 3. Footer: Pagination */}
+                {/* 3. Footer: Pagination (Fixed at bottom) */}
                 {!isSubmitted && (
-                    <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between gap-3">
+                    <div className={`border-t border-gray-100 flex items-center justify-between gap-3 shrink-0 bg-white ${isMobile ? 'p-4' : 'mt-auto pt-6'}`}>
                         <button 
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                             disabled={currentQuestionIndex === 0}
@@ -549,10 +588,17 @@ export const CoursePlayer: React.FC = () => {
         return (
             <QuizPlayer 
                 lessonId={currentLesson.id} 
+                lessonTitle={currentLesson.title}
                 contentData={currentLesson.contentData} 
                 onComplete={toggleComplete} 
                 isCompleted={completedLessonIds.has(currentLesson.id)}
-                onBack={() => navigate('/dashboard')}
+                onBack={() => {
+                    // Navigate back to course root/dashboard logic if needed, 
+                    // or just let the user close the quiz view if it's overlay
+                    if(isMobile) navigate(`/course/${courseId}`); 
+                    else navigate('/dashboard');
+                }}
+                isMobile={isMobile}
             />
         );
       case 'podcast':
@@ -694,31 +740,35 @@ export const CoursePlayer: React.FC = () => {
             ? 'order-1 w-full ' + ((currentLesson?.type === 'video' || currentLesson?.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]')
             : 'order-2 flex-1 h-full overflow-hidden'
           }
+          ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
       `}>
-        <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
-           <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
-              {/* On Desktop, show expand button. On Mobile, show Back button directly in header */}
-              {isMobile ? (
-                  <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
-                      <ChevronLeft size={24} />
-                  </button>
-              ) : !sidebarExpanded ? (
-                <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600">
-                  <Menu size={20} />
-                </button>
-              ) : null}
-              
-              <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
-           </div>
-           <div className="flex items-center gap-3 shrink-0">
-              <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')} className="text-xs px-3">
-                 {completedLessonIds.has(currentLesson?.id || '') ? (isMobile ? 'Done' : 'Mark Incomplete') : (isMobile ? 'Complete' : 'Mark as Done')}
-              </Button>
-           </div>
-        </header>
+        {/* Only show standard header if NOT in full screen quiz mode */}
+        {!(isMobile && currentLesson?.type === 'quiz') && (
+            <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
+            <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
+                {/* On Desktop, show expand button. On Mobile, show Back button directly in header */}
+                {isMobile ? (
+                    <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
+                        <ChevronLeft size={24} />
+                    </button>
+                ) : !sidebarExpanded ? (
+                    <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600">
+                    <Menu size={20} />
+                    </button>
+                ) : null}
+                
+                <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+                <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')} className="text-xs px-3">
+                    {completedLessonIds.has(currentLesson?.id || '') ? (isMobile ? 'Done' : 'Mark Incomplete') : (isMobile ? 'Complete' : 'Mark as Done')}
+                </Button>
+            </div>
+            </header>
+        )}
         
         {/* Content Container */}
-        <main className={`overflow-y-auto custom-scrollbar ${isMobile ? 'p-0 bg-black flex-1' : 'p-4 lg:p-10 flex-1'}`}>
+        <main className={`overflow-y-auto custom-scrollbar ${isMobile && currentLesson?.type !== 'quiz' ? 'p-0 bg-black flex-1' : 'p-0 lg:p-10 flex-1'}`}>
            <div className="max-w-6xl mx-auto h-full">
               <AnimatePresence mode="wait">
                 <MotionDiv 
