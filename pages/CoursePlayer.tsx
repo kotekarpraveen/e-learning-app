@@ -258,7 +258,7 @@ const QuizPlayer = ({
             {/* Mobile Header (Close Button) */}
             {isMobile && (
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
-                    <button onClick={onBack} className="text-gray-500 hover:text-gray-900 flex items-center">
+                    <button onClick={onBack} className="text-gray-500 hover:text-gray-900 flex items-center p-2 -ml-2">
                         <ChevronLeft size={24} />
                     </button>
                     <h1 className="text-sm font-bold text-gray-900 truncate max-w-[200px]">{lessonTitle || "Quiz"}</h1>
@@ -593,9 +593,10 @@ export const CoursePlayer: React.FC = () => {
                 onComplete={toggleComplete} 
                 isCompleted={completedLessonIds.has(currentLesson.id)}
                 onBack={() => {
-                    // Navigate back to course root/dashboard logic if needed, 
-                    // or just let the user close the quiz view if it's overlay
-                    if(isMobile) navigate(`/course/${courseId}`); 
+                    // Navigate back logic: 
+                    // On mobile, this closes the full-screen quiz overlay (by clearing active lesson)
+                    // On desktop, it goes to dashboard (or course root)
+                    if(isMobile) setCurrentLesson(null);
                     else navigate('/dashboard');
                 }}
                 isMobile={isMobile}
@@ -737,7 +738,7 @@ export const CoursePlayer: React.FC = () => {
       <div className={`
           flex flex-col bg-gray-50 relative 
           ${isMobile 
-            ? 'order-1 w-full ' + ((currentLesson?.type === 'video' || currentLesson?.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]')
+            ? 'order-1 w-full ' + (currentLesson ? ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') : 'hidden')
             : 'order-2 flex-1 h-full overflow-hidden'
           }
           ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
