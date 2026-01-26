@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RefreshCw, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Search, RefreshCw, Loader2, AlertTriangle, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
 import { Course } from '../types';
@@ -14,9 +15,15 @@ export const AdminCourses: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Delete Modal State
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  const MotionDiv = motion.div as any;
 
   useEffect(() => {
     loadCourses();
@@ -34,26 +41,27 @@ export const AdminCourses: React.FC = () => {
     setIsLoading(false);
   };
 
-  const handleDeleteCourse = async (id: string) => {
-      // Use window.confirm to ensure browser API is called
-      if (window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-          // Optimistically update UI to feel faster, or wait for loading. 
-          // Here we wait but maybe don't block the whole UI if possible, 
-          // but for safety we re-use isLoading to prevent interactions.
-          setIsLoading(true);
-          try {
-              const result = await api.deleteCourse(id);
-              if (result.success) {
-                  setCourses(prev => prev.filter(c => c.id !== id));
-              } else {
-                  alert("Failed to delete course: " + result.message);
-              }
-          } catch (error) {
-              console.error("Delete failed", error);
-              alert("An unexpected error occurred.");
-          } finally {
-              setIsLoading(false);
+  const handleRequestDelete = (id: string) => {
+      setCourseToDelete(id);
+  };
+
+  const executeDelete = async () => {
+      if (!courseToDelete) return;
+      
+      setIsDeleting(true);
+      try {
+          const result = await api.deleteCourse(courseToDelete);
+          if (result.success) {
+              setCourses(prev => prev.filter(c => c.id !== courseToDelete));
+              setCourseToDelete(null); // Close modal on success
+          } else {
+              alert("Failed to delete course: " + result.message);
           }
+      } catch (error) {
+          console.error("Delete failed", error);
+          alert("An unexpected error occurred.");
+      } finally {
+          setIsDeleting(false);
       }
   };
 
@@ -125,7 +133,7 @@ export const AdminCourses: React.FC = () => {
       ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-              <AdminCourseCard key={course.id} course={course} onDelete={handleDeleteCourse} />
+              <AdminCourseCard key={course.id} course={course} onDelete={handleRequestDelete} />
           ))}
           {filteredCourses.length === 0 && (
               <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -137,6 +145,48 @@ export const AdminCourses: React.FC = () => {
           )}
           </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {courseToDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                <MotionDiv 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+                >
+                    <div className="p-6 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={32} className="text-red-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Delete this course?</h2>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Are you sure you want to delete this course? This action cannot be undone and will remove all student progress associated with it.
+                        </p>
+                        
+                        <div className="flex gap-3 justify-center">
+                            <Button 
+                                variant="secondary" 
+                                onClick={() => setCourseToDelete(null)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="danger" 
+                                onClick={executeDelete}
+                                isLoading={isDeleting}
+                            >
+                                Yes, Delete Course
+                            </Button>
+                        </div>
+                    </div>
+                </MotionDiv>
+            </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -238,7 +237,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ amount, courseTitle,
                                 onChange={e => setCardNumber(formatCardNumber(e.target.value))}
                                 maxLength={19}
                                 required
-                                icon={<CreditCard size={18} className="text-gray-400" />}
                             />
                             <div className="absolute right-3 top-9 flex gap-1">
                                 {/* Mock Card Icons */}
