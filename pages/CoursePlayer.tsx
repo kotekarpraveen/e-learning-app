@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -241,7 +240,7 @@ export const CoursePlayer: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [activeMobileTab, setActiveMobileTab] = useState<'content' | 'discussion'>('content');
   
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const mediaRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -278,7 +277,7 @@ export const CoursePlayer: React.FC = () => {
     setIsPlaying(false);
     setAudioProgress(0);
     setAudioCurrentTime(0);
-    if(audioRef.current) audioRef.current.currentTime = 0;
+    if(mediaRef.current) mediaRef.current.currentTime = 0;
   }, [currentLesson]);
 
   const toggleComplete = async (lessonId: string) => {
@@ -291,17 +290,17 @@ export const CoursePlayer: React.FC = () => {
       await api.toggleLessonCompletion(user.id, lessonId, !isComplete);
   };
 
-  const toggleAudio = () => {
-    if(!audioRef.current) return;
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
+  const toggleMedia = () => {
+    if(!mediaRef.current) return;
+    if (isPlaying) mediaRef.current.pause();
+    else mediaRef.current.play();
     setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
-    if(!audioRef.current) return;
-    const current = audioRef.current.currentTime;
-    const dur = audioRef.current.duration || 1;
+    if(!mediaRef.current) return;
+    const current = mediaRef.current.currentTime;
+    const dur = mediaRef.current.duration || 1;
     setAudioCurrentTime(current);
     setAudioDuration(dur);
     setAudioProgress((current / dur) * 100);
@@ -406,7 +405,15 @@ export const CoursePlayer: React.FC = () => {
       case 'podcast':
         return (
           <div className="max-w-3xl mx-auto">
-             <audio ref={audioRef} src={currentLesson.contentUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'} onTimeUpdate={handleTimeUpdate} onEnded={() => setIsPlaying(false)} />
+             {/* Use video tag to support both audio and video formats as source, but hide visual */}
+             <video 
+                ref={mediaRef} 
+                src={currentLesson.contentUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'} 
+                className="hidden" 
+                onTimeUpdate={handleTimeUpdate} 
+                onEnded={() => setIsPlaying(false)} 
+                playsInline
+             />
              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
                 <div className="bg-gray-900 h-48 md:h-64 relative flex items-center justify-center">
                    <div className="text-center px-6">
@@ -417,14 +424,14 @@ export const CoursePlayer: React.FC = () => {
                 <div className="p-6 md:p-8">
                    <div className="space-y-6">
                       <input type="range" min="0" max="100" value={audioProgress} onChange={(e) => {
-                          if(audioRef.current) audioRef.current.currentTime = (Number(e.target.value) / 100) * audioDuration;
+                          if(mediaRef.current) mediaRef.current.currentTime = (Number(e.target.value) / 100) * audioDuration;
                       }} className="w-full accent-primary-500" />
                       <div className="flex justify-between text-xs text-gray-500 font-mono">
                          <span>{formatTime(audioCurrentTime)}</span>
                          <span>{formatTime(audioDuration)}</span>
                       </div>
                       <div className="flex justify-center gap-8">
-                         <button onClick={toggleAudio} className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg">
+                         <button onClick={toggleMedia} className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg">
                             {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} className="ml-1" fill="currentColor" />}
                          </button>
                       </div>
