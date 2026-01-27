@@ -84,6 +84,93 @@ const ColorPicker = ({ label, value, onChange, desc }: { label: string, value: s
     </div>
 );
 
+// --- Gradient Picker Helper ---
+const GradientPicker = ({ label, value, onChange, desc }: { label: string, value: string, onChange: (val: string) => void, desc: string }) => {
+    const [c1, setC1] = useState('#88d8b0');
+    const [c2, setC2] = useState('#ff6f69');
+    const [deg, setDeg] = useState(135);
+
+    useEffect(() => {
+        // Parse existing value like "linear-gradient(135deg, #aaaaaa 0%, #bbbbbb 100%)"
+        const match = value?.match(/linear-gradient\((\d+)deg,\s*(#[0-9a-fA-F]{6})\s*0%,\s*(#[0-9a-fA-F]{6})\s*100%\)/);
+        if (match) {
+            setDeg(parseInt(match[1]));
+            setC1(match[2]);
+            setC2(match[3]);
+        }
+    }, [value]);
+
+    const update = (newC1: string, newC2: string, newDeg: number) => {
+        setC1(newC1);
+        setC2(newC2);
+        setDeg(newDeg);
+        onChange(`linear-gradient(${newDeg}deg, ${newC1} 0%, ${newC2} 100%)`);
+    }
+
+    return (
+        <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">{label}</label>
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
+                <div 
+                    className="h-14 w-full rounded-lg shadow-sm border border-gray-200" 
+                    style={{ background: `linear-gradient(${deg}deg, ${c1} 0%, ${c2} 100%)` }}
+                ></div>
+                
+                <div className="flex gap-4">
+                    <div className="flex-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Start Color</label>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="color" 
+                                value={c1} 
+                                onChange={e => update(e.target.value, c2, deg)} 
+                                className="h-9 w-9 rounded-md cursor-pointer border border-gray-300 p-0 overflow-hidden" 
+                            />
+                            <Input 
+                                value={c1} 
+                                onChange={e => update(e.target.value, c2, deg)} 
+                                className="h-9 text-xs font-mono py-1" 
+                            />
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">End Color</label>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="color" 
+                                value={c2} 
+                                onChange={e => update(c1, e.target.value, deg)} 
+                                className="h-9 w-9 rounded-md cursor-pointer border border-gray-300 p-0 overflow-hidden" 
+                            />
+                            <Input 
+                                value={c2} 
+                                onChange={e => update(c1, e.target.value, deg)} 
+                                className="h-9 text-xs font-mono py-1" 
+                            />
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block">Angle</label>
+                        <span className="text-xs font-bold text-gray-600">{deg}°</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="360" 
+                        value={deg} 
+                        onChange={e => update(c1, c2, parseInt(e.target.value))} 
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600" 
+                    />
+                </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{desc}</p>
+        </div>
+    );
+};
+
 // --- Font Management Component ---
 const FontManager = ({ currentFonts, onAddFont, onDeleteFont }: { currentFonts: CustomFont[], onAddFont: (f: CustomFont) => void, onDeleteFont: (id: string) => void }) => {
     const [isAdding, setIsAdding] = useState(false);
@@ -270,6 +357,9 @@ export const Settings: React.FC = () => {
                 if (data.preferences) {
                     if (data.preferences.theme) {
                         const remoteTheme = { ...DEFAULT_THEME, ...data.preferences.theme };
+                        // Ensure gradient property exists if loading old theme data
+                        if (!remoteTheme.primaryGradient) remoteTheme.primaryGradient = DEFAULT_THEME.primaryGradient;
+                        
                         setThemeData(remoteTheme);
                         applyTheme(remoteTheme);
                     }
@@ -615,6 +705,14 @@ export const Settings: React.FC = () => {
                              onChange={(v) => handleThemeChange('cardBackgroundColor', v)}
                              desc="Background color for cards and content containers."
                           />
+                          
+                          {/* New Gradient Picker */}
+                          <GradientPicker
+                             label="Primary Gradient"
+                             value={themeData.primaryGradient || 'linear-gradient(135deg, #88d8b0 0%, #ff6f69 100%)'}
+                             onChange={(v) => handleThemeChange('primaryGradient', v)}
+                             desc="Custom gradient used for featured elements."
+                          />
                       </div>
 
                       <div className="border-t border-gray-100 my-6"></div>
@@ -673,6 +771,10 @@ export const Settings: React.FC = () => {
                               <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
                                   <h5 className="font-bold text-gray-900">Card Title</h5>
                                   <p className="text-sm text-gray-500">This is how content looks.</p>
+                              </div>
+                              {/* Gradient Preview */}
+                              <div className="h-12 w-24 rounded-lg bg-primary-gradient shadow-sm flex items-center justify-center text-white text-xs font-bold border border-black/5">
+                                Gradient
                               </div>
                           </div>
                       </div>

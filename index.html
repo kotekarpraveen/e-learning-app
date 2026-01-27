@@ -51,6 +51,9 @@
         --color-sidebar-bg: #ffffff; /* Default Sidebar Background */
         --font-primary: 'Inter', sans-serif;
         --color-text: #383525; /* Matches Gray-800 */
+        
+        /* Gradients */
+        --gradient-primary: linear-gradient(135deg, #88d8b0 0%, #ff6f69 100%);
       }
 
       body {
@@ -196,6 +199,9 @@
           extend: {
             fontFamily: {
               sans: ['var(--font-primary)', 'sans-serif'],
+            },
+            backgroundImage: {
+              'primary-gradient': 'var(--gradient-primary)',
             },
             animation: {
               blob: "blob 7s infinite",

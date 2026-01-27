@@ -8,7 +8,7 @@ import {
   Play, Pause, FileText, HelpCircle, Terminal, Mic, CheckCircle, 
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Download, RefreshCw, Loader2, AlertTriangle, Circle, Volume2,
   BookOpen, Headphones, Clock, XCircle, Award, PanelLeftClose, PanelLeftOpen, Menu,
-  ExternalLink, Maximize2, File, MessageSquare, Check, ArrowLeft, User, RotateCcw, X
+  ExternalLink, Maximize2, File, MessageSquare, Check, ArrowLeft, User, RotateCcw, X, FileCode
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
@@ -20,6 +20,12 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   const [isRunning, setIsRunning] = useState(false);
   const MotionDiv = motion.div as any;
 
+  // Update local state if prop changes (e.g. navigation between lessons)
+  useEffect(() => {
+      setCode(starterCode || '');
+      setOutput(null);
+  }, [starterCode]);
+
   const runCode = () => {
     setIsRunning(true);
     setTimeout(() => {
@@ -29,11 +35,11 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden font-mono text-sm bg-white shadow-sm">
+    <div className="border border-gray-200 rounded-lg overflow-hidden font-mono text-sm bg-white shadow-sm my-4">
       <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-        <span className="text-gray-500">In [1]:</span>
-        <Button size="sm" variant="secondary" onClick={runCode} isLoading={isRunning} className="text-xs h-7 px-2">
-          <Play size={12} className="mr-1" /> Run
+        <span className="text-gray-500 font-semibold text-xs">Python 3</span>
+        <Button size="sm" variant="secondary" onClick={runCode} isLoading={isRunning} className="text-xs h-7 px-3 flex items-center gap-1">
+          <Play size={10} /> Run Cell
         </Button>
       </div>
       <div className="p-0">
@@ -41,6 +47,7 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
             className="w-full p-4 bg-gray-50/30 font-mono text-gray-800 focus:outline-none resize-y min-h-[100px]"
             value={code}
             onChange={(e) => setCode(e.target.value)}
+            spellCheck={false}
         />
       </div>
       <AnimatePresence>
@@ -50,8 +57,10 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
             animate={{ height: 'auto', opacity: 1 }}
             className="border-t border-gray-200 bg-white p-4"
           >
-            <span className="text-green-600 mr-2">Out [1]:</span>
-            {output}
+            <div className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Output</div>
+            <div className="font-mono text-gray-800 bg-gray-50 p-2 rounded border border-gray-100">
+                {output}
+            </div>
           </MotionDiv>
         )}
       </AnimatePresence>
@@ -65,22 +74,23 @@ const NotebookRenderer = ({ notebook }: { notebook: any }) => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-200">
-       <div className="border-b border-gray-100 pb-4 mb-4">
+       <div className="border-b border-gray-100 pb-4 mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold flex items-center text-gray-800">
              <Terminal className="mr-2 text-orange-500" /> Jupyter Notebook
           </h2>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Read-Only View</span>
        </div>
        
        {cells.map((cell: any, idx: number) => (
           <div key={idx} className="mb-6 last:mb-0">
              {cell.cell_type === 'markdown' ? (
-                <div className="prose prose-sm max-w-none p-4 bg-transparent">
+                <div className="prose prose-sm max-w-none p-4 bg-transparent text-gray-700">
                    {Array.isArray(cell.source) ? cell.source.join('').split('\n').map((line:string, i:number) => (
                       <p key={i} className="min-h-[1em] my-1">{line}</p>
                    )) : <p>{cell.source}</p>}
                 </div>
              ) : (
-                <div className="pl-2">
+                <div className="pl-2 border-l-4 border-orange-100">
                     <JupyterCell starterCode={Array.isArray(cell.source) ? cell.source.join('') : cell.source} />
                 </div>
              )}
@@ -88,7 +98,10 @@ const NotebookRenderer = ({ notebook }: { notebook: any }) => {
        ))}
        
        {cells.length === 0 && (
-           <p className="text-gray-500 italic text-center py-8">Empty notebook.</p>
+           <div className="flex flex-col items-center justify-center py-12 text-center">
+                <FileCode className="text-gray-300 mb-2" size={32} />
+                <p className="text-gray-500 italic">This notebook has no content to display.</p>
+           </div>
        )}
     </div>
   );
@@ -435,7 +448,6 @@ export const CoursePlayer: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Auto-expand menu on mobile if in list view (no lesson selected)
   useEffect(() => {
     if (!currentLesson && isMobile) {
         setMobileMenuExpanded(true);
@@ -591,7 +603,32 @@ export const CoursePlayer: React.FC = () => {
           </div>
         );
       case 'jupyter':
-        return <NotebookRenderer notebook={currentLesson.contentData} />;
+        const data = currentLesson.contentData;
+        // Case 1: Uploaded Notebook (Nested in metadata.notebook)
+        if (data?.notebook) {
+             return <NotebookRenderer notebook={data.notebook} />;
+        }
+        // Case 2: Direct Notebook Structure (Legacy or manual handling fallback)
+        if (data?.cells) {
+             return <NotebookRenderer notebook={data} />;
+        }
+        // Case 3: Code Practice (Manual Description + Code)
+        return (
+             <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+                 <div className="mb-6 border-b border-gray-100 pb-4">
+                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Terminal size={20} className="text-indigo-600" />
+                        {currentLesson.title}
+                     </h2>
+                     {data?.description && (
+                        <div className="mt-2 text-gray-600 text-sm leading-relaxed">
+                            {data.description}
+                        </div>
+                     )}
+                 </div>
+                 <JupyterCell starterCode={data?.starterCode} />
+             </div>
+        );
       case 'quiz':
         return (
             <QuizPlayer 
@@ -601,9 +638,6 @@ export const CoursePlayer: React.FC = () => {
                 onComplete={toggleComplete} 
                 isCompleted={completedLessonIds.has(currentLesson.id)}
                 onBack={() => {
-                    // Navigate back logic: 
-                    // On mobile, this closes the full-screen quiz overlay (by clearing active lesson)
-                    // On desktop, it goes to dashboard (or course root)
                     if(isMobile) setCurrentLesson(null);
                     else navigate('/dashboard');
                 }}
@@ -613,7 +647,6 @@ export const CoursePlayer: React.FC = () => {
       case 'podcast':
         return (
           <div className="max-w-3xl mx-auto w-full">
-             {/* Use video tag to support both audio and video formats as source, but hide visual */}
              <video 
                 ref={mediaRef} 
                 src={currentLesson.contentUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'} 
@@ -657,7 +690,7 @@ export const CoursePlayer: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-gray-50 overflow-hidden">
       
-      {/* 1. CURRICULUM SIDEBAR (Desktop: Left, Mobile: Bottom via Flex Order) */}
+      {/* 1. CURRICULUM SIDEBAR */}
       <MotionDiv 
         initial={false}
         animate={!isMobile ? { width: sidebarExpanded ? 340 : 0 } : {}}
@@ -670,7 +703,6 @@ export const CoursePlayer: React.FC = () => {
             ${!isMobile && !sidebarExpanded ? 'border-none' : ''}
         `}
       >
-        {/* Mobile Tabs & Toggle */}
         <div className="lg:hidden flex items-center border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10 h-14">
             <div className="flex flex-1">
                 <button 
@@ -696,11 +728,9 @@ export const CoursePlayer: React.FC = () => {
             )}
         </div>
 
-        {/* Content List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
             {(!isMobile || activeMobileTab === 'content') && (
                 <>
-                    {/* Desktop Sidebar Header */}
                     {!isMobile && (
                         <div className="p-4 border-b border-gray-100 flex items-center justify-between min-w-[340px]">
                             <button onClick={() => navigate('/dashboard')} className="flex items-center text-xs font-bold text-gray-500 hover:text-gray-900">
@@ -712,7 +742,6 @@ export const CoursePlayer: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Modules List */}
                     <div className={`${!isMobile ? 'min-w-[340px]' : 'w-full'}`}>
                         {course?.modules.map((module, mIdx) => (
                             <div key={module.id} className="border-b border-gray-50">
@@ -755,34 +784,27 @@ export const CoursePlayer: React.FC = () => {
         </div>
       </MotionDiv>
 
-      {/* 2. MAIN PLAYER AREA (Desktop: Right, Mobile: Top via Flex Order) */}
+      {/* 2. MAIN PLAYER AREA */}
       <div className={`
           flex flex-col bg-gray-50 relative 
           ${isMobile 
             ? 'order-1 w-full ' + (
                 !currentLesson ? 'hidden' : 
-                !mobileMenuExpanded ? 'flex-1 h-full' : // Collapsed menu => Player full height
-                ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') // Expanded menu => Player constrained
+                !mobileMenuExpanded ? 'flex-1 h-full' : 
+                ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') 
               )
             : 'order-2 flex-1 h-full overflow-hidden'
           }
           ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
       `}>
-        {/* Only show standard header if NOT in full screen quiz mode */}
         {!(isMobile && currentLesson?.type === 'quiz') && (
             <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
             <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
-                {/* On Desktop, show expand button. On Mobile, show Back button directly in header */}
                 {isMobile ? (
-                    <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
-                        <ChevronLeft size={24} />
-                    </button>
+                    <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900"><ChevronLeft size={24} /></button>
                 ) : !sidebarExpanded ? (
-                    <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600">
-                    <Menu size={20} />
-                    </button>
+                    <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600"><Menu size={20} /></button>
                 ) : null}
-                
                 <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -793,7 +815,6 @@ export const CoursePlayer: React.FC = () => {
             </header>
         )}
         
-        {/* Content Container */}
         <main className={`overflow-y-auto custom-scrollbar ${isMobile && currentLesson?.type !== 'quiz' ? 'p-0 bg-black flex-1' : 'p-0 lg:p-10 flex-1'}`}>
            <div className="max-w-6xl mx-auto h-full">
               <AnimatePresence mode="wait">

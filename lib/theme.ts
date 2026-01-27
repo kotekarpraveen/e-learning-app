@@ -13,6 +13,7 @@ export interface ThemeConfig {
   backgroundColor: string;
   cardBackgroundColor: string;
   sidebarBackgroundColor: string; // New: Sidebar specific color
+  primaryGradient: string; // New: Gradient setting
   fontFamily: string;
   scale: number; // Percentage (e.g. 100 for 100%)
   customFonts: CustomFont[];
@@ -23,12 +24,13 @@ export interface ThemeConfig {
 // Secondary: #ff6f69 (Coral)
 // Background: #ece9df (Beige)
 export const DEFAULT_THEME: ThemeConfig = {
-  version: 3, // Incremented to force update from previous Gold/Cream theme
+  version: 4, // Incremented version
   primaryColor: '#88d8b0',  
   secondaryColor: '#ff6f69', 
   backgroundColor: '#ece9df', 
   cardBackgroundColor: '#ffffff',
-  sidebarBackgroundColor: '#ffffff', // Default sidebar is white for this theme
+  sidebarBackgroundColor: '#ffffff',
+  primaryGradient: 'linear-gradient(135deg, #88d8b0 0%, #ff6f69 100%)',
   fontFamily: 'Inter',
   scale: 100,
   customFonts: []
@@ -126,12 +128,9 @@ export const applyTheme = (theme: ThemeConfig) => {
   root.style.setProperty('--color-gray-200', adjustBrightness(theme.backgroundColor, -30));
   root.style.setProperty('--color-gray-300', adjustBrightness(theme.backgroundColor, -50));
   
-  // Note: For text colors (400-900), we typically rely on index.html defaults or rigorous calculation.
-  // For the beige theme, we want brownish/dark grey text, which is handled in index.html :root.
-
-  // 6. Primary Scale (Base #88d8b0)
-  root.style.setProperty('--color-primary-500', theme.primaryColor); // Used for buttons often
-  root.style.setProperty('--color-primary-400', theme.primaryColor); // Base
+  // 6. Primary Scale
+  root.style.setProperty('--color-primary-500', theme.primaryColor); 
+  root.style.setProperty('--color-primary-400', theme.primaryColor); 
   root.style.setProperty('--color-primary-50', adjustBrightness(theme.primaryColor, 120));
   root.style.setProperty('--color-primary-100', adjustBrightness(theme.primaryColor, 90));
   root.style.setProperty('--color-primary-200', adjustBrightness(theme.primaryColor, 60));
@@ -141,7 +140,7 @@ export const applyTheme = (theme: ThemeConfig) => {
   root.style.setProperty('--color-primary-800', adjustBrightness(theme.primaryColor, -60));
   root.style.setProperty('--color-primary-900', adjustBrightness(theme.primaryColor, -80));
 
-  // 7. Secondary Scale (Base #ff6f69)
+  // 7. Secondary Scale
   root.style.setProperty('--color-secondary-500', theme.secondaryColor);
   root.style.setProperty('--color-secondary-400', theme.secondaryColor);
   root.style.setProperty('--color-secondary-50', adjustBrightness(theme.secondaryColor, 150));
@@ -153,6 +152,9 @@ export const applyTheme = (theme: ThemeConfig) => {
   root.style.setProperty('--color-secondary-800', adjustBrightness(theme.secondaryColor, -60));
   root.style.setProperty('--color-secondary-900', adjustBrightness(theme.secondaryColor, -80));
 
+  // 8. Gradient
+  root.style.setProperty('--gradient-primary', theme.primaryGradient || DEFAULT_THEME.primaryGradient);
+
   // Save to storage
   localStorage.setItem('aelgo_theme', JSON.stringify(theme));
 };
@@ -163,12 +165,15 @@ export const loadTheme = () => {
     try {
       const theme = JSON.parse(stored);
       
-      // CRITICAL: Check version. If stored version < default version, force reset.
-      // This solves the issue where the old "Gold" or "Blue" theme persists for the user.
+      // Check version. If stored version < default version, force reset or merge properly.
       if (!theme.version || theme.version < (DEFAULT_THEME.version || 0)) {
-          console.log("Old theme version detected. Upgrading to Default (Mint/Coral).");
-          applyTheme(DEFAULT_THEME);
-          return DEFAULT_THEME;
+          // Merge with default to ensure new properties (like primaryGradient) exist
+          const upgraded = { ...DEFAULT_THEME, ...theme, version: DEFAULT_THEME.version };
+          // Ensure primaryGradient exists if upgrading from v3
+          if(!upgraded.primaryGradient) upgraded.primaryGradient = DEFAULT_THEME.primaryGradient;
+          
+          applyTheme(upgraded);
+          return upgraded;
       }
 
       const merged = { ...DEFAULT_THEME, ...theme };
