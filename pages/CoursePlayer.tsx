@@ -18,6 +18,7 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   const [output, setOutput] = useState<string | null>(null);
   const [code, setCode] = useState(starterCode || '');
   const [isRunning, setIsRunning] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const MotionDiv = motion.div as any;
 
   // Update local state if prop changes (e.g. navigation between lessons)
@@ -25,6 +26,14 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
       setCode(starterCode || '');
       setOutput(null);
   }, [starterCode]);
+
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [code]);
 
   const runCode = () => {
     setIsRunning(true);
@@ -44,7 +53,8 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
       </div>
       <div className="p-0">
         <textarea 
-            className="w-full p-4 bg-gray-50/30 font-mono text-gray-800 focus:outline-none resize-y min-h-[100px]"
+            ref={textareaRef}
+            className="w-full p-4 bg-gray-50/30 font-mono text-gray-800 focus:outline-none resize-none overflow-hidden min-h-[100px]"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
