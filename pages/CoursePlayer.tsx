@@ -219,20 +219,20 @@ const QuizPlayer = ({
     const totalQuestions = questions.length;
     
     // Circular Progress Calc
-    const radius = 60;
+    const radius = 32; // Reduced size
     const circumference = 2 * Math.PI * radius;
     const progress = answeredCount / totalQuestions;
     const strokeDashoffset = circumference - progress * circumference;
 
     const CircularProgress = () => (
-        <div className="relative flex items-center justify-center w-36 h-36 md:w-40 md:h-40">
+        <div className="relative flex items-center justify-center w-20 h-20 md:w-24 md:h-24">
             <svg className="transform -rotate-90 w-full h-full">
                 <circle
                     cx="50%"
                     cy="50%"
                     r={radius}
                     stroke="#f3f4f6" // gray-100
-                    strokeWidth="12"
+                    strokeWidth="6"
                     fill="transparent"
                 />
                 <circle
@@ -240,7 +240,7 @@ const QuizPlayer = ({
                     cy="50%"
                     r={radius}
                     stroke="#1f2937" // gray-900
-                    strokeWidth="12"
+                    strokeWidth="6"
                     fill="transparent"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
@@ -249,8 +249,8 @@ const QuizPlayer = ({
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {answeredCount}<span className="text-gray-400 text-lg md:text-xl">/{totalQuestions}</span>
+                <span className="text-lg md:text-xl font-bold text-gray-900">
+                    {answeredCount}<span className="text-gray-400 text-sm">/{totalQuestions}</span>
                 </span>
             </div>
         </div>
@@ -283,7 +283,7 @@ const QuizPlayer = ({
             <div className={cardClasses}>
                 
                 {/* 1. Quiz Header: Timer & Submit (Fixed at top inside card) */}
-                <div className={`flex justify-between items-start border-b border-gray-50 shrink-0 ${isMobile ? 'p-4 pb-4' : 'mb-6 md:mb-10 pb-6'}`}>
+                <div className={`flex justify-between items-start border-b border-gray-50 shrink-0 ${isMobile ? 'p-4 pb-4' : 'mb-6 md:mb-8 pb-6'}`}>
                     <div className="flex items-start gap-3 md:gap-4">
                         <div className="mt-1">
                             <Clock className="w-5 h-5 md:w-6 md:h-6 text-gray-900" strokeWidth={2.5} />
@@ -345,7 +345,7 @@ const QuizPlayer = ({
                                      <CircularProgress />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div className="flex flex-col gap-3 mb-4">
                                     {currentQ.options.map((opt: string, oIdx: number) => {
                                         const isSelected = userAnswers[currentQuestionIndex] === oIdx;
                                         const labels = ['A', 'B', 'C', 'D', 'E'];
@@ -361,7 +361,7 @@ const QuizPlayer = ({
                                                     }
                                                 `}
                                             >
-                                                <span className={`text-xs font-bold mr-4 w-6 ${isSelected ? 'text-green-700' : 'text-gray-400'}`}>{labels[oIdx]}.</span>
+                                                <span className={`text-xs font-bold mr-4 w-6 shrink-0 ${isSelected ? 'text-green-700' : 'text-gray-400'}`}>{labels[oIdx]}.</span>
                                                 <span className={`text-sm font-bold ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>{opt}</span>
                                             </div>
                                         );
@@ -369,8 +369,8 @@ const QuizPlayer = ({
                                 </div>
                             </div>
 
-                            {/* Right: Progress Circle (Desktop Only placement) */}
-                            <div className="hidden md:flex flex-col items-center justify-center w-48 shrink-0 border-l border-gray-50 pl-8">
+                            {/* Right: Progress Circle (Desktop Only placement - Smaller Width) */}
+                            <div className="hidden md:flex flex-col items-center justify-start pt-4 w-32 shrink-0 border-l border-gray-50 pl-6">
                                 <CircularProgress />
                             </div>
                         </div>
