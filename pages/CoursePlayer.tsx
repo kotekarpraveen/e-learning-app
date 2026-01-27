@@ -13,21 +13,71 @@ import {
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 
-// Mock Component for Jupyter
+// Declare global Pyodide types
+declare global {
+  interface Window {
+    loadPyodide: (config: { indexURL: string }) => Promise<any>;
+    pyodide: any;
+  }
+}
+
+// Singleton Pyodide Loader to prevent re-initializing
+let pyodideInstance: any = null;
+let pyodideLoadPromise: Promise<any> | null = null;
+
+const initPyodide = async () => {
+  if (pyodideInstance) return pyodideInstance;
+  if (pyodideLoadPromise) return pyodideLoadPromise;
+
+  pyodideLoadPromise = (async () => {
+    if (!window.loadPyodide) {
+        throw new Error("Pyodide script not loaded in index.html");
+    }
+    const pyodide = await window.loadPyodide({
+      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+    });
+    // Load micropip for package installation
+    await pyodide.loadPackage("micropip");
+    pyodideInstance = pyodide;
+    return pyodide;
+  })();
+
+  return pyodideLoadPromise;
+};
+
+// Real Jupyter Cell with Pyodide Execution
 const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
   const [output, setOutput] = useState<string | null>(null);
   const [code, setCode] = useState(starterCode || '');
   const [isRunning, setIsRunning] = useState(false);
+  const [isPyodideReady, setIsPyodideReady] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const MotionDiv = motion.div as any;
 
-  // Update local state if prop changes (e.g. navigation between lessons)
+  // Initialize Pyodide on mount
+  useEffect(() => {
+      const loadRuntime = async () => {
+          try {
+              setStatusMessage("Initializing Python runtime...");
+              await initPyodide();
+              setIsPyodideReady(true);
+              setStatusMessage("");
+          } catch (err) {
+              console.error("Pyodide failed to load", err);
+              setStatusMessage("Error loading Python runtime.");
+          }
+      };
+      loadRuntime();
+  }, []);
+
+  // Update local state if prop changes
   useEffect(() => {
       setCode(starterCode || '');
       setOutput(null);
   }, [starterCode]);
 
-  // Auto-resize textarea to fit content
+  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -35,20 +85,60 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
     }
   }, [code]);
 
-  const runCode = () => {
+  const runCode = async () => {
+    if (!isPyodideReady || !pyodideInstance) return;
+    
     setIsRunning(true);
-    setTimeout(() => {
-      setOutput("Result: Success (Simulation)");
-      setIsRunning(false);
-    }, 1500);
+    setOutput(null);
+    setStatusMessage("Analyzing code...");
+
+    try {
+        // 1. Install packages if imported (Auto-detect)
+        await pyodideInstance.loadPackagesFromImports(code);
+        
+        // 2. Setup Stdout Capture
+        let stdoutBuffer = "";
+        pyodideInstance.setStdout({ batched: (msg: string) => {
+             stdoutBuffer += msg + "\n";
+        }});
+
+        setStatusMessage("Running...");
+        
+        // 3. Execute
+        const result = await pyodideInstance.runPythonAsync(code);
+        
+        // 4. Format Output
+        let finalOutput = stdoutBuffer;
+        if (result !== undefined) {
+            finalOutput += String(result);
+        }
+        
+        setOutput(finalOutput || "Done (No output)");
+        setStatusMessage("");
+    } catch (err: any) {
+        setOutput(String(err));
+    } finally {
+        setIsRunning(false);
+        setStatusMessage("");
+    }
   };
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden font-mono text-sm bg-white shadow-sm my-4">
       <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-        <span className="text-gray-500 font-semibold text-xs">Python 3</span>
-        <Button size="sm" variant="secondary" onClick={runCode} isLoading={isRunning} className="text-xs h-7 px-3 flex items-center gap-1">
-          <Play size={10} /> Run Cell
+        <span className="text-gray-500 font-semibold text-xs flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isPyodideReady ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`}></span>
+            Python 3 Kernel {statusMessage && `• ${statusMessage}`}
+        </span>
+        <Button 
+            size="sm" 
+            variant="secondary" 
+            onClick={runCode} 
+            disabled={!isPyodideReady || isRunning}
+            className="text-xs h-7 px-3 flex items-center gap-1"
+        >
+          {isRunning ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />} 
+          Run Cell
         </Button>
       </div>
       <div className="p-0">
@@ -58,6 +148,7 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
+            placeholder={isPyodideReady ? "Write your python code here..." : "Loading Python environment..."}
         />
       </div>
       <AnimatePresence>
@@ -68,7 +159,7 @@ const JupyterCell = ({ starterCode }: { starterCode?: string }) => {
             className="border-t border-gray-200 bg-white p-4"
           >
             <div className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Output</div>
-            <div className="font-mono text-gray-800 bg-gray-50 p-2 rounded border border-gray-100">
+            <div className="font-mono text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap">
                 {output}
             </div>
           </MotionDiv>
@@ -88,7 +179,7 @@ const NotebookRenderer = ({ notebook }: { notebook: any }) => {
           <h2 className="text-xl font-bold flex items-center text-gray-800">
              <Terminal className="mr-2 text-orange-500" /> Jupyter Notebook
           </h2>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Read-Only View</span>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Interactive Mode</span>
        </div>
        
        {cells.map((cell: any, idx: number) => (
