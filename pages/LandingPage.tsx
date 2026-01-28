@@ -111,7 +111,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-x-hidden perspective-1000">
       
       {/* Navigation */}
-      <nav className="fixed w-full bg-white/80 backdrop-blur-xl z-50 border-b border-gray-200/50 transition-all duration-300">
+      <nav className="fixed w-full bg-white/80 backdrop-blur-xl z-50 border-b border-gray-200/50 transition-all duration-300" role="navigation" aria-label="Main Navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
@@ -131,6 +131,7 @@ export const LandingPage: React.FC = () => {
                   key={item}
                   onClick={() => scrollToSection(item.toLowerCase().replace(/\s+/g, '-'))} 
                   className="text-sm font-semibold text-gray-500 hover:text-primary-600 transition-colors relative group"
+                  aria-label={`Scroll to ${item}`}
                 >
                   {item}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-500 transition-all group-hover:w-full"></span>
@@ -141,15 +142,15 @@ export const LandingPage: React.FC = () => {
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center space-x-4">
               {isAuthenticated ? (
-                 <Button onClick={() => navigate(user?.role !== 'student' ? '/admin' : '/dashboard')}>
+                 <Button onClick={() => navigate(user?.role !== 'student' ? '/admin' : '/dashboard')} aria-label="Go to Dashboard">
                     Dashboard
                  </Button>
               ) : (
                  <>
-                   <button onClick={() => navigate('/login')} className="text-sm font-bold text-gray-600 hover:text-gray-900 px-4 py-2">
+                   <button onClick={() => navigate('/login')} className="text-sm font-bold text-gray-600 hover:text-gray-900 px-4 py-2" aria-label="Login">
                      Log in
                    </button>
-                   <Button onClick={() => navigate('/login')} className="shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-shadow">
+                   <Button onClick={() => navigate('/login')} className="shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-shadow" aria-label="Get Started">
                      Get Started
                    </Button>
                  </>
@@ -158,7 +159,11 @@ export const LandingPage: React.FC = () => {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={isMenuOpen ? "Close Menu" : "Open Menu"}
+              >
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
@@ -190,7 +195,7 @@ export const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-gray-50">
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-gray-50" aria-labelledby="hero-title">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             
@@ -209,7 +214,7 @@ export const LandingPage: React.FC = () => {
                  Next-Gen E-Learning Platform
                </div>
                
-               <h1 className="text-5xl lg:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
+               <h1 id="hero-title" className="text-5xl lg:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
                  Learn Faster with <br />
                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-primary-500 to-purple-500">
                    Interactive Intelligence
@@ -225,6 +230,7 @@ export const LandingPage: React.FC = () => {
                     size="lg" 
                     className="h-14 px-10 text-lg shadow-xl shadow-primary-500/30 hover:shadow-primary-500/50 hover:-translate-y-1 transition-all" 
                     onClick={() => navigate('/login')}
+                    aria-label="Start Learning Free"
                   >
                    Start Learning Free
                  </Button>
@@ -233,6 +239,7 @@ export const LandingPage: React.FC = () => {
                     size="lg" 
                     className="w-full sm:w-auto px-8 h-14 text-lg bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700" 
                     icon={<PlayCircle size={20} className="text-gray-500" />}
+                    aria-label="View Demo Video"
                   >
                    View Demo
                  </Button>
@@ -241,7 +248,7 @@ export const LandingPage: React.FC = () => {
                <div className="mt-10 flex items-center justify-center lg:justify-start gap-4 text-sm text-gray-500 font-medium">
                   <div className="flex -space-x-2">
                       {[1,2,3,4].map(i => (
-                          <img key={i} className="w-8 h-8 rounded-full border-2 border-white" src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
+                          <img key={i} className="w-8 h-8 rounded-full border-2 border-white" src={`https://i.pravatar.cc/100?img=${i+10}`} alt={`Active user ${i}`} />
                       ))}
                   </div>
                   <p>Joined by 2,000+ creators this week</p>
@@ -254,6 +261,7 @@ export const LandingPage: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, delay: 0.2 }}
                 className="relative h-[500px] lg:h-[600px] w-full"
+                aria-hidden="true"
             >
                 {/* 3D Scene Container */}
                 <div className="absolute inset-0 z-10 -mr-20 lg:-mr-40">
@@ -297,7 +305,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Trusted By Strip (Animated Marquee) */}
-      <div className="py-12 bg-white border-y border-gray-100 overflow-hidden">
+      <div className="py-12 bg-white border-y border-gray-100 overflow-hidden" aria-label="Trusted by companies">
           <div className="max-w-7xl mx-auto px-6 text-center mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Empowering learners from leading companies</p>
           </div>
@@ -326,10 +334,10 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Features Grid with 3D Tilt Cards */}
-      <section id="features" className="py-24 bg-white relative">
+      <section id="features" className="py-24 bg-white relative" aria-labelledby="features-title">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-20">
-               <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">Why Choose Aelgo World?</h2>
+               <h2 id="features-title" className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">Why Choose Aelgo World?</h2>
                <p className="text-lg text-gray-600 leading-relaxed">
                    We combine pedagogical expertise with modern tech stack to deliver a learning experience that actually sticks.
                </p>
@@ -377,7 +385,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* How it Works - Stepped Visual */}
-      <section id="how-it-works" className="py-24 bg-gray-50 border-t border-gray-100">
+      <section id="how-it-works" className="py-24 bg-gray-50 border-t border-gray-100" aria-labelledby="how-title">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                <motion.div 
@@ -387,7 +395,7 @@ export const LandingPage: React.FC = () => {
                  transition={{ duration: 0.8 }}
                  className="order-2 lg:order-1"
                >
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">Learning that adapts to your lifestyle</h2>
+                  <h2 id="how-title" className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">Learning that adapts to your lifestyle</h2>
                   <p className="text-lg text-gray-600 mb-10">Whether you have 10 minutes or 2 hours, Aelgo World has a learning mode for you.</p>
                   
                   <div className="space-y-8 relative">
@@ -429,7 +437,7 @@ export const LandingPage: React.FC = () => {
                   <div className="relative rounded-[2rem] shadow-2xl overflow-hidden border-4 border-white group">
                       <img 
                         src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                        alt="Students learning" 
+                        alt="Diverse students learning together in a modern collaborative space" 
                         className="w-full object-cover h-[500px] transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -447,17 +455,17 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Featured Courses (Dark Section) */}
-      <section id="courses" className="py-24 bg-gray-900 text-white relative overflow-hidden">
+      <section id="courses" className="py-24 bg-gray-900 text-white relative overflow-hidden" aria-labelledby="courses-title">
          {/* Decoration */}
          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
          
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
                <div>
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4">Featured Courses</h2>
+                  <h2 id="courses-title" className="text-3xl md:text-4xl font-bold mb-4">Featured Courses</h2>
                   <p className="text-gray-400 max-w-xl text-lg">Explore our most popular learning tracks designed by industry experts.</p>
                </div>
-               <Button variant="secondary" className="bg-white/10 text-white border-transparent hover:bg-white/20 backdrop-blur-sm" onClick={() => navigate('/login')}>
+               <Button variant="secondary" className="bg-white/10 text-white border-transparent hover:bg-white/20 backdrop-blur-sm" onClick={() => navigate('/login')} aria-label="Explore Full Catalog">
                   Explore Full Catalog <ArrowRight size={16} className="ml-2" />
                </Button>
             </div>
@@ -492,7 +500,7 @@ export const LandingPage: React.FC = () => {
                         
                         <div className="flex items-center justify-between pt-4 border-t border-gray-700/50 mt-auto">
                            <div className="flex items-center text-sm text-gray-300 font-medium">
-                              <img src={`https://ui-avatars.com/api/?name=${course.instructor}&background=random`} className="w-8 h-8 rounded-full mr-3 border border-gray-600" alt="" />
+                              <img src={`https://ui-avatars.com/api/?name=${course.instructor}&background=random`} className="w-8 h-8 rounded-full mr-3 border border-gray-600" alt={`Instructor ${course.instructor}`} />
                               {course.instructor}
                            </div>
                            <span className="text-white font-bold bg-gray-700 px-3 py-1 rounded-lg">${course.price}</span>
@@ -505,11 +513,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Testimonials */}
-      <section id="stories" className="py-24 bg-white">
+      <section id="stories" className="py-24 bg-white" aria-labelledby="stories-title">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
                <span className="text-primary-600 font-bold tracking-wider uppercase text-sm">Success Stories</span>
-               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-2 mb-4">Loved by Students</h2>
+               <h2 id="stories-title" className="text-3xl md:text-4xl font-bold text-gray-900 mt-2 mb-4">Loved by Students</h2>
                <p className="text-lg text-gray-600">Hear from people who transformed their careers with Aelgo World.</p>
             </div>
 
@@ -545,7 +553,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden bg-primary-600">
+      <section className="py-24 relative overflow-hidden bg-primary-600" aria-label="Call to Action">
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
          <div className="absolute -top-40 -right-40 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
@@ -559,6 +567,7 @@ export const LandingPage: React.FC = () => {
                   variant="secondary"
                   className="bg-white text-primary-700 hover:bg-gray-50 h-16 px-10 text-lg border-none shadow-xl font-bold" 
                   onClick={() => navigate('/login')}
+                  aria-label="Get Started for Free"
                 >
                   Get Started for Free
                </Button>
@@ -566,6 +575,7 @@ export const LandingPage: React.FC = () => {
                   variant="ghost" 
                   className="bg-primary-900/30 text-white border border-white/20 hover:bg-primary-900/50 h-16 px-10 text-lg backdrop-blur-sm" 
                   onClick={() => navigate('/courses')}
+                  aria-label="Browse Curriculum"
                 >
                   Browse Curriculum
                </Button>
@@ -574,7 +584,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-50 pt-20 pb-12 border-t border-gray-200 text-gray-600">
+      <footer className="bg-gray-50 pt-20 pb-12 border-t border-gray-200 text-gray-600" role="contentinfo">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                <div className="col-span-1 md:col-span-2">
@@ -588,9 +598,9 @@ export const LandingPage: React.FC = () => {
                      Empowering the next generation of tech leaders through interactive, accessible, and high-quality education.
                   </p>
                   <div className="flex space-x-4">
-                     <a href="#" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Twitter size={18} /></a>
-                     <a href="#" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Linkedin size={18} /></a>
-                     <a href="#" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Globe size={18} /></a>
+                     <a href="#" aria-label="Twitter" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Twitter size={18} /></a>
+                     <a href="#" aria-label="LinkedIn" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Linkedin size={18} /></a>
+                     <a href="#" aria-label="Website" className="p-2 bg-white border border-gray-200 rounded-full hover:border-primary-500 hover:text-primary-600 transition-colors"><Globe size={18} /></a>
                   </div>
                </div>
                
