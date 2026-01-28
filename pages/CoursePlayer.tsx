@@ -1,4 +1,5 @@
 
+// ... imports same as before ...
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -639,7 +640,7 @@ export const CoursePlayer: React.FC = () => {
       case 'video':
         const videoId = getYoutubeId(currentLesson.contentUrl);
         return (
-          <div className={`bg-black overflow-hidden shadow-lg w-full relative ${isMobile ? 'aspect-video rounded-none' : 'aspect-video rounded-xl'}`}>
+          <div className={`bg-black overflow-hidden shadow-lg w-full relative ${isMobile ? 'aspect-video rounded-none w-full' : 'aspect-video rounded-xl'}`}>
              <iframe 
                 width="100%" height="100%" 
                 src={`https://www.youtube.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0&playsinline=1&showinfo=0&controls=1&origin=${window.location.origin}`} 
@@ -647,7 +648,7 @@ export const CoursePlayer: React.FC = () => {
                 frameBorder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                 allowFullScreen
-                className="absolute inset-0"
+                className="absolute inset-0 w-full h-full"
              ></iframe>
           </div>
         );
@@ -659,7 +660,7 @@ export const CoursePlayer: React.FC = () => {
         const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
 
         return (
-          <div className={`space-y-4 max-w-5xl mx-auto h-full flex flex-col ${isMobile ? 'h-auto min-h-[50vh]' : ''}`}>
+          <div className={`space-y-4 max-w-5xl mx-auto h-full flex flex-col ${isMobile ? 'h-full min-h-[50vh] p-4' : ''}`}>
              <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
                 <div className="flex items-center gap-3">
                    <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
@@ -707,15 +708,15 @@ export const CoursePlayer: React.FC = () => {
         const data = currentLesson.contentData;
         // Case 1: Uploaded Notebook (Nested in metadata.notebook)
         if (data?.notebook) {
-             return <NotebookRenderer notebook={data.notebook} />;
+             return <div className="p-4 h-full overflow-y-auto"><NotebookRenderer notebook={data.notebook} /></div>;
         }
         // Case 2: Direct Notebook Structure (Legacy or manual handling fallback)
         if (data?.cells) {
-             return <NotebookRenderer notebook={data} />;
+             return <div className="p-4 h-full overflow-y-auto"><NotebookRenderer notebook={data} /></div>;
         }
         // Case 3: Code Practice (Manual Description + Code)
         return (
-             <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+             <div className="max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-y-auto">
                  <div className="mb-6 border-b border-gray-100 pb-4">
                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                         <Terminal size={20} className="text-indigo-600" />
@@ -747,7 +748,7 @@ export const CoursePlayer: React.FC = () => {
         );
       case 'podcast':
         return (
-          <div className="max-w-3xl mx-auto w-full">
+          <div className="max-w-3xl mx-auto w-full p-4">
              <video 
                 ref={mediaRef} 
                 src={currentLesson.contentUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'} 
@@ -791,7 +792,55 @@ export const CoursePlayer: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-gray-50 overflow-hidden">
       
-      {/* 1. CURRICULUM SIDEBAR */}
+      {/* 2. MAIN PLAYER AREA (Top on mobile, Right on desktop) */}
+      <div className={`
+          flex flex-col bg-gray-50 relative 
+          ${isMobile 
+            ? 'order-1 w-full ' + (
+                // If video/podcast, shrink to fit content (aspect-ratio), otherwise flex-1
+                (currentLesson?.type === 'video' || currentLesson?.type === 'podcast') 
+                    ? 'flex-shrink-0' 
+                    : 'flex-1 h-full overflow-hidden'
+              )
+            : 'order-2 flex-1 h-full overflow-hidden'
+          }
+          ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
+      `}>
+        {!(isMobile && currentLesson?.type === 'quiz') && !isMobile && (
+            <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
+            <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
+                {!sidebarExpanded ? (
+                    <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600"><Menu size={20} /></button>
+                ) : null}
+                <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+                <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')} className="text-xs px-3">
+                    {completedLessonIds.has(currentLesson?.id || '') ? 'Mark Incomplete' : 'Mark as Done'}
+                </Button>
+            </div>
+            </header>
+        )}
+        
+        <main className={`overflow-y-auto custom-scrollbar ${isMobile && currentLesson?.type !== 'quiz' ? 'p-0 bg-black flex-1 w-full' : 'p-0 lg:p-10 flex-1'}`}>
+           <div className={`max-w-6xl mx-auto h-full ${isMobile ? 'flex flex-col' : ''}`}>
+              <AnimatePresence mode="wait">
+                <MotionDiv 
+                  key={currentLesson?.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full w-full"
+                >
+                   {renderContent()}
+                </MotionDiv>
+              </AnimatePresence>
+           </div>
+        </main>
+      </div>
+
+      {/* 1. CURRICULUM SIDEBAR (Bottom on mobile, Left on desktop) */}
       <MotionDiv 
         initial={false}
         animate={!isMobile ? { width: sidebarExpanded ? 340 : 0 } : {}}
@@ -853,7 +902,13 @@ export const CoursePlayer: React.FC = () => {
                                     {module.lessons.map((lesson) => (
                                     <button
                                         key={lesson.id}
-                                        onClick={() => setCurrentLesson(lesson)}
+                                        onClick={() => {
+                                            setCurrentLesson(lesson);
+                                            if (isMobile) {
+                                                // Scroll to top of video
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }
+                                        }}
                                         className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${
                                             currentLesson?.id === lesson.id ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-100 shadow-sm' : 'hover:bg-gray-50 text-gray-600'
                                         }`}
@@ -884,55 +939,6 @@ export const CoursePlayer: React.FC = () => {
             )}
         </div>
       </MotionDiv>
-
-      {/* 2. MAIN PLAYER AREA */}
-      <div className={`
-          flex flex-col bg-gray-50 relative 
-          ${isMobile 
-            ? 'order-1 w-full ' + (
-                !currentLesson ? 'hidden' : 
-                !mobileMenuExpanded ? 'flex-1 h-full' : 
-                ((currentLesson.type === 'video' || currentLesson.type === 'podcast') ? 'flex-none' : 'flex-1 h-[60vh]') 
-              )
-            : 'order-2 flex-1 h-full overflow-hidden'
-          }
-          ${isMobile && currentLesson?.type === 'quiz' ? '!fixed !inset-0 !z-50 !h-full !w-full' : ''} 
-      `}>
-        {!(isMobile && currentLesson?.type === 'quiz') && (
-            <header className="h-14 lg:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
-            <div className="flex items-center gap-3 lg:gap-4 overflow-hidden">
-                {isMobile ? (
-                    <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-gray-500 hover:text-gray-900"><ChevronLeft size={24} /></button>
-                ) : !sidebarExpanded ? (
-                    <button onClick={() => setSidebarExpanded(true)} className="p-2 text-gray-500 hover:text-primary-600"><Menu size={20} /></button>
-                ) : null}
-                <h1 className="font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">{course?.title}</h1>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-                <Button size="sm" variant="secondary" onClick={() => toggleComplete(currentLesson?.id || '')} className="text-xs px-3">
-                    {completedLessonIds.has(currentLesson?.id || '') ? (isMobile ? 'Done' : 'Mark Incomplete') : (isMobile ? 'Complete' : 'Mark as Done')}
-                </Button>
-            </div>
-            </header>
-        )}
-        
-        <main className={`overflow-y-auto custom-scrollbar ${isMobile && currentLesson?.type !== 'quiz' ? 'p-0 bg-black flex-1' : 'p-0 lg:p-10 flex-1'}`}>
-           <div className="max-w-6xl mx-auto h-full">
-              <AnimatePresence mode="wait">
-                <MotionDiv 
-                  key={currentLesson?.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="h-full"
-                >
-                   {renderContent()}
-                </MotionDiv>
-              </AnimatePresence>
-           </div>
-        </main>
-      </div>
     </div>
   );
 };
