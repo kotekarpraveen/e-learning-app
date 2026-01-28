@@ -1,249 +1,61 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   PlayCircle, Terminal, Mic, CheckCircle, ArrowRight, 
   BookOpen, Code, Award, TrendingUp, Star, Users, Menu, X, Globe,
   Linkedin, Twitter, Zap, Shield, Layers, Feather, Headphones, Play, RefreshCw, Volume2, Pause,
-  Database, Cloud, Cpu, Wifi, Server, Anchor
+  Database, Cloud, Cpu, Wifi, Server, Anchor, MousePointer2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 import { api } from '../lib/api';
 import { Course } from '../types';
+import { Hero3D } from '../components/Hero3D';
 
-// --- Interactive Hero Component ---
-const HeroCodeVisual = () => {
-  const [lines, setLines] = useState<string[]>(['', '', '', '']);
-  const [activeLine, setActiveLine] = useState(0);
-  const [isTyping, setIsTyping] = useState(true);
-  const [showTerminal, setShowTerminal] = useState(false);
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+// --- 3D Tilt Card Component ---
+const TiltCard = ({ children, className = "" }: { children?: React.ReactNode, className?: string }) => {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
 
-  const fullCode = [
-    "# Welcome to Aelgo Lab",
-    "def master_skill(effort):",
-    "    if effort > 0:",
-    "        return 'Success'"
-  ];
+    const mouseXSpring = useSpring(x);
+    const mouseYSpring = useSpring(y);
 
-  // Typewriter Effect
-  useEffect(() => {
-    if (activeLine >= fullCode.length) {
-      setIsTyping(false);
-      setTimeout(() => runSimulation(), 500);
-      return;
-    }
+    const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["15deg", "-15deg"]);
+    const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
 
-    const currentText = fullCode[activeLine];
-    const currentLength = lines[activeLine].length;
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const xPct = mouseX / width - 0.5;
+        const yPct = mouseY / height - 0.5;
+        x.set(xPct);
+        y.set(yPct);
+    };
 
-    if (currentLength < currentText.length) {
-      const timeout = setTimeout(() => {
-        setLines(prev => {
-          const newLines = [...prev];
-          newLines[activeLine] = currentText.substring(0, currentLength + 1);
-          return newLines;
-        });
-      }, Math.random() * 50 + 30); // Random typing speed
-      return () => clearTimeout(timeout);
-    } else {
-      const timeout = setTimeout(() => {
-        setActiveLine(prev => prev + 1);
-      }, 400); // Pause at end of line
-      return () => clearTimeout(timeout);
-    }
-  }, [lines, activeLine]);
+    const handleMouseLeave = () => {
+        x.set(0);
+        y.set(0);
+    };
 
-  const runSimulation = () => {
-    setShowTerminal(true);
-    setTerminalLogs(['> Initializing environment...']);
-    
-    setTimeout(() => setTerminalLogs(prev => [...prev, '> Compiling code...']), 800);
-    setTimeout(() => setTerminalLogs(prev => [...prev, '> Running master_skill(100)...']), 1800);
-    setTimeout(() => setTerminalLogs(prev => [...prev, '✔ Result: "Success"']), 2800);
-  };
+    const MotionDiv = motion.div as any;
 
-  const handleRunClick = () => {
-    if (isTyping) return;
-    setTerminalLogs([]);
-    setShowTerminal(false);
-    setTimeout(() => runSimulation(), 300);
-  };
-
-  // Syntax Highlighting Helper
-  const renderLine = (text: string) => {
-    if (text.startsWith('#')) return <span className="text-gray-500">{text}</span>;
-    
-    const parts = text.split(/('Success'|def|return|if|>)/g);
-    return parts.map((part, i) => {
-      if (part === 'def' || part === 'return' || part === 'if') return <span key={i} className="text-purple-400">{part}</span>;
-      if (part === "'Success'") return <span key={i} className="text-green-400">{part}</span>;
-      if (part.includes('master_skill')) return <span key={i} className="text-yellow-400">{part}</span>;
-      return <span key={i} className="text-gray-200">{part}</span>;
-    });
-  };
-
-  return (
-    <div className="bg-gray-900/95 rounded-2xl shadow-2xl overflow-hidden border border-gray-800 aspect-video relative group backdrop-blur-xl transform transition-transform hover:scale-[1.01] duration-500">
-      {/* Window Header */}
-      <div className="absolute top-0 w-full h-10 bg-gray-800/90 flex items-center justify-between px-4 border-b border-gray-700 z-20">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-          <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-          <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-          <div className="ml-4 px-3 py-1 bg-gray-900 rounded-md text-[10px] text-gray-400 font-mono flex items-center gap-2">
-            <Terminal size={10} /> main.py
-          </div>
-        </div>
-        <button 
-          onClick={handleRunClick}
-          disabled={isTyping}
-          className={`
-            flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-bold tracking-wide transition-all duration-200 border
-            ${isTyping 
-              ? 'bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed' 
-              : 'bg-green-600 text-white border-green-500 hover:bg-green-500 hover:border-green-400 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] cursor-pointer active:scale-95'
-            }
-          `}
+    return (
+        <MotionDiv
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+            className={`relative transition-all duration-200 ease-out ${className}`}
         >
-          <Play size={12} fill="currentColor" /> Run
-        </button>
-      </div>
-
-      <div className="flex h-full pt-10">
-        {/* Sidebar */}
-        <div className="w-16 md:w-1/5 h-full border-r border-gray-800 bg-gray-900/50 p-4 hidden md:block">
-           <div className="h-2 w-12 bg-gray-700/50 rounded mb-6"></div>
-           <div className="space-y-3 opacity-50">
-              {[1,2,3,4,5].map(i => (
-                 <div key={i} className="h-3 w-full bg-gray-800 rounded"></div>
-              ))}
-           </div>
-        </div>
-
-        {/* Code Area */}
-        <div className="flex-1 p-6 md:p-8 relative font-mono text-sm md:text-base">
-           <div className="space-y-1">
-              {lines.map((line, i) => (
-                <div key={i} className="min-h-[1.5em] flex">
-                   <span className="text-gray-600 mr-4 select-none w-4 text-right">{i+1}</span>
-                   <div className="whitespace-pre">
-                      {renderLine(line)}
-                      {i === activeLine && isTyping && (
-                        <motion.span 
-                          animate={{ opacity: [0, 1, 0] }}
-                          transition={{ repeat: Infinity, duration: 0.8 }}
-                          className="inline-block w-2 h-4 bg-primary-400 align-middle ml-1"
-                        />
-                      )}
-                   </div>
-                </div>
-              ))}
-           </div>
-
-           {/* Floating Audio Widget - Restored Glassmorphism Design */}
-           <motion.div 
-              className="absolute top-6 right-6 z-30"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.2, type: 'spring' }}
-           >
-              <div 
-                onClick={() => setIsAudioPlaying(!isAudioPlaying)}
-                className={`
-                  relative overflow-hidden group cursor-pointer
-                  flex items-center gap-3 pr-4 pl-1.5 py-1.5 
-                  rounded-full border transition-all duration-300
-                  ${isAudioPlaying 
-                    ? 'bg-gray-900/80 border-primary-500/50 shadow-[0_0_20px_rgba(136,216,176,0.2)]' 
-                    : 'bg-gray-800/60 border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600'
-                  }
-                  backdrop-blur-md
-                `}
-              >
-                 {/* Icon Container */}
-                 <div className={`
-                    w-8 h-8 rounded-full flex items-center justify-center transition-colors flex-shrink-0
-                    ${isAudioPlaying ? 'bg-primary-500 text-white' : 'bg-gray-700/50 text-gray-400 group-hover:text-white'}
-                 `}>
-                    {isAudioPlaying ? <Pause size={12} fill="currentColor" /> : <Headphones size={14} />}
-                 </div>
-
-                 {/* Text Content */}
-                 <div className="flex flex-col min-w-[90px]">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-0.5">
-                      {isAudioPlaying ? 'Now Playing' : 'Audio Guide'}
-                    </span>
-                    <span className={`text-xs font-medium leading-none ${isAudioPlaying ? 'text-primary-300' : 'text-gray-200'}`}>
-                      Concept Breakdown
-                    </span>
-                 </div>
-
-                 {/* Equalizer (Visible when playing) */}
-                 {isAudioPlaying && (
-                    <div className="flex items-center gap-0.5 h-3 ml-1">
-                       {[1,2,3,4].map(i => (
-                          <motion.div 
-                            key={i}
-                            animate={{ height: [4, 12, 6, 10] }}
-                            transition={{ 
-                              repeat: Infinity, 
-                              duration: 0.4, 
-                              delay: i * 0.1, 
-                              repeatType: "mirror",
-                              ease: "easeInOut"
-                            }}
-                            className="w-0.5 bg-primary-400 rounded-full"
-                          />
-                       ))}
-                    </div>
-                 )}
-              </div>
-           </motion.div>
-
-           {/* Terminal Drawer */}
-           <AnimatePresence>
-             {showTerminal && (
-               <motion.div 
-                 initial={{ y: '100%' }}
-                 animate={{ y: 0 }}
-                 exit={{ y: '100%' }}
-                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                 className="absolute bottom-0 left-0 right-0 bg-black/90 border-t border-gray-700 p-4 font-mono text-xs md:text-sm text-gray-300 h-1/3 overflow-y-auto"
-               >
-                  <div className="flex justify-between items-center mb-2 text-gray-500 text-[10px] uppercase tracking-widest sticky top-0">
-                     <span>Terminal</span>
-                     <button onClick={() => setShowTerminal(false)}><X size={12} /></button>
-                  </div>
-                  <div className="space-y-1">
-                     {terminalLogs.map((log, i) => (
-                        <motion.div 
-                          key={i}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className={log.includes('Success') ? 'text-green-400 font-bold' : ''}
-                        >
-                           {log}
-                        </motion.div>
-                     ))}
-                     {terminalLogs.length < 3 && (
-                        <motion.span 
-                           animate={{ opacity: [0, 1] }} 
-                           transition={{ repeat: Infinity, duration: 0.5 }}
-                           className="inline-block w-1.5 h-3 bg-gray-500 ml-1"
-                        />
-                     )}
-                  </div>
-               </motion.div>
-             )}
-           </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  );
+            <div style={{ transform: "translateZ(50px)" }}>
+                {children}
+            </div>
+        </MotionDiv>
+    );
 };
 
 export const LandingPage: React.FC = () => {
@@ -285,21 +97,21 @@ export const LandingPage: React.FC = () => {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
+        staggerChildren: 0.2
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-x-hidden perspective-1000">
       
       {/* Navigation */}
-      <nav className="fixed w-full bg-white/90 backdrop-blur-xl z-50 border-b border-gray-200/50 transition-all duration-300">
+      <nav className="fixed w-full bg-white/80 backdrop-blur-xl z-50 border-b border-gray-200/50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
@@ -378,57 +190,109 @@ export const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-gray-50">
-        {/* Abstract Background Shapes */}
-        <div className="absolute top-0 right-0 -mr-40 -mt-40 w-[800px] h-[800px] bg-primary-200/40 rounded-full blur-[100px] mix-blend-multiply opacity-70 animate-blob"></div>
-        <div className="absolute bottom-0 left-0 -ml-40 -mb-40 w-[600px] h-[600px] bg-secondary-200/40 rounded-full blur-[100px] mix-blend-multiply opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-white/40 rounded-full blur-[120px] mix-blend-overlay"></div>
-
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-4xl mx-auto mb-16">
-            <MotionDiv
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            
+            {/* Left Content */}
+            <motion.div 
                initial={{ opacity: 0, y: 30 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.8, ease: "easeOut" }}
+               className="text-center lg:text-left z-20"
             >
-               <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-white/80 border border-primary-100 text-primary-700 text-xs font-bold tracking-wide uppercase mb-8 shadow-sm backdrop-blur-sm">
-                 <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
-                 Phase-1 E-Learning Platform
+               <div className="inline-flex items-center gap-2 py-2 px-4 rounded-full bg-white border border-gray-100 shadow-sm text-primary-700 text-xs font-bold tracking-wide uppercase mb-8 hover:shadow-md transition-shadow cursor-default">
+                 <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+                 </span>
+                 Next-Gen E-Learning Platform
                </div>
-               <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-8">
-                 Master Tech Skills with <br className="hidden md:block"/>
-                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500">
+               
+               <h1 className="text-5xl lg:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
+                 Learn Faster with <br />
+                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-primary-500 to-purple-500">
                    Interactive Intelligence
                  </span>
                </h1>
-               <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed font-light">
-                 A new era of learning featuring <span className="font-semibold text-gray-800">browser-based code labs</span>, <span className="font-semibold text-gray-800">audio series</span>, and expert-led curriculum.
+               
+               <p className="text-xl text-gray-600 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                 Master code, data, and design with our 3D immersive curriculum, browser-based coding environments, and AI-assisted pathways.
                </p>
-               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+               
+               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                  <Button 
                     size="lg" 
-                    variant="secondary"
-                    className="bg-white text-primary-700 hover:bg-gray-50 h-16 px-10 text-lg border-none shadow-xl font-bold" 
+                    className="h-14 px-10 text-lg shadow-xl shadow-primary-500/30 hover:shadow-primary-500/50 hover:-translate-y-1 transition-all" 
                     onClick={() => navigate('/login')}
                   >
                    Start Learning Free
                  </Button>
-                 <Button variant="secondary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg bg-white/80 backdrop-blur border-gray-200 hover:bg-white" icon={<PlayCircle size={20} />}>
-                   Watch Demo
+                 <Button 
+                    variant="secondary" 
+                    size="lg" 
+                    className="w-full sm:w-auto px-8 h-14 text-lg bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700" 
+                    icon={<PlayCircle size={20} className="text-gray-500" />}
+                  >
+                   View Demo
                  </Button>
                </div>
-            </MotionDiv>
-          </div>
 
-          {/* New Interactive Hero Visual */}
-          <MotionDiv 
-            initial={{ opacity: 0, y: 60, rotateX: 20 }}
-            animate={{ opacity: 1, y: 0, rotateX: 0 }}
-            transition={{ delay: 0.4, duration: 1, type: "spring" }}
-            className="relative mx-auto max-w-5xl perspective-1000"
-          >
-             <HeroCodeVisual />
-          </MotionDiv>
+               <div className="mt-10 flex items-center justify-center lg:justify-start gap-4 text-sm text-gray-500 font-medium">
+                  <div className="flex -space-x-2">
+                      {[1,2,3,4].map(i => (
+                          <img key={i} className="w-8 h-8 rounded-full border-2 border-white" src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
+                      ))}
+                  </div>
+                  <p>Joined by 2,000+ creators this week</p>
+               </div>
+            </motion.div>
+
+            {/* Right Content: 3D Scene */}
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1, delay: 0.2 }}
+                className="relative h-[500px] lg:h-[600px] w-full"
+            >
+                {/* 3D Scene Container */}
+                <div className="absolute inset-0 z-10 -mr-20 lg:-mr-40">
+                    <Hero3D />
+                </div>
+                
+                {/* Overlay Floating Stats Card */}
+                <motion.div 
+                    initial={{ y: 50, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 1.2, type: 'spring' }}
+                    className="absolute bottom-20 left-0 lg:-left-10 z-20 bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-2xl border border-white/60 max-w-xs hidden md:block"
+                >
+                    <div className="flex items-center gap-4 mb-3">
+                        <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl text-white shadow-lg shadow-primary-500/30">
+                            <Code size={20} />
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">System Check</p>
+                            <p className="text-base font-bold text-gray-900">Python Kernel Active</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-gray-500">
+                            <span>Compiling...</span>
+                            <span>98%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: "98%" }}
+                                transition={{ duration: 1.5, delay: 1.5, ease: "circOut" }}
+                                className="h-full bg-green-500 rounded-full"
+                            />
+                        </div>
+                    </div>
+                </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -461,7 +325,7 @@ export const LandingPage: React.FC = () => {
           </div>
       </div>
 
-      {/* Features Grid */}
+      {/* Features Grid with 3D Tilt Cards */}
       <section id="features" className="py-24 bg-white relative">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-20">
@@ -475,7 +339,7 @@ export const LandingPage: React.FC = () => {
                variants={containerVariants}
                initial="hidden"
                whileInView="visible"
-               viewport={{ once: true }}
+               viewport={{ once: true, margin: "-100px" }}
                className="grid grid-cols-1 md:grid-cols-3 gap-8"
             >
                {[
@@ -498,18 +362,15 @@ export const LandingPage: React.FC = () => {
                    color: 'bg-green-50 text-green-600 border-green-100'
                  }
                ].map((feature, i) => (
-                 <MotionDiv 
-                   key={i}
-                   variants={itemVariants}
-                   whileHover={{ y: -8 }}
-                   className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 group"
-                 >
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border ${feature.color} group-hover:scale-110 transition-transform duration-300`}>
-                       {feature.icon}
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary-600 transition-colors">{feature.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
-                 </MotionDiv>
+                 <motion.div variants={itemVariants} key={i}>
+                     <TiltCard className="bg-white p-8 rounded-3xl shadow-lg shadow-gray-200/50 border border-gray-100 h-full group">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border ${feature.color} group-hover:scale-110 transition-transform duration-300 shadow-inner`}>
+                           {feature.icon}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary-600 transition-colors">{feature.title}</h3>
+                        <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
+                     </TiltCard>
+                 </motion.div>
                ))}
             </motion.div>
          </div>
@@ -519,7 +380,13 @@ export const LandingPage: React.FC = () => {
       <section id="how-it-works" className="py-24 bg-gray-50 border-t border-gray-100">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-               <div className="order-2 lg:order-1">
+               <motion.div 
+                 initial={{ opacity: 0, x: -50 }}
+                 whileInView={{ opacity: 1, x: 0 }}
+                 viewport={{ once: true }}
+                 transition={{ duration: 0.8 }}
+                 className="order-2 lg:order-1"
+               >
                   <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">Learning that adapts to your lifestyle</h2>
                   <p className="text-lg text-gray-600 mb-10">Whether you have 10 minutes or 2 hours, Aelgo World has a learning mode for you.</p>
                   
@@ -532,37 +399,49 @@ export const LandingPage: React.FC = () => {
                        { title: 'Practice & Code', desc: 'Apply your knowledge immediately with interactive quizzes and code challenges.', icon: <Code size={20} /> },
                        { title: 'Listen & Review', desc: 'Reinforce concepts on the go with audio-only modes for every lesson.', icon: <Mic size={20} /> },
                      ].map((step, i) => (
-                       <div key={i} className="flex gap-6 relative z-10 bg-gray-50">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-white border-2 border-primary-100 text-primary-600 flex items-center justify-center shadow-sm">
+                       <motion.div 
+                         key={i} 
+                         initial={{ opacity: 0, x: -20 }}
+                         whileInView={{ opacity: 1, x: 0 }}
+                         transition={{ delay: i * 0.2 }}
+                         className="flex gap-6 relative z-10 bg-gray-50 group"
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-white border-2 border-primary-100 text-primary-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform group-hover:border-primary-400">
                              {step.icon}
                           </div>
                           <div>
                              <h4 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h4>
                              <p className="text-gray-600">{step.desc}</p>
                           </div>
-                       </div>
+                       </motion.div>
                      ))}
                   </div>
-               </div>
+               </motion.div>
                
-               <div className="relative order-1 lg:order-2">
+               <motion.div 
+                 initial={{ opacity: 0, x: 50, rotate: 3 }}
+                 whileInView={{ opacity: 1, x: 0, rotate: 0 }}
+                 viewport={{ once: true }}
+                 transition={{ duration: 0.8 }}
+                 className="relative order-1 lg:order-2"
+               >
                   <div className="absolute inset-0 bg-secondary-100 rounded-[2rem] transform rotate-3 scale-95 translate-y-4"></div>
-                  <div className="relative rounded-[2rem] shadow-2xl overflow-hidden border-4 border-white">
+                  <div className="relative rounded-[2rem] shadow-2xl overflow-hidden border-4 border-white group">
                       <img 
                         src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
                         alt="Students learning" 
-                        className="w-full object-cover h-[500px]"
+                        className="w-full object-cover h-[500px] transition-transform duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                       <div className="absolute bottom-8 left-8 right-8 text-white">
                           <div className="flex items-center gap-2 mb-2">
-                              <span className="px-2 py-1 bg-green-500 rounded text-xs font-bold uppercase">Live</span>
+                              <span className="px-2 py-1 bg-green-500 rounded text-xs font-bold uppercase animate-pulse">Live</span>
                               <span className="text-sm font-medium">1,240 students online</span>
                           </div>
                           <p className="font-bold text-lg">"The best platform for serious learners."</p>
                       </div>
                   </div>
-               </div>
+               </motion.div>
             </div>
          </div>
       </section>
@@ -587,10 +466,10 @@ export const LandingPage: React.FC = () => {
                {courses.map((course, i) => (
                   <MotionDiv 
                     key={course.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
+                    transition={{ delay: i * 0.1, duration: 0.6 }}
                     className="bg-gray-800 rounded-2xl overflow-hidden border border-gray-700 hover:border-primary-500/50 transition-all cursor-pointer h-full flex flex-col group hover:shadow-2xl hover:shadow-primary-900/20"
                     onClick={() => navigate('/login')}
                   >
@@ -640,7 +519,14 @@ export const LandingPage: React.FC = () => {
                  { name: 'David Chen', role: 'Data Scientist', quote: "I used the audio lessons during my commute. It's amazing how much you can learn when you turn downtime into study time.", avatar: 'https://i.pravatar.cc/150?u=12' },
                  { name: 'Elena Rodriguez', role: 'Product Designer', quote: "The project-based curriculum helped me build a portfolio that actually got me hired. Best investment ever.", avatar: 'https://i.pravatar.cc/150?u=44' },
                ].map((t, i) => (
-                 <div key={i} className="bg-gray-50 p-8 rounded-3xl relative hover:bg-white hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100">
+                 <motion.div 
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="bg-gray-50 p-8 rounded-3xl relative hover:bg-white hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100"
+                 >
                     <div className="flex gap-1 mb-4 text-yellow-400">
                         {[1,2,3,4,5].map(s => <Star key={s} size={16} fill="currentColor" />)}
                     </div>
@@ -652,7 +538,7 @@ export const LandingPage: React.FC = () => {
                           <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">{t.role}</p>
                        </div>
                     </div>
-                 </div>
+                 </motion.div>
                ))}
             </div>
          </div>
