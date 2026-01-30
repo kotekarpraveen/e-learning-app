@@ -45,11 +45,11 @@ const DigitalCore = ({ position }: { position: [number, number, number] }) => {
             <Icosahedron args={[0.8, 0]}>
                 <meshPhysicalMaterial 
                     color="#6366f1" 
-                    roughness={0.1} 
+                    roughness={0.2} 
                     metalness={0.8} 
-                    transmission={0.2}
+                    transmission={0.1}
                     emissive="#4f46e5"
-                    emissiveIntensity={0.8}
+                    emissiveIntensity={0.5}
                     flatShading
                 />
             </Icosahedron>
@@ -224,7 +224,20 @@ export const Hero3D = () => {
         <EducationHub />
 
         <ContactShadows position={[0, -3, 0]} opacity={0.4} scale={15} blur={2.5} far={4.5} />
-        <Environment preset="city" />
+        
+        {/* Synthetic Environment to avoid fetching failed HDRI */}
+        <Environment resolution={256}>
+            <group rotation={[-Math.PI / 2, 0, 0]}>
+                <mesh position={[0, 10, 0]} scale={[10, 10, 1]}>
+                    <planeGeometry />
+                    <meshBasicMaterial color="#ffffff" toneMapped={false} />
+                </mesh>
+                <mesh position={[10, 0, 5]} scale={[5, 10, 1]} rotation={[0, -Math.PI/4, 0]}>
+                    <planeGeometry />
+                    <meshBasicMaterial color="#a5b4fc" toneMapped={false} />
+                </mesh>
+            </group>
+        </Environment>
       </Canvas>
     </div>
   );
