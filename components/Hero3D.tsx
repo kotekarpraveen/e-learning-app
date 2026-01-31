@@ -28,28 +28,35 @@ const TechBook = ({ position, rotation, color, args }: any) => {
 const DigitalCore = ({ position }: { position: [number, number, number] }) => {
     const groupRef = useRef<THREE.Group>(null);
     const ringRef = useRef<THREE.Group>(null);
+    const nucRef = useRef<THREE.Mesh>(null);
     
     useFrame((state) => {
+        const t = state.clock.getElapsedTime();
         if (groupRef.current) {
-            groupRef.current.rotation.y = state.clock.getElapsedTime() * 0.3;
-            groupRef.current.rotation.z = Math.sin(state.clock.getElapsedTime() * 0.5) * 0.1;
+            groupRef.current.rotation.y = t * 0.3;
+            groupRef.current.rotation.z = Math.sin(t * 0.5) * 0.1;
         }
         if (ringRef.current) {
             ringRef.current.rotation.z -= 0.01;
+        }
+        if (nucRef.current) {
+            // "Breathing" scale effect
+            const scale = 1 + Math.sin(t * 2) * 0.05;
+            nucRef.current.scale.set(scale, scale, scale);
         }
     });
 
     return (
         <group position={position} ref={groupRef}>
             {/* Crystalline Nucleus */}
-            <Icosahedron args={[0.8, 0]}>
+            <Icosahedron args={[0.8, 0]} ref={nucRef}>
                 <meshPhysicalMaterial 
                     color="#6366f1" 
-                    roughness={0.2} 
+                    roughness={0.1} 
                     metalness={0.8} 
-                    transmission={0.1}
+                    transmission={0.2}
                     emissive="#4f46e5"
-                    emissiveIntensity={0.5}
+                    emissiveIntensity={0.8}
                     flatShading
                 />
             </Icosahedron>
@@ -89,7 +96,41 @@ const DigitalCore = ({ position }: { position: [number, number, number] }) => {
     )
 }
 
-// 3. Graduation Cap (Achievement)
+// 3. Data Swarm (Orbiting Particles)
+const Particle: React.FC<{ index: number, count: number }> = ({ index, count }) => {
+    const mesh = useRef<THREE.Mesh>(null);
+    const offset = useMemo(() => Math.random() * 100, []);
+    const speed = useMemo(() => 0.5 + Math.random(), []);
+    const radius = useMemo(() => 3 + Math.random() * 2, []);
+    
+    useFrame((state) => {
+        if (mesh.current) {
+            const t = state.clock.getElapsedTime() * speed + offset;
+            mesh.current.position.x = Math.sin(t) * radius;
+            mesh.current.position.y = Math.cos(t * 0.5) * (radius * 0.5); // Elliptical height
+            mesh.current.position.z = Math.cos(t) * radius;
+        }
+    });
+
+    return (
+        <Sphere ref={mesh} args={[0.05]}>
+            <meshBasicMaterial color={index % 2 === 0 ? "#6366f1" : "#34d399"} toneMapped={false} />
+        </Sphere>
+    );
+};
+
+const DataSwarm = () => {
+  const count = 20;
+  return (
+    <group>
+      {[...Array(count)].map((_, i) => (
+        <Particle key={i} index={i} count={count} />
+      ))}
+    </group>
+  )
+}
+
+// 4. Graduation Cap (Achievement)
 const GradCap = ({ position }: { position: [number, number, number] }) => {
     return (
         <group position={position}>
@@ -114,7 +155,7 @@ const GradCap = ({ position }: { position: [number, number, number] }) => {
     )
 }
 
-// 4. Code Interpretation Stream
+// 5. Code Interpretation Stream
 const CodeStream = () => {
     const symbols = useMemo(() => [
         { text: '</>', pos: [3, 2, 0], color: '#60a5fa' },
@@ -148,7 +189,7 @@ const CodeStream = () => {
     );
 };
 
-// 5. Orbiting Skills
+// 6. Orbiting Skills
 const SkillCloud = () => {
     const skills = useMemo(() => [
         { text: 'React', pos: [2.8, 0.5, 1], color: '#61dafb' },
@@ -195,6 +236,7 @@ const EducationHub = () => {
 
             {/* Core */}
             <DigitalCore position={[0, 0.2, 0]} />
+            <DataSwarm />
 
             {/* Top */}
             <Float speed={2} rotationIntensity={0.1} floatIntensity={0.2} floatingRange={[0, 0.2]}>

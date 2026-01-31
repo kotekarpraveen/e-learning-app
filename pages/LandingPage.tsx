@@ -6,13 +6,14 @@ import {
   PlayCircle, Terminal, Mic, CheckCircle, ArrowRight, 
   BookOpen, Code, Award, TrendingUp, Star, Users, Menu, X, Globe,
   Linkedin, Twitter, Zap, Shield, Layers, Feather, Headphones, Play, RefreshCw, Volume2, Pause,
-  Database, Cloud, Cpu, Wifi, Server, Anchor, MousePointer2
+  Database, Cloud, Cpu, Wifi, Server, Anchor, MousePointer2, Quote
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../App';
 import { api } from '../lib/api';
 import { Course } from '../types';
 import { Hero3D } from '../components/Hero3D';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 // --- 3D Tilt Card Component ---
 const TiltCard = ({ children, className = "" }: { children?: React.ReactNode, className?: string }) => {
@@ -260,11 +261,11 @@ export const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, delay: 0.2 }}
-                className="relative h-[500px] lg:h-[600px] w-full"
+                className="relative h-[500px] lg:h-[600px] w-full flex items-center justify-center"
                 aria-hidden="true"
             >
                 {/* 3D Scene Container */}
-                <div className="absolute inset-0 z-10 -mr-20 lg:-mr-40">
+                <div className="absolute inset-0 z-10 w-full h-full">
                     <Hero3D />
                 </div>
                 
@@ -273,7 +274,7 @@ export const LandingPage: React.FC = () => {
                     initial={{ y: 50, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 1.2, type: 'spring' }}
-                    className="absolute bottom-20 left-0 lg:-left-10 z-20 bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-2xl border border-white/60 max-w-xs hidden md:block"
+                    className="absolute bottom-20 left-4 lg:-left-4 z-20 bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-2xl border border-white/60 max-w-xs hidden md:block"
                 >
                     <div className="flex items-center gap-4 mb-3">
                         <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl text-white shadow-lg shadow-primary-500/30">
@@ -512,41 +513,79 @@ export const LandingPage: React.FC = () => {
          </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="stories" className="py-24 bg-white" aria-labelledby="stories-title">
+      {/* Enhanced Success Stories with ScrollReveal */}
+      <section id="stories" className="py-24 bg-white relative overflow-hidden" aria-labelledby="stories-title">
+         {/* Background blob for visual interest */}
+         <div className="absolute -top-40 left-0 w-full h-[500px] bg-gradient-to-b from-gray-50 to-white -z-10"></div>
+         <div className="absolute top-20 right-0 w-96 h-96 bg-primary-50/50 rounded-full blur-3xl -z-10"></div>
+
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-               <span className="text-primary-600 font-bold tracking-wider uppercase text-sm">Success Stories</span>
-               <h2 id="stories-title" className="text-3xl md:text-4xl font-bold text-gray-900 mt-2 mb-4">Loved by Students</h2>
-               <p className="text-lg text-gray-600">Hear from people who transformed their careers with Aelgo World.</p>
-            </div>
+            <ScrollReveal animation="fade-up" className="text-center mb-16 relative z-10">
+               <span className="inline-block py-1 px-3 rounded-full bg-primary-100 text-primary-700 font-bold tracking-wider uppercase text-xs mb-3">Community Success</span>
+               <h2 id="stories-title" className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">Loved by Students</h2>
+               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                  Join a community of ambitious learners who have transformed their careers.
+               </p>
+            </ScrollReveal>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                {[
-                 { name: 'Sarah Jenkins', role: 'Frontend Developer', quote: "The interactive coding labs made all the difference. I wasn't just watching videos; I was writing code from day one.", avatar: 'https://i.pravatar.cc/150?u=32' },
-                 { name: 'David Chen', role: 'Data Scientist', quote: "I used the audio lessons during my commute. It's amazing how much you can learn when you turn downtime into study time.", avatar: 'https://i.pravatar.cc/150?u=12' },
-                 { name: 'Elena Rodriguez', role: 'Product Designer', quote: "The project-based curriculum helped me build a portfolio that actually got me hired. Best investment ever.", avatar: 'https://i.pravatar.cc/150?u=44' },
+                 { 
+                   name: 'Sarah Jenkins', 
+                   role: 'Frontend Developer', 
+                   quote: "The interactive coding labs made all the difference. I wasn't just watching videos; I was writing code from day one.", 
+                   avatar: 'https://i.pravatar.cc/150?u=32',
+                   company: 'Google'
+                 },
+                 { 
+                   name: 'David Chen', 
+                   role: 'Data Scientist', 
+                   quote: "I used the audio lessons during my commute. It's amazing how much you can learn when you turn downtime into study time.", 
+                   avatar: 'https://i.pravatar.cc/150?u=12',
+                   company: 'Amazon'
+                 },
+                 { 
+                   name: 'Elena Rodriguez', 
+                   role: 'Product Designer', 
+                   quote: "The project-based curriculum helped me build a portfolio that actually got me hired. Best investment ever.", 
+                   avatar: 'https://i.pravatar.cc/150?u=44',
+                   company: 'Spotify'
+                 },
                ].map((t, i) => (
-                 <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
-                    className="bg-gray-50 p-8 rounded-3xl relative hover:bg-white hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100"
-                 >
-                    <div className="flex gap-1 mb-4 text-yellow-400">
-                        {[1,2,3,4,5].map(s => <Star key={s} size={16} fill="currentColor" />)}
-                    </div>
-                    <p className="text-gray-700 mb-8 relative z-10 italic leading-relaxed">"{t.quote}"</p>
-                    <div className="flex items-center mt-auto">
-                       <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full mr-4 object-cover ring-2 ring-white" />
-                       <div>
-                          <h4 className="font-bold text-gray-900 text-sm">{t.name}</h4>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">{t.role}</p>
+                 <ScrollReveal key={i} animation="fade-up" delay={i * 150} className="h-full">
+                    <div className="bg-white p-8 rounded-3xl relative hover:shadow-2xl transition-all duration-500 border border-gray-100 h-full flex flex-col group overflow-hidden">
+                       {/* Top Gradient Line */}
+                       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-400 to-secondary-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+                       
+                       {/* Background Quote Icon */}
+                       <Quote className="absolute top-6 right-6 text-gray-100 w-16 h-16 transform rotate-180 group-hover:text-primary-50 transition-colors duration-300" />
+
+                       {/* Stars */}
+                       <div className="flex gap-1 mb-6 text-yellow-400 relative z-10">
+                           {[1,2,3,4,5].map(s => <Star key={s} size={18} fill="currentColor" />)}
+                       </div>
+
+                       {/* Quote */}
+                       <blockquote className="text-gray-700 text-lg mb-8 relative z-10 leading-relaxed font-medium">
+                           "{t.quote}"
+                       </blockquote>
+
+                       {/* Footer */}
+                       <div className="flex items-center mt-auto pt-6 border-t border-gray-50 relative z-10">
+                          <div className="relative">
+                             <img src={t.avatar} alt={t.name} className="w-14 h-14 rounded-full mr-4 object-cover ring-4 ring-gray-50 group-hover:ring-primary-50 transition-all" />
+                             <div className="absolute -bottom-1 -right-0 bg-green-500 text-white rounded-full p-1 border-2 border-white" title="Verified Graduate">
+                                <CheckCircle size={10} strokeWidth={4} />
+                             </div>
+                          </div>
+                          <div>
+                             <h4 className="font-bold text-gray-900 text-base">{t.name}</h4>
+                             <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">{t.role}</p>
+                             <p className="text-xs font-bold text-gray-400">Works at {t.company}</p>
+                          </div>
                        </div>
                     </div>
-                 </motion.div>
+                 </ScrollReveal>
                ))}
             </div>
          </div>

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { BrowseCourses } from './pages/BrowseCourses';
 import { CourseLanding } from './pages/CourseLanding';
@@ -211,6 +212,7 @@ const App: React.FC = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login/:loginType" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/cookies" element={<CookieSettings />} />

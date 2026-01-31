@@ -116,6 +116,34 @@
       ::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: var(--color-primary-500); }
 
+      /* --- SCROLL REVEAL ANIMATIONS --- */
+      [data-animate] {
+        opacity: 0;
+        will-change: transform, opacity;
+        transition: opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                    transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      [data-animate="fade-up"] { transform: translate3d(0, 40px, 0); }
+      [data-animate="fade-down"] { transform: translate3d(0, -40px, 0); }
+      [data-animate="fade-left"] { transform: translate3d(40px, 0, 0); }
+      [data-animate="fade-right"] { transform: translate3d(-40px, 0, 0); }
+      [data-animate="zoom-in"] { transform: scale(0.9); }
+      [data-animate="zoom-out"] { transform: scale(1.1); }
+
+      [data-animate].in-view {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        [data-animate] {
+          opacity: 1 !important;
+          transform: none !important;
+          transition: none !important;
+        }
+      }
+
       /* PRINT STYLES - Ensures only certificate prints cleanly */
       @media print {
         @page {
