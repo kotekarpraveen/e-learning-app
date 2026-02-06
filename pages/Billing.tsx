@@ -86,9 +86,13 @@ export const Billing: React.FC = () => {
   };
 
   const handleApprove = async (txId: string) => {
-      await api.approveTransaction(txId);
-      setToast({ message: 'Transaction approved. Student enrolled.', type: 'success' });
-      fetchData();
+      const success = await api.approveTransaction(txId);
+      if (success) {
+          setToast({ message: 'Transaction approved. Student enrolled.', type: 'success' });
+          fetchData();
+      } else {
+          setToast({ message: 'Failed to approve transaction. Please check your connection.', type: 'error' });
+      }
   };
 
   const handleCopyLink = (link: string) => {

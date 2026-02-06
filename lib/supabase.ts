@@ -22,7 +22,11 @@ const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 export const isSupabaseConfigured = () => {
-    return supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+    return supabaseUrl.length > 0 && 
+           supabaseAnonKey.length > 0 &&
+           !supabaseUrl.includes('your-project.supabase.co') && 
+           !supabaseUrl.includes('placeholder') &&
+           supabaseAnonKey !== 'your-anon-key-here';
 };
 
 // To prevent the app from crashing with "supabaseUrl is required" when no keys are provided,
