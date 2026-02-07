@@ -962,6 +962,17 @@ export const api = {
             // @ts-ignore
             const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
+            // 0. Manual Cascade: Delete related records first to avoid foreign key constraints
+            // We prioritize 'enrollments' and others which might reference 'transactions' or be leaf nodes.
+            await Promise.all([
+                supabase.from('enrollments').delete().eq('user_id', id),
+                supabase.from('course_reviews').delete().eq('user_id', id),
+                supabase.from('user_progress').delete().eq('user_id', id)
+            ]);
+
+            // Then delete transactions (which might be referenced by enrollments)
+            await supabase.from('transactions').delete().eq('user_id', id);
+
             // 1. Delete from Auth if Service Role is available
             if (serviceRoleKey) {
                 const { createClient } = await import('@supabase/supabase-js');
@@ -1001,7 +1012,7 @@ export const api = {
                 .from('profiles')
                 .select(`
                 *,
-                courses (
+                courses:courses!courses_instructor_id_fkey (
                     count
                 )
             `)
@@ -1035,21 +1046,89 @@ export const api = {
         }
 
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({
-                    full_name: instructor.name,
-                    job_title: instructor.role,
-                    bio: instructor.bio,
-                    status: instructor.status,
-                    expertise: instructor.expertise,
-                    updated_at: new Date()
-                })
-                .eq('id', instructor.id);
+            // Check if it's an update or new creation
+            const isUpdate = instructor.id && !instructor.id.startsWith('i_'); // 'i_' check for mock IDs
 
-            if (error) throw error;
-            return { success: true, message: 'Instructor profile updated' };
+            if (isUpdate) {
+                // Update Existing Profile
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({
+                        full_name: instructor.name,
+                        job_title: instructor.role,
+                        bio: instructor.bio,
+                        status: instructor.status,
+                        expertise: instructor.expertise,
+                        updated_at: new Date()
+                    })
+                    .eq('id', instructor.id);
+
+                if (error) throw error;
+                return { success: true, message: 'Instructor profile updated' };
+            } else {
+                // Create New Instructor (Requires Admin Privileges or use a specific Edge Function in Prod)
+                // Here we use the Service Role Key approach if available, similar to student deletion, 
+                // but for creation we need to be careful. Client-side creation without Service Role is limited.
+
+                // @ts-ignore
+                const url = import.meta.env.VITE_SUPABASE_URL;
+                // @ts-ignore
+                const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+                if (!serviceRoleKey) {
+                    return { success: false, message: 'Service Role Key missing. Cannot create users from client.' };
+                }
+
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabaseAdmin = createClient(url, serviceRoleKey, {
+                    auth: { autoRefreshToken: false, persistSession: false }
+                });
+
+                // 1. Create Auth User
+                const { data: userData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                    email: instructor.email,
+                    password: 'Tempor@ryPassword123', // In a real app, send invite email
+                    email_confirm: true,
+                    user_metadata: {
+                        full_name: instructor.name,
+                        role: 'instructor'
+                    }
+                });
+
+                if (authError) throw authError;
+                if (!userData.user) throw new Error("Failed to create user");
+
+                // 2. Create Profile (Trigger usually handles this, but we can upsert to be safe/update fields)
+                // Note: The trigger on auth.users -> public.profiles might have already run.
+                // We update it to ensure all fields like bio, expertise, job_title are set.
+
+                // Wait a moment for trigger (optional/hacky, better to use upsert)
+                const { error: profileError } = await supabaseAdmin
+                    .from('profiles')
+                    .upsert({
+                        id: userData.user.id,
+                        email: instructor.email,
+                        full_name: instructor.name,
+                        role: 'instructor',
+                        job_title: instructor.role,
+                        bio: instructor.bio,
+                        status: instructor.status,
+                        expertise: instructor.expertise,
+                        avatar: instructor.avatar,
+                        created_at: new Date(),
+                        updated_at: new Date()
+                    });
+
+                if (profileError) {
+                    // Cleanup auth user if profile fails? 
+                    // await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+                    throw profileError;
+                }
+
+                return { success: true, message: 'Instructor account created successfully' };
+            }
         } catch (err: any) {
+            console.error("Save Instructor Error:", err);
             return { success: false, message: err.message };
         }
     },
@@ -1060,12 +1139,32 @@ export const api = {
         }
 
         try {
+            // @ts-ignore
+            const url = import.meta.env.VITE_SUPABASE_URL;
+            // @ts-ignore
+            const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+            // Prioritize Auth deletion if service role is available
+            if (serviceRoleKey) {
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabaseAdmin = createClient(url, serviceRoleKey, {
+                    auth: { autoRefreshToken: false, persistSession: false }
+                });
+
+                const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+                if (authError) console.warn("Auth delete warning:", authError);
+            }
+
+            // Fallback: Delete profile directly (if not already deleted by cascade or if link is broken)
             const { error } = await supabase
                 .from('profiles')
                 .delete()
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') { // Ignore "Row not found" if auth delete already handled it
+                throw error;
+            }
+
             return { success: true, message: 'Instructor record removed' };
         } catch (err: any) {
             return { success: false, message: err.message };
