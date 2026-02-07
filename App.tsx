@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { StudentDashboard } from './pages/StudentDashboard';
@@ -16,8 +16,8 @@ import { AdminStudents } from './pages/AdminStudents';
 import { AdminInstructors } from './pages/AdminInstructors';
 import { AdminTeam } from './pages/AdminTeam';
 import { AdminCategories } from './pages/AdminCategories';
-import { AdminAnalytics } from './pages/AdminAnalytics'; 
-import { LandingPage } from './pages/LandingPage'; 
+import { AdminAnalytics } from './pages/AdminAnalytics';
+import { LandingPage } from './pages/LandingPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { CookieSettings } from './pages/CookieSettings';
@@ -28,157 +28,21 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { loadTheme, applyTheme } from './lib/theme';
 import { setCurrency } from './lib/currency';
 
-// --- Auth Context ---
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, role: UserRole) => Promise<void>;
-  logout: () => Promise<void>;
-  isLoading: boolean;
-}
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-const AuthContext = createContext<AuthContextType>(null!);
-
-export const useAuth = () => useContext(AuthContext);
-
-const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Helper to map Supabase User to App User
-  const mapSupabaseUser = (sbUser: any): User => {
-    const metadataRole = sbUser.user_metadata?.role;
-    const emailRole = sbUser.email?.includes('admin') ? 'admin' : sbUser.email?.includes('instructor') ? 'instructor' : 'student';
-    let finalRole: UserRole = 'student';
-    
-    if (['super_admin', 'admin', 'sub_admin', 'viewer', 'approver', 'instructor'].includes(metadataRole)) {
-        finalRole = metadataRole;
-    } else if (emailRole === 'admin') {
-        finalRole = 'admin'; 
-    } else if (emailRole === 'instructor') {
-        finalRole = 'instructor';
-    }
-
-    return {
-        id: sbUser.id,
-        email: sbUser.email!,
-        name: sbUser.user_metadata?.full_name || sbUser.email?.split('@')[0] || 'User',
-        role: finalRole,
-        avatar: sbUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${sbUser.email}`,
-        permissions: sbUser.user_metadata?.permissions || []
-    };
-  };
-
-  // Helper to sync preferences from DB (Theme & Currency)
-  const syncUserPreferences = async (userId: string) => {
-      try {
-          const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
-          if (data?.preferences) {
-              // Sync Theme
-              if (data.preferences.theme) {
-                  applyTheme(data.preferences.theme);
-              }
-              // Sync Currency
-              if (data.preferences.currency) {
-                  setCurrency(data.preferences.currency);
-              }
-          }
-      } catch (e) {
-          console.error("Failed to sync preferences", e);
-      }
-  };
-
-  useEffect(() => {
-    // Initialize Theme
-    loadTheme();
-
-    // Check Auth
-    if (!isSupabaseConfigured()) {
-       const stored = localStorage.getItem('aelgo_user');
-       if (stored) setUser(JSON.parse(stored));
-       setLoading(false);
-       return;
-    }
-
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(mapSupabaseUser(session.user));
-          syncUserPreferences(session.user.id);
-        }
-      } catch (error) {
-        console.error("Auth check failed", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-          setUser(mapSupabaseUser(session.user));
-          syncUserPreferences(session.user.id);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const login = async (email: string, role: UserRole) => {
-    if (!isSupabaseConfigured()) {
-        const mockUser = (role.includes('admin') || role === 'instructor') ? MOCK_USER_ADMIN : MOCK_USER_STUDENT;
-        mockUser.role = role;
-        // Adjust name for instructor demo for filtering to work nicely
-        if (role === 'instructor') {
-            mockUser.name = "Dr. Angela Yu"; // Matches mock data
-        }
-        setUser(mockUser);
-        localStorage.setItem('aelgo_user', JSON.stringify(mockUser));
-        return;
-    }
-  };
-
-  const logout = async () => {
-    if (isSupabaseConfigured()) {
-        await supabase.auth.signOut();
-    } else {
-        localStorage.removeItem('aelgo_user');
-        setUser(null);
-    }
-  };
-
-  if (loading) {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
-    );
-  }
-
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, isLoading: loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
 
 // --- Protected Routes ---
 const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: UserRole[] }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) return null; 
+
+  if (isLoading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  
+
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-     if (user.role === 'student') return <Navigate to="/dashboard" replace />;
-     return <Navigate to="/admin" replace />;
+    if (user.role === 'student') return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/admin" replace />;
   }
-  
+
   return (
     <Layout>
       <Outlet />
@@ -190,18 +54,18 @@ const App: React.FC = () => {
   // Roles
   const adminRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin'];
   const instructorRoles: UserRole[] = ['super_admin', 'admin', 'sub_admin', 'instructor'];
-  
+
   // State to force re-render on currency change
   const [currencyTick, setCurrencyTick] = useState(0);
 
   useEffect(() => {
     const handleCurrencyChange = () => {
-        setCurrencyTick(prev => prev + 1);
+      setCurrencyTick(prev => prev + 1);
     };
     window.addEventListener('currency-change', handleCurrencyChange);
     return () => window.removeEventListener('currency-change', handleCurrencyChange);
   }, []);
-  
+
   return (
     <AuthProvider>
       {/* Key on Router forces remount of routes, ensuring all components re-render and call formatPrice again */}
@@ -214,33 +78,33 @@ const App: React.FC = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/cookies" element={<CookieSettings />} />
-          
+
           {/* Student Routes */}
           <Route element={<ProtectedRoute />}>
-             <Route path="/dashboard" element={<StudentDashboard />} />
-             <Route path="/courses" element={<BrowseCourses />} />
-             <Route path="/course/:courseId/details" element={<CourseLanding />} />
-             <Route path="/course/:courseId" element={<CoursePlayer />} />
-             <Route path="/certificate/:courseId" element={<Certificate />} />
-             <Route path="/profile" element={<Settings />} />
+            <Route path="/dashboard" element={<StudentDashboard />} />
+            <Route path="/courses" element={<BrowseCourses />} />
+            <Route path="/course/:courseId/details" element={<CourseLanding />} />
+            <Route path="/course/:courseId" element={<CoursePlayer />} />
+            <Route path="/certificate/:courseId" element={<Certificate />} />
+            <Route path="/profile" element={<Settings />} />
           </Route>
 
           {/* Instructor & Admin Shared Routes */}
           <Route element={<ProtectedRoute allowedRoles={instructorRoles} />}>
-             <Route path="/admin" element={<AdminDashboard />} />
-             <Route path="/admin/courses" element={<AdminCourses />} />
-             <Route path="/admin/course-builder" element={<CourseBuilder />} />
-             <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/courses" element={<AdminCourses />} />
+            <Route path="/admin/course-builder" element={<CourseBuilder />} />
+            <Route path="/admin/settings" element={<Settings />} />
           </Route>
 
           {/* Pure Admin Routes (Hidden from Instructors) */}
           <Route element={<ProtectedRoute allowedRoles={adminRoles} />}>
-             <Route path="/admin/analytics" element={<AdminAnalytics />} />
-             <Route path="/admin/students" element={<AdminStudents />} /> 
-             <Route path="/admin/instructors" element={<AdminInstructors />} />
-             <Route path="/admin/team" element={<AdminTeam />} />
-             <Route path="/admin/categories" element={<AdminCategories />} />
-             <Route path="/admin/billing" element={<Billing />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+            <Route path="/admin/students" element={<AdminStudents />} />
+            <Route path="/admin/instructors" element={<AdminInstructors />} />
+            <Route path="/admin/team" element={<AdminTeam />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route path="/admin/billing" element={<Billing />} />
           </Route>
         </Routes>
       </Router>

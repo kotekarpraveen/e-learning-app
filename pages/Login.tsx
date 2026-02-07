@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import {
   Lock, Mail, ArrowRight, AlertCircle, RefreshCw,
   GraduationCap, Briefcase, ShieldCheck, ChevronLeft
