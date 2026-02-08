@@ -29,6 +29,7 @@ import { loadTheme, applyTheme } from './lib/theme';
 import { setCurrency } from './lib/currency';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 
 // --- Protected Routes ---
@@ -67,48 +68,50 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <AuthProvider>
-      {/* Key on Router forces remount of routes, ensuring all components re-render and call formatPrice again */}
-      <Router key={currencyTick}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/login/:loginType" element={<Login />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/cookies" element={<CookieSettings />} />
+    <ToastProvider>
+      <AuthProvider>
+        {/* Key on Router forces remount of routes, ensuring all components re-render and call formatPrice again */}
+        <Router key={currencyTick}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/login/:loginType" element={<Login />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/cookies" element={<CookieSettings />} />
 
-          {/* Student Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<StudentDashboard />} />
-            <Route path="/courses" element={<BrowseCourses />} />
-            <Route path="/course/:courseId/details" element={<CourseLanding />} />
-            <Route path="/course/:courseId" element={<CoursePlayer />} />
-            <Route path="/certificate/:courseId" element={<Certificate />} />
-            <Route path="/profile" element={<Settings />} />
-          </Route>
+            {/* Student Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<StudentDashboard />} />
+              <Route path="/courses" element={<BrowseCourses />} />
+              <Route path="/course/:courseId/details" element={<CourseLanding />} />
+              <Route path="/course/:courseId" element={<CoursePlayer />} />
+              <Route path="/certificate/:courseId" element={<Certificate />} />
+              <Route path="/profile" element={<Settings />} />
+            </Route>
 
-          {/* Instructor & Admin Shared Routes */}
-          <Route element={<ProtectedRoute allowedRoles={instructorRoles} />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/courses" element={<AdminCourses />} />
-            <Route path="/admin/course-builder" element={<CourseBuilder />} />
-            <Route path="/admin/settings" element={<Settings />} />
-          </Route>
+            {/* Instructor & Admin Shared Routes */}
+            <Route element={<ProtectedRoute allowedRoles={instructorRoles} />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/courses" element={<AdminCourses />} />
+              <Route path="/admin/course-builder" element={<CourseBuilder />} />
+              <Route path="/admin/settings" element={<Settings />} />
+            </Route>
 
-          {/* Pure Admin Routes (Hidden from Instructors) */}
-          <Route element={<ProtectedRoute allowedRoles={adminRoles} />}>
-            <Route path="/admin/analytics" element={<AdminAnalytics />} />
-            <Route path="/admin/students" element={<AdminStudents />} />
-            <Route path="/admin/instructors" element={<AdminInstructors />} />
-            <Route path="/admin/team" element={<AdminTeam />} />
-            <Route path="/admin/categories" element={<AdminCategories />} />
-            <Route path="/admin/billing" element={<Billing />} />
-          </Route>
-        </Routes>
-      </Router>
-    </AuthProvider>
+            {/* Pure Admin Routes (Hidden from Instructors) */}
+            <Route element={<ProtectedRoute allowedRoles={adminRoles} />}>
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/students" element={<AdminStudents />} />
+              <Route path="/admin/instructors" element={<AdminInstructors />} />
+              <Route path="/admin/team" element={<AdminTeam />} />
+              <Route path="/admin/categories" element={<AdminCategories />} />
+              <Route path="/admin/billing" element={<Billing />} />
+            </Route>
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 

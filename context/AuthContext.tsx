@@ -49,7 +49,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Helper to sync preferences from DB (Theme & Currency)
     const syncUserPreferences = async (userId: string) => {
         try {
-            const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
+            const { data, error } = await supabase.from('profiles').select('preferences, status').eq('id', userId).single();
+
+            if (error) throw error;
+
+            // Enforcement: If account is inactive, kick them out
+            if (data?.status && data.status !== 'Active') {
+                await logout();
+                return;
+            }
+
             if (data?.preferences) {
                 if (data.preferences.theme) {
                     applyTheme(data.preferences.theme);
@@ -59,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
         } catch (e) {
-            console.error("Failed to sync preferences", e);
+            console.error("Failed to sync preferences or check status", e);
         }
     };
 

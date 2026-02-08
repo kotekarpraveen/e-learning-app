@@ -1,7 +1,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_COURSES, MOCK_INSTRUCTORS, MOCK_TEAM, MOCK_CATEGORIES } from '../constants';
-import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset, Review, FAQ } from '../types';
+import { Course, Instructor, TeamMember, Category, Student, UserRole, Transaction, PaymentRequest, ContentAsset, Review, FAQ, PermissionCode } from '../types';
 
 // Keep track of newly created "demo" students that don't have Supabase auth records yet
 let EPHEMERAL_STUDENTS: Student[] = [];
@@ -56,6 +56,38 @@ interface GetCoursesOptions {
 }
 
 export const api = {
+    /**
+     * Fetch courses with optional pagination, search, and filtering.
+     * If options are omitted, returns all courses (useful for admin dashboards).
+     */
+    checkUserStatus: async (userId: string): Promise<{ active: boolean, message?: string }> => {
+        if (!isSupabaseConfigured()) return { active: true };
+
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('status')
+                .eq('id', userId)
+                .single();
+
+            if (error) throw error;
+
+            if (data?.status && data.status !== 'Active') {
+                return {
+                    active: false,
+                    message: "Your account is inactive. Please contact administrator."
+                };
+            }
+
+            return { active: true };
+        } catch (err) {
+            console.error("Error checking user status:", err);
+            // Default to true to avoid locking out on temporary DB/API issues, 
+            // unless strictness is preferred.
+            return { active: true };
+        }
+    },
+
     /**
      * Fetch courses with optional pagination, search, and filtering.
      * If options are omitted, returns all courses (useful for admin dashboards).
@@ -877,7 +909,7 @@ export const api = {
 
             // 1. Handle Avatar Upload if provided
             if (avatarFile) {
-                const uploadResult = await api.uploadFileToStorage(avatarFile, 'student-profiles');
+                const uploadResult = await api.uploadFileToStorage(avatarFile, 'course-content');
                 if (uploadResult) avatarUrl = uploadResult.url;
             }
 
@@ -922,7 +954,12 @@ export const api = {
                 }
             }
 
-            const { error } = await supabase
+            const { createClient } = await import('@supabase/supabase-js');
+            const profileClient = serviceRoleKey ? createClient(url, serviceRoleKey, {
+                auth: { autoRefreshToken: false, persistSession: false }
+            }) : supabase;
+
+            const { error } = await profileClient
                 .from('profiles')
                 .upsert({
                     id: studentId,
@@ -1040,22 +1077,42 @@ export const api = {
         }
     },
 
-    saveInstructor: async (instructor: Instructor) => {
+    saveInstructor: async (instructor: Instructor, avatarFile?: File) => {
         if (!isSupabaseConfigured()) {
             return { success: true, message: 'Saved' };
         }
 
         try {
+            // Robust environment variable access for Vite
+            // @ts-ignore
+            const url = import.meta.env.VITE_SUPABASE_URL;
+            // @ts-ignore
+            const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
             // Check if it's an update or new creation
             const isUpdate = instructor.id && !instructor.id.startsWith('i_'); // 'i_' check for mock IDs
+            let avatarUrl = instructor.avatar;
+
+            // 1. Handle Avatar Upload if provided
+            if (avatarFile) {
+                const uploadResult = await api.uploadFileToStorage(avatarFile, 'course-content');
+                if (uploadResult) avatarUrl = uploadResult.url;
+            }
 
             if (isUpdate) {
                 // Update Existing Profile
-                const { error } = await supabase
+                // Use service role if available to bypass RLS for Admin operations
+                const { createClient } = await import('@supabase/supabase-js');
+                const client = serviceRoleKey ? createClient(url, serviceRoleKey, {
+                    auth: { autoRefreshToken: false, persistSession: false }
+                }) : supabase;
+
+                const { error } = await client
                     .from('profiles')
                     .update({
                         full_name: instructor.name,
                         job_title: instructor.role,
+                        avatar: avatarUrl,
                         bio: instructor.bio,
                         status: instructor.status,
                         expertise: instructor.expertise,
@@ -1066,15 +1123,7 @@ export const api = {
                 if (error) throw error;
                 return { success: true, message: 'Instructor profile updated' };
             } else {
-                // Create New Instructor (Requires Admin Privileges or use a specific Edge Function in Prod)
-                // Here we use the Service Role Key approach if available, similar to student deletion, 
-                // but for creation we need to be careful. Client-side creation without Service Role is limited.
-
-                // @ts-ignore
-                const url = import.meta.env.VITE_SUPABASE_URL;
-                // @ts-ignore
-                const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-
+                // Create New Instructor
                 if (!serviceRoleKey) {
                     return { success: false, message: 'Service Role Key missing. Cannot create users from client.' };
                 }
@@ -1091,18 +1140,15 @@ export const api = {
                     email_confirm: true,
                     user_metadata: {
                         full_name: instructor.name,
-                        role: 'instructor'
+                        role: 'instructor',
+                        avatar_url: avatarUrl
                     }
                 });
 
                 if (authError) throw authError;
                 if (!userData.user) throw new Error("Failed to create user");
 
-                // 2. Create Profile (Trigger usually handles this, but we can upsert to be safe/update fields)
-                // Note: The trigger on auth.users -> public.profiles might have already run.
-                // We update it to ensure all fields like bio, expertise, job_title are set.
-
-                // Wait a moment for trigger (optional/hacky, better to use upsert)
+                // 2. Create Profile
                 const { error: profileError } = await supabaseAdmin
                     .from('profiles')
                     .upsert({
@@ -1114,16 +1160,12 @@ export const api = {
                         bio: instructor.bio,
                         status: instructor.status,
                         expertise: instructor.expertise,
-                        avatar: instructor.avatar,
+                        avatar: avatarUrl,
                         created_at: new Date(),
                         updated_at: new Date()
                     });
 
-                if (profileError) {
-                    // Cleanup auth user if profile fails? 
-                    // await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-                    throw profileError;
-                }
+                if (profileError) throw profileError;
 
                 return { success: true, message: 'Instructor account created successfully' };
             }
@@ -1172,14 +1214,135 @@ export const api = {
     },
 
     getTeam: async (): Promise<TeamMember[]> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_TEAM), 500));
+        if (!isSupabaseConfigured()) {
+            return new Promise(resolve => setTimeout(() => resolve(MOCK_TEAM), 500));
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .in('role', ['super_admin', 'admin', 'sub_admin', 'approver', 'viewer'])
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return (data || []).map((p: any) => ({
+                id: p.id,
+                name: p.full_name || 'Unnamed',
+                email: p.email || 'No email',
+                role: p.role as UserRole,
+                avatar: p.avatar || `https://ui-avatars.com/api/?name=${p.full_name || 'User'}&background=random`,
+                status: p.status || 'Active',
+                lastActive: p.last_active ? new Date(p.last_active).toLocaleString() : 'Never',
+                permissions: (p.permissions || []) as PermissionCode[]
+            }));
+        } catch (err) {
+            console.error("Error fetching team:", err);
+            return [];
+        }
     },
 
     saveTeamMember: async (member: TeamMember) => {
-        return { success: true, message: 'Saved' };
+        if (!isSupabaseConfigured()) {
+            return { success: true, message: 'Saved' };
+        }
+
+        try {
+            const isUpdate = member.id && !member.id.startsWith('t_');
+
+            if (isUpdate) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({
+                        full_name: member.name,
+                        role: member.role,
+                        status: member.status,
+                        permissions: member.permissions,
+                        updated_at: new Date()
+                    })
+                    .eq('id', member.id);
+
+                if (error) throw error;
+                return { success: true, message: 'Team member updated' };
+            } else {
+                // @ts-ignore
+                const url = import.meta.env.VITE_SUPABASE_URL;
+                // @ts-ignore
+                const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+                if (!serviceRoleKey) {
+                    return { success: false, message: 'Service Role Key missing' };
+                }
+
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabaseAdmin = createClient(url, serviceRoleKey, {
+                    auth: { autoRefreshToken: false, persistSession: false }
+                });
+
+                const { data: userData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                    email: member.email,
+                    password: 'Tempor@ryPassword123',
+                    email_confirm: true,
+                    user_metadata: {
+                        full_name: member.name,
+                        role: member.role
+                    }
+                });
+
+                if (authError) throw authError;
+
+                const { error: profileError } = await supabaseAdmin
+                    .from('profiles')
+                    .upsert({
+                        id: userData.user!.id,
+                        email: member.email,
+                        full_name: member.name,
+                        role: member.role,
+                        status: member.status,
+                        permissions: member.permissions,
+                        avatar: member.avatar,
+                        updated_at: new Date()
+                    });
+
+                if (profileError) throw profileError;
+
+                return { success: true, message: 'Team member created' };
+            }
+        } catch (err: any) {
+            console.error("Save Team Error:", err);
+            return { success: false, message: err.message };
+        }
     },
 
     deleteTeamMember: async (id: string) => {
-        return { success: true, message: 'Deleted' };
+        if (!isSupabaseConfigured()) {
+            return { success: true, message: 'Deleted' };
+        }
+
+        try {
+            // @ts-ignore
+            const url = import.meta.env.VITE_SUPABASE_URL;
+            // @ts-ignore
+            const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+            if (serviceRoleKey) {
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabaseAdmin = createClient(url, serviceRoleKey, {
+                    auth: { autoRefreshToken: false, persistSession: false }
+                });
+                await supabaseAdmin.auth.admin.deleteUser(id);
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', id);
+
+            if (error && error.code !== 'PGRST116') throw error;
+            return { success: true, message: 'Deleted' };
+        } catch (err: any) {
+            return { success: false, message: err.message };
+        }
     }
 };

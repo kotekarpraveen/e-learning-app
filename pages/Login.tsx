@@ -4,12 +4,14 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   Lock, Mail, ArrowRight, AlertCircle, RefreshCw,
   GraduationCap, Briefcase, ShieldCheck, ChevronLeft
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserRole } from '../types';
+import { api } from '../lib/api';
 
 export const Login: React.FC = () => {
   const { loginType } = useParams<{ loginType: string }>();
@@ -91,6 +93,7 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const { success, error: toastError } = useToast();
   const navigate = useNavigate();
   const MotionDiv = motion.div as any;
 
@@ -166,8 +169,16 @@ const LoginForm: React.FC<{ type: 'student' | 'instructor' | 'admin' }> = ({ typ
 
           if (error) throw error;
 
-          // For demo simplicity, we trust the login matches the portal intent.
-          // In production, check data.session?.user?.user_metadata?.role vs current 'type'
+          // Only Active Instructors (and other roles) can login
+          if (data.user) {
+            const statusCheck = await api.checkUserStatus(data.user.id);
+            if (!statusCheck.active) {
+              await supabase.auth.signOut();
+              setError(statusCheck.message || "Your account is inactive. Please contact administrator.");
+              setIsLoading(false);
+              return;
+            }
+          }
 
           navigate(role === 'student' ? '/dashboard' : '/admin');
         }

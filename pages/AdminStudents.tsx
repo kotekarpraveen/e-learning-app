@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
 import { Student } from '../types';
+import { useToast } from '../context/ToastContext';
 
 // --- Mock Data Stats (Updated Palette) ---
 const STUDENT_STATS = [
@@ -17,7 +18,10 @@ const STUDENT_STATS = [
     { label: 'Suspended', value: '12', change: '-1%', icon: <UserX className="text-red-700" size={24} />, bg: 'bg-red-50' },
 ];
 
+const MotionDiv = motion.div as any;
+
 export const AdminStudents: React.FC = () => {
+    const { success, error } = useToast();
     const [students, setStudents] = useState<Student[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -104,9 +108,9 @@ export const AdminStudents: React.FC = () => {
             setIsModalOpen(false);
             // Re-fetch to see the proper DB state (especially the real UUID)
             await fetchData();
-            alert(result.message);
+            success(result.message);
         } else {
-            alert(`Error: ${result.message}`);
+            error(result.message);
         }
 
         setIsLoading(false);
@@ -117,9 +121,9 @@ export const AdminStudents: React.FC = () => {
             const result = await api.deleteStudent(id);
             if (result.success) {
                 await fetchData();
-                alert(result.message);
+                success(result.message);
             } else {
-                alert(`Delete failed: ${result.message}`);
+                error(result.message);
             }
         }
     };

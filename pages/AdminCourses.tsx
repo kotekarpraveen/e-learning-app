@@ -8,8 +8,10 @@ import { api } from '../lib/api';
 import { Course } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { AdminCourseCard } from '../components/AdminCourseCard';
+import { useToast } from '../context/ToastContext';
 
 export const AdminCourses: React.FC = () => {
+    const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
@@ -52,14 +54,15 @@ export const AdminCourses: React.FC = () => {
         try {
             const result = await api.deleteCourse(courseToDelete);
             if (result.success) {
+                success('Course deleted successfully');
                 setCourses(prev => prev.filter(c => c.id !== courseToDelete));
                 setCourseToDelete(null); // Close modal on success
             } else {
-                alert("Failed to delete course: " + result.message);
+                toastError("Failed to delete course: " + result.message);
             }
         } catch (error) {
             console.error("Delete failed", error);
-            alert("An unexpected error occurred.");
+            toastError("An unexpected error occurred.");
         } finally {
             setIsDeleting(false);
         }

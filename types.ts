@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   avatar?: string;
   permissions?: string[]; // List of permission codes
+  status?: string;
 }
 
 export interface Student {
@@ -23,7 +24,7 @@ export interface Student {
   bio?: string;
 }
 
-export type PermissionCode = 
+export type PermissionCode =
   | 'manage_users'
   | 'manage_team'
   | 'create_course'
@@ -107,7 +108,7 @@ export interface Course {
   enrolledStudents?: number;
   published?: boolean;
   duration?: string;
-  
+
   // New Fields for Ratings and FAQ
   averageRating?: number;
   totalReviews?: number;

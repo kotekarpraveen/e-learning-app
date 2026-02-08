@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { Course } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../lib/currency';
+import { useToast } from '../context/ToastContext';
 
 const MotionDiv = motion.div as any;
 
@@ -52,6 +53,7 @@ const ChartBar: React.FC<{ height: number, label: string, delay: number }> = ({ 
 );
 
 export const AdminDashboard: React.FC = () => {
+   const { success, error } = useToast();
    const navigate = useNavigate();
    const { user } = useAuth();
    const [isLoading, setIsLoading] = useState(true);
@@ -125,10 +127,10 @@ export const AdminDashboard: React.FC = () => {
       setIsSeeding(false);
 
       if (result.success) {
-         alert(result.message);
-         window.location.reload();
+         success(result.message);
+         setTimeout(() => window.location.reload(), 1500);
       } else {
-         alert(`Error: ${result.message}`);
+         error(`Error: ${result.message}`);
       }
    };
 

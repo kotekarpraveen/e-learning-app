@@ -113,8 +113,8 @@ create table if not exists public.user_progress (
 
 create table if not exists public.transactions (
   id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id),
-  course_id text references public.courses(id),
+  user_id uuid references public.profiles(id) on delete cascade,
+  course_id text references public.courses(id) on delete cascade,
   amount numeric not null,
   status text not null,
   method text,
@@ -141,7 +141,7 @@ create table if not exists public.content_assets (
   file_url text,
   file_size text,
   metadata jsonb,
-  created_by uuid references public.profiles(id),
+  created_by uuid references public.profiles(id) on delete cascade,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
@@ -223,6 +223,12 @@ begin
   end if;
   if not exists (select from pg_policies where policyname = 'Users can update own profile') then
     create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
+  end if;
+  if not exists (select from pg_policies where policyname = 'Admins can update all profiles') then
+    create policy "Admins can update all profiles" on public.profiles for update using (public.check_user_role(ARRAY['admin', 'super_admin']));
+  end if;
+  if not exists (select from pg_policies where policyname = 'Admins can delete profiles') then
+    create policy "Admins can delete profiles" on public.profiles for delete using (public.check_user_role(ARRAY['admin', 'super_admin']));
   end if;
 
   -- CATEGORIES
